@@ -40,7 +40,7 @@ wsapi.connect();  // ✅ 检测到 wsapi
 | `page.js` | `Page(`、`this.setData(`、`getCurrentPages(` | Page 函数（必需）|
 | `qrcode.js` | `QRCode`、`new QRCode(` | 二维码生成 |
 | `reactive.js` | `$reactive(`、`.observe(`、`.computed(` | 响应式系统 |
-| `sxml.parser.js` | `s:for=`、`s:if=.*{{`、`parseTemplate(` | SXML 运行时解析 |
+| `sxml.parser.js` | （已弃用） | 早期的运行时解析器，现所有指令均在编译期处理 |
 
 ### 3. 依赖链
 
@@ -86,7 +86,7 @@ config.js → api-sign-map.js
 11. onload.js        <!-- 页面加载器 -->
 12. qrcode.js        <!-- 二维码 -->
 13. reactive.js      <!-- 响应式 -->
-14. sxml.parser.js   <!-- SXML 解析器 -->
+14. sxml.parser.js   <!-- 已弃用：不再在浏览器加载 -->
 ```
 
 ---
@@ -156,7 +156,7 @@ new QRCode(...)
 ✅ config.js
 ✅ page.js
 ✅ onload.js
-✅ sxml.parser.js  （运行时解析）
+❌ sxml.parser.js  （已弃用，改为编译期处理）
 ```
 
 **引入脚本数量**：5 个
@@ -228,7 +228,7 @@ new QRCode(...)
 <script src="../../utils/onload.js"></script>
 <script src="../../utils/qrcode.js"></script>
 <script src="../../utils/reactive.js"></script>
-<script src="../../utils/sxml.parser.js"></script>
+<!-- sxml.parser.js 不再需要 -->
 ```
 
 #### 新系统（按需引入）

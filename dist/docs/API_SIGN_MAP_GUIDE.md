@@ -8,7 +8,7 @@
 
 ```
 config/
-  ├── app.config.json      # 应用主配置
+  ├── app.config.js        # 应用主配置（或 app.config.{env}.js）
   └── api-sign-map.js      # API 签名映射配置 ⭐
 ```
 
@@ -177,7 +177,7 @@ console.log('API_CONFIG.SIGN_MAP:', window.API_CONFIG.SIGN_MAP);
 ```javascript
 // 在构建脚本中添加
 const configFiles = [
-  'config/app.config.json',
+  'config/app.config.js',
   'config/api-sign-map.js'
 ];
 

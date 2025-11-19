@@ -308,6 +308,15 @@ Page({
     this.loginInterface();
   },
 
+  // 表单提交（统一处理点击按钮和回车提交）
+  onFormSubmit(e) {
+    try {
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    } catch (_) {}
+    // 直接复用原有登录流程
+    this.loginEvent();
+  },
+
   // 登录接口
   async loginInterface() {
     try {

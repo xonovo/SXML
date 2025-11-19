@@ -4,7 +4,7 @@
 
 **配置文件中的明文密码存在严重泄露风险!**
 
-如果直接在 `config/app.config.json` 中写入密码:
+如果直接在 `config/app.config.js` 中写入密码:
 ```json
 {
   "smtp": {
@@ -36,7 +36,7 @@
 
 #### 步骤 1: 配置文件留空
 
-`config/app.config.json`:
+`config/app.config.js`:
 ```json
 {
   "alert": {
@@ -186,7 +186,7 @@ DINGTALK_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN
 .env.*.local
 
 # 配置文件 (如果包含敏感信息)
-config/app.config.json
+config/app.config.js
 ```
 
 #### 步骤 4: 创建示例文件
@@ -415,7 +415,7 @@ async function getSmtpPassword() {
 
 ```bash
 # 搜索配置文件历史
-git log -p config/app.config.json
+git log -p config/app.config.js
 
 # 搜索密码关键词
 git log -p --all -S "password" -- config/
@@ -436,13 +436,13 @@ git log --all --pretty=format: --name-only --diff-filter=A | sort -u | grep -E '
 2. **清理 Git 历史**
    ```bash
    # 使用 BFG Repo-Cleaner
-   java -jar bfg.jar --delete-files app.config.json
+  java -jar bfg.jar --delete-files app.config.js
    git reflog expire --expire=now --all
    git gc --prune=now --aggressive
    
    # 或使用 git-filter-branch
    git filter-branch --force --index-filter \
-     'git rm --cached --ignore-unmatch config/app.config.json' \
+  'git rm --cached --ignore-unmatch config/app.config.js' \
      --prune-empty --tag-name-filter cat -- --all
    ```
 

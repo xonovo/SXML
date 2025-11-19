@@ -1,81 +1,92 @@
 {
-  "version": "2.0.0",
-  "inputs": [
-    {
-      "id": "pageName",
-      "type": "promptString",
-      "description": "请输入新页面名称（支持子目录，如: user/profile）",
-      "default": "demo"
-    },
-    {
-      "id": "projectDir",
-      "type": "promptString",
-      "description": "请输入要创建新项目的目标目录（绝对路径或相对路径）",
-      "default": "../sxml-new-app"
-    }
-  ],
-  "tasks": [
-    {
-      "label": "SXML: New Page",
-      "type": "shell",
-      "command": "node",
-      "args": [
-        "scripts/new-page.js",
-        "${input:pageName}"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "SXML: New Project",
-      "type": "shell",
-      "command": "node",
-      "args": [
-        "scripts/new-project.js",
-        "${input:projectDir}"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "SXML Extension: Package VSIX",
-      "type": "shell",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npm run ext:package"
-      ],
-      "group": "build",
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      }
-    },
-    {
-      "label": "SXML Extension: Install",
-      "type": "shell",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npm run ext:install"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      }
-    },
-    {
-      "label": "SXML Extension: Package & Install",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "SXML Extension: Package VSIX",
-        "SXML Extension: Install"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      }
-    }
-  ]
+	"version": "2.0.0",
+	"inputs": [
+		{
+			"id": "pageName",
+			"type": "promptString",
+			"description": "请输入新页面名称（支持子目录，如: user/profile）",
+			"default": "demo"
+		},
+		{
+			"id": "projectDir",
+			"type": "promptString",
+			"description": "请输入要创建新项目的目标目录（绝对路径或相对路径）",
+			"default": "../sxml-new-app"
+		}
+	],
+	"tasks": [
+		{
+			"label": "SXML: New Page",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/new-page.js",
+				"${input:pageName}"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "SXML: New Project",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/new-project.js",
+				"${input:projectDir}"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "SXML Extension: Package VSIX",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npm run ext:package"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
+		},
+		{
+			"label": "SXML Extension: Install",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npm run ext:install"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
+		},
+		{
+			"label": "SXML Extension: Package & Install",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"SXML Extension: Package VSIX",
+				"SXML Extension: Install"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
+		},
+		{
+			"label": "SXML Dev Server (Keep Alive)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"dev"
+			],
+			"isBackground": true,
+			"group": "build"
+		}
+	]
 }

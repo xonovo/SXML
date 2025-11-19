@@ -1,26 +1,13 @@
 {
   "app": {
-    "name": "Your App",
-    "title": "Your App Management Entrance",
+    "name": "Your App Name",
+    "title": "Your App Management",
     "subtitle": "Management System",
-    "description": "Modern Web 3.0 Management System powered by SXML"
+    "description": "Your app description"
   },
   "api": {
     "baseUrl": "https://api.example.com",
-    "cspReportUrl": "/api/csp-report",
-    "wsUrl": "wss://api.example.com/ws",
-    "uploadUrl": "https://api.example.com/upload",
-    "downloadUrl": "https://api.example.com/download"
-  },
-  "upload": {
-    "maxFileSize": 10485760,
-    "maxFileSizeMB": 10,
-    "allowedTypes": ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-    "allowedExtensions": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".doc", ".docx", ".xls", ".xlsx"],
-    "imageMaxWidth": 4096,
-    "imageMaxHeight": 4096,
-    "chunkSize": 1048576,
-    "enableChunkUpload": true
+    "cspReportUrl": "/api/csp-report"
   },
   "external": {
     "ipGeoProvider": "https://ipapi.co",
@@ -28,60 +15,17 @@
   },
   "security": {
     "connectSrc": [
-      "'self'",
-      "https://api.example.com",
-      "wss://api.example.com",
-      "https://ipapi.co",
-      "https://api.ipify.org"
+      "https://api.example.com"
     ],
     "preconnectHosts": [
-      "https://api.example.com",
-      "https://ipapi.co",
-      "https://api.ipify.org"
+      "https://api.example.com"
     ]
   },
   "i18n": {
-    "defaultLocale": "en-US",
-    "fallbackLocale": "en-US"
-  },
-  "alert": {
-    "email": {
-      "enabled": true,
-      "smtp": {
-        "host": "smtp.example.com",
-        "port": 465,
-        "secure": true,
-        "auth": {
-          "user": "alerts@example.com",
-          "pass": "your-password-here"
-        }
-      },
-      "from": "Security Alerts <alerts@example.com>",
-      "to": ["admin@example.com", "security@example.com"],
-      "subject": "[Security Alert] {{event_type}}",
-      "rateLimit": {
-        "maxPerHour": 10,
-        "cooldownMinutes": 5
-      }
-    },
-    "dingtalk": {
-      "enabled": false,
-      "webhook": "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN",
-      "secret": "YOUR_SECRET"
-    },
-    "slack": {
-      "enabled": false,
-      "webhook": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-    }
-  },
-  "branding": {
-    "faviconPath": "../../images/logo1.png",
-    "logoPath": "../../images/logo1.png",
-    "logoAlt": "{{APP_NAME}}"
-  },
-  "_comments": {
-    "instructions": "Edit this file before deployment. Replace api.baseUrl with your backend domain, update connectSrc and preconnectHosts arrays. All {{APP_NAME}}, {{APP_TITLE}} placeholders in source will be replaced by app.name and app.title during build.",
-    "exampleICE": "For ICE Markets production, set api.baseUrl to 'https://www.ice-markets-app.com', app.name to 'ICE Markets', app.title to 'ICE Markets Login'.",
-    "alertEmail": "Configure alert.email.smtp with your SMTP server credentials. Set alert.email.to to recipient email addresses. Use environment variables in production: process.env.SMTP_USER, process.env.SMTP_PASS."
+    "defaultLocale": "zh-CN",
+    "supportedLocales": [
+      "zh-CN",
+      "en-US"
+    ]
   }
 }

@@ -158,7 +158,7 @@ async function deriveKey(baseKey, salt) {
 
 #### 当前配置检查
 
-- ✅ **已配置**: `config/app.config.json` 中 API baseUrl 使用 HTTPS
+- ✅ **已配置**: `config/app.config.js` 中 API baseUrl 使用 HTTPS
 - ⚠️ **缺失**: Nginx 配置文件未强制 HSTS
 - ⚠️ **缺失**: 未配置 TLS 1.3 优先级
 

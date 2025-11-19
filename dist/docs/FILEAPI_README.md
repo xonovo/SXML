@@ -15,7 +15,7 @@
 
 ### 1. 配置文件上传
 
-编辑 `config/app.config.json`：
+编辑 `config/app.config.js`（或对应环境的 `app.config.{env}.js`）：
 
 ```json
 {
@@ -137,7 +137,7 @@ document.getElementById('preview').src = imageUrl;
 
 ## 配置选项
 
-### 全局配置（config/app.config.json）
+### 全局配置（config/app.config.js）
 
 ```json
 {
@@ -623,7 +623,7 @@ Page({
 **症状**: 提示"不支持的文件类型"或"文件大小超过限制"
 
 **解决方案**:
-1. 检查 `config/app.config.json` 中的 `upload.allowedTypes` 和 `upload.allowedExtensions`
+1. 检查 `config/app.config.js` 中的 `upload.allowedTypes` 和 `upload.allowedExtensions`
 2. 检查 `upload.maxFileSize` 是否足够大
 3. 确认文件实际类型和扩展名
 

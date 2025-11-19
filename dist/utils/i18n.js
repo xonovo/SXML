@@ -172,6 +172,12 @@
 
       // data-i18n: textContent
       scope.querySelectorAll('[data-i18n]').forEach(el => {
+        // 跳过语言切换器及其子元素（option 标签应保持原生语言名称）
+        const langSelector = document.getElementById('langSelect');
+        if (langSelector && (el === langSelector || langSelector.contains(el))) {
+          return; // 跳过语言切换器
+        }
+        
         const key = el.getAttribute('data-i18n');
         const val = this.t(key, el.textContent);
         // Preserve line breaks if provided with \n
@@ -198,6 +204,12 @@
         el.setAttribute('aria-label', this.t(key, el.getAttribute('aria-label')));
       });
 
+      // Alt attribute for images/icons
+      scope.querySelectorAll('[data-i18n-alt]').forEach(el => {
+        const key = el.getAttribute('data-i18n-alt');
+        el.setAttribute('alt', this.t(key, el.getAttribute('alt')));
+      });
+
       // Update <title> if a key is provided
       const titleKey = document.documentElement.getAttribute('data-i18n-title-key');
       if (titleKey) {
@@ -206,7 +218,13 @@
 
       // Sync language selector if present
       const sel = document.getElementById('langSelect');
-      if (sel && sel.value !== this.lang) sel.value = this.lang;
+      if (sel) {
+        // 确保选择器值与当前语言一致，避免显示错误
+        if (sel.value !== this.lang) {
+          console.log('[i18n] syncing langSelect from', sel.value, 'to', this.lang);
+          sel.value = this.lang;
+        }
+      }
 
       // Update <html lang="...">
       document.documentElement.setAttribute('lang', this.lang);

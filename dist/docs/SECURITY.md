@@ -17,11 +17,11 @@
 
 ### 1. 安全配置文件
 
-系统通过 `config/app.config.json` 集中管理安全相关配置。
+系统通过 `config/app.config.js`（或 `config/app.config.{env}.js`）集中管理安全相关配置。
 
 #### 配置位置
 ```
-config/app.config.json
+config/app.config.js
 ```
 
 #### 安全相关配置项
@@ -56,7 +56,7 @@ config/app.config.json
    - DNS 预连接 `<link rel="preconnect">`
    - 页面标题和 meta 标签
 
-2. **运行时加载**：`utils/config.js` 在浏览器中异步加载配置
+2. **运行时加载**：`utils/config.js` 会优先使用预注入的 `window.APP_CONFIG`（由 `config/app.config.{env}.js` 提供），无需再发起 JSON 请求
    - 设置 `window.APP_CONFIG`
    - 配置 API 基础 URL
    - i18n 占位符替换
@@ -310,11 +310,11 @@ function secureLogout() {
 
 ### 1. CSP 配置管理
 
-系统通过 `config/app.config.json` 管理 CSP 白名单，并在编译时自动注入到 HTML。
+系统通过 `config/app.config.js` 管理 CSP 白名单，并在编译时自动注入到 HTML。
 
 #### 配置 CSP 白名单
 
-编辑 `config/app.config.json`：
+编辑 `config/app.config.js`：
 
 ```json
 {
@@ -387,7 +387,7 @@ function secureLogout() {
 - ⭐ 通过配置文件集中管理可信域名
 
 ⚠️ **重要提示**：
-- 添加新的外部服务时，必须更新 `config/app.config.json` 的 `security.connectSrc`
+- 添加新的外部服务时，必须更新 `config/app.config.js` 的 `security.connectSrc`
 - 修改配置后需要重新构建：`npm run build`
 - 生产环境建议通过 Nginx HTTP 头部设置 CSP（优先级高于 meta）
 
@@ -520,7 +520,7 @@ server {
 
 1. **编辑配置文件**：
 ```bash
-vi config/app.config.json
+vi config/app.config.js
 ```
 
 2. **添加域名到白名单**：
@@ -555,7 +555,7 @@ Refused to connect to 'https://unauthorized-domain.com' because it violates the 
 
 **解决方法**：
 1. 确认该域名是否为可信来源
-2. 添加到 `config/app.config.json` 的 `security.connectSrc`
+2. 添加到 `config/app.config.js` 的 `security.connectSrc`
 3. 重新构建并部署
 
 ---
@@ -576,7 +576,7 @@ app.get('*', (req, res) => {
 ### 3. CORS 配置
 
 ```javascript
-// config.js 中的域名配置
+// config.js 中的域名读取
 const ALLOWED_ORIGINS = [
   'https://www.ice-markets-app.com',
   'https://ice-markets-app.com'

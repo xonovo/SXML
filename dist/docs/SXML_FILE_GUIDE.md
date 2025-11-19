@@ -111,7 +111,7 @@ dist/
         <!-- 列表渲染 -->
         <view s-for="item in list">{{item}}</view>
         
-        <!-- 显示控制 -->
+      <!-- 显示控制（编译期计算：为假则注入 display:none，不移除 DOM） -->
    <view s:show="codeStatus">扫码登录</view>
     </view>
 </body>
@@ -224,10 +224,10 @@ npm run build
 A: 可以。系统优先使用 `.sxml`，如果不存在则使用 `.html`。
 
 **Q: 必须使用预编译吗？**
-A: 不是。`.sxml` 文件也可以在浏览器中直接用运行时解析器打开。
+A: 推荐并默认使用预编译。早期提供的运行时解析器已弃用，浏览器端不再加载 `sxml.parser.js`。
 
 **Q: 预编译后还需要 sxml.parser.js 吗？**
-A: 不需要。预编译后的HTML是纯HTML，不需要运行时解析器。
+A: 不需要。所有 `s:*` 指令在编译期处理，浏览器端无需再解析模板，`sxml.parser.js` 已弃用。
 
 **Q: 如何调试 .sxml 编译错误？**
 A: 开发服务器会在页面上显示编译错误详情，也会在终端输出日志。

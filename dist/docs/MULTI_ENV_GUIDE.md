@@ -10,7 +10,7 @@
 
 ### 1. 开发环境 (Development)
 
-**配置文件**: `config/app.config.dev.json`
+**配置文件**: `config/app.config.dev.js`
 
 **特点**:
 - API 地址: `http://localhost:8080`
@@ -25,7 +25,7 @@
 
 ### 2. 测试环境 (Test)
 
-**配置文件**: `config/app.config.test.json`
+**配置文件**: `config/app.config.test.js`
 
 **特点**:
 - API 地址: `https://test-api.example.com`
@@ -40,7 +40,7 @@
 
 ### 3. 生产环境 (Production)
 
-**配置文件**: `config/app.config.prod.json` 或 `config/app.config.json`
+**配置文件**: `config/app.config.prod.js`（生产）或 `config/app.config.js`（默认）
 
 **特点**:
 - API 地址: `https://api.example.com`
@@ -57,7 +57,7 @@
 
 所有环境配置文件具有相同的结构：
 
-```json
+```jsonc
 {
   "env": "development|test|production",
   "app": {
@@ -97,6 +97,7 @@
   }
 }
 ```
+说明：实际以 JS UMD 形式分发（同时适配浏览器与 Node）：`(function(root,factory){...})(this,function(){ return { ... } })`。
 
 ---
 
@@ -153,7 +154,7 @@ http://localhost:3000/
 
 ```
 代理路径: /supper-interface, /scanlogin
-代理目标: 读取 config/app.config.{env}.json 的 api.baseUrl（缺省回退到 app.config.json 或 API_TARGET 环境变量）
+代理目标: 读取 `config/app.config.{env}.js` 的 `api.baseUrl`（缺省回退到 `config/app.config.js` 或 `API_TARGET` 环境变量）
 ```
 
 因此无需使用旧版 `dev-server.js`，所有开发场景均可用同一命令：
@@ -204,7 +205,7 @@ $ node build.js dev
   环境: DEV
 ═══════════════════════════════════════
 
-✅ 已加载 DEV 环境配置: /config/app.config.dev.json
+✅ 已加载 DEV 环境配置(JS): /config/app.config.dev.js
 ```
 
 ### 测试环境
@@ -216,7 +217,7 @@ $ node build.js test
   环境: TEST
 ═══════════════════════════════════════
 
-✅ 已加载 TEST 环境配置: /config/app.config.test.json
+✅ 已加载 TEST 环境配置(JS): /config/app.config.test.js
 ```
 
 ### 生产环境
@@ -228,7 +229,7 @@ $ node build.js
   环境: PRODUCTION
 ═══════════════════════════════════════
 
-✅ 已加载 PRODUCTION 环境配置: /config/app.config.json
+✅ 已加载 PROD 环境配置(JS): /config/app.config.prod.js
 ```
 
 ---

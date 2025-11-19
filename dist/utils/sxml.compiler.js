@@ -24,31 +24,33 @@ class SXMLCompiler {
    * @returns {Object} 配置对象
    */
   loadAppConfig() {
-    // 根据环境变量确定配置文件
-    const envSuffix = this.env === 'production' ? '' : `.${this.env}`;
-    const configFileName = `app.config${envSuffix}.json`;
-    const configPath = path.resolve(__dirname, '..', 'config', configFileName);
-    
-    try {
-      if (fs.existsSync(configPath)) {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(content);
-        console.log(`✅ 已加载 ${this.env.toUpperCase()} 环境配置:`, configPath);
-        return config;
-      } else {
-        console.warn(`⚠️  配置文件不存在: ${configPath}`);
-        // 尝试加载默认配置
-        const defaultPath = path.resolve(__dirname, '..', 'config', 'app.config.json');
-        if (fs.existsSync(defaultPath)) {
-          const content = fs.readFileSync(defaultPath, 'utf-8');
-          const config = JSON.parse(content);
-          console.log('✅ 已加载默认配置:', defaultPath);
-          return config;
+    // 仅使用 JS 配置；不再读取 JSON
+    const envRaw = String(this.env || '').toLowerCase();
+    const envAlias = envRaw === 'production' || envRaw === 'prod' ? 'prod'
+                    : envRaw === 'test' ? 'test'
+                    : 'dev';
+
+    const candidates = [
+      path.resolve(__dirname, '..', 'config', `app.config.${envAlias}.js`),
+      path.resolve(__dirname, '..', 'config', 'app.config.js')
+    ];
+
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) {
+          const cfg = require(p);
+          if (cfg && typeof cfg === 'object') {
+            const tag = p.includes(`.${envAlias}.js`) ? `${envAlias.toUpperCase()}` : 'DEFAULT';
+            console.log(`✅ 已加载 ${tag} 环境配置(JS):`, p);
+            return cfg;
+          }
         }
+      } catch (e) {
+        console.warn(`⚠️  读取配置失败: ${p}: ${e.message}`);
       }
-    } catch (e) {
-      console.warn('⚠️  无法加载配置文件，使用默认值:', e.message);
     }
+
+    console.warn('⚠️  未找到 JS 配置，使用内置默认值');
     
     // 默认配置
     return {
@@ -143,7 +145,7 @@ class SXMLCompiler {
     const combinedContent = sxmlContent + '\n' + jsContent;
 
     // 定义依赖检测规则（模块名 -> 检测特征）
-    const dependencyRules = {
+  const dependencyRules = {
       'jQuery_v3.js': [
         /\$\(/,                           // $( 或 $.
         /jQuery/,
@@ -207,20 +209,24 @@ class SXMLCompiler {
         /\.observe\(/,
         /\.computed\(/
       ],
-      'sxml.parser.js': [
-        /s:for=/,                         // SXML 动态指令（运行时解析）
-        /s:if=.*\{\{/,                    // 运行时条件
-        /s:show=/,                        // 显示/隐藏指令
-  /s:show=/,                        // 显示/隐藏指令（编译后格式）
-        /parseTemplate\(/
-      ]
+  /*
+   * 运行时 SXML 解析器已弃用：所有指令均在编译阶段处理。
+   * 如需恢复，请重新启用下方规则并在 loadOrder 中加入 'sxml.parser.js'。
+   * 'sxml.parser.js': [ /s:for=/, /s:if=.*\{\{/, /s:show=/, /parseTemplate\(/ ]
+   */
     };
 
     // 核心依赖（始终引入）
     const coreDeps = [
       'api-sign-map.js',  // API 签名映射（config.js 依赖）
       'config.js',        // 配置系统（几乎所有页面需要）
+      'app.js',           // 全局 App（类似微信小程序 getApp）
       'logger.js',        // 日志系统（安全审计、性能监控）
+      'zh-CN.js',         // 默认中文语言包（预加载，避免异步等待）
+      'en-US.js',         // 同时预加载英文，避免首次切换等待
+      'bootstrap.js',     // 轻量运行时桥与调试（语言切换桥等）
+      'rpx.js',           // rpx 自适应转换（SXML 模板可能含 rpx 单位）
+      'i18n.js',          // 国际化系统
       'toast.js',         // Toast 组件（全局 ShowToast 等）
       'page.js',          // Page 函数（必需）
       'onload.js'         // 页面加载器（必需）
@@ -271,7 +277,12 @@ class SXMLCompiler {
       'md5.js',            // 哈希库
       'api-sign-map.js',   // API 签名映射（必须在 config.js 之前）
       'config.js',         // 配置系统
+      'app.js',            // 全局 App（在业务之前）
       'logger.js',         // 日志系统（在业务逻辑之前初始化）
+      'bootstrap.js',      // 运行时桥接/调试（尽早加载）
+      'rpx.js',            // rpx 适配需尽早处理行内样式
+      'zh-CN.js',          // 预加载中文语言包（在 i18n.js 之前同步可用）
+      'en-US.js',          // 预加载英文语言包（避免首次切换等待）
       'i18n.js',           // 国际化
       'sapi.js',           // API 调用
       'wsapi.js',          // WebSocket
@@ -280,8 +291,7 @@ class SXMLCompiler {
       'page.js',           // Page 函数
       'onload.js',         // 页面加载器
       'qrcode.js',         // 二维码
-      'reactive.js',       // 响应式
-      'sxml.parser.js'     // SXML 解析器
+      'reactive.js'        // 响应式
     ];
 
     // 按顺序返回
@@ -295,6 +305,10 @@ class SXMLCompiler {
   generateScriptTags() {
     const scripts = [];
     const deps = this.pageDependencies || [];
+    // 开发环境下添加缓存破坏参数，避免浏览器缓存旧版脚本
+    const envRaw = String(this.env || '').toLowerCase();
+    const isDev = envRaw === 'dev' || envRaw === 'development';
+    const cacheBust = isDev ? (`?v=${Date.now()}`) : '';
 
     for (const module of deps) {
       let path = '';
@@ -302,10 +316,17 @@ class SXMLCompiler {
 
       // 确定文件路径和注释
       if (module === 'api-sign-map.js') {
-        path = '../../config/api-sign-map.js';
+        path = '../../config/api-sign-map.js' + cacheBust;
         comment = '<!-- API 签名映射配置（必须在 config.js 之前加载）-->';
+      } else if (module === 'app.js') {
+        path = `../../app.js${cacheBust}`;
+      } else if (module.match(/^(zh-CN|en-US)\.js$/)) {
+        // 语言包文件放在 locales/ 目录
+        path = `../../locales/${module}${cacheBust}`;
+      } else if (module === 'bootstrap.js') {
+        path = `../../utils/${module}${cacheBust}`;
       } else {
-        path = `../../utils/${module}`;
+        path = `../../utils/${module}${cacheBust}`;
       }
 
       // 添加注释（仅对特殊模块）
@@ -315,13 +336,39 @@ class SXMLCompiler {
 
       // 在加载 config.js 之前，注入当前环境对应的配置 URL（供 runtime 使用）
       if (module === 'config.js') {
-        const env = this.env || 'production';
-        const envSuffix = env === 'production' ? '' : `.${env}`;
-        const configFile = `../../config/app.config${envSuffix || ''}.json`;
-        scripts.push(`    <script>window.APP_CONFIG_URL = '${configFile}';</script>`);
+        const envRaw = String(this.env || 'production').toLowerCase();
+        let configFileJs;
+        if (envRaw === 'dev' || envRaw === 'development') {
+          configFileJs = '../../config/app.config.dev.js' + cacheBust;
+        } else if (envRaw === 'test') {
+          configFileJs = '../../config/app.config.test.js';
+        } else if (envRaw === 'prod' || envRaw === 'production') {
+          // 生产环境统一注入 prod 配置
+          configFileJs = '../../config/app.config.prod.js';
+        } else {
+          // 其他未知环境使用默认
+          configFileJs = '../../config/app.config.js';
+        }
+        // 直接加载 JS 配置以加速首屏，同时设置 APP_CONFIG_URL 供兜底逻辑使用
+        scripts.push(`    <script type="text/javascript" src="${configFileJs}"></script>`);
+        scripts.push(`    <script>window.APP_CONFIG_URL = '${configFileJs}';</script>`);
       }
 
       scripts.push(`    <script type="text/javascript" src="${path}"></script>`);
+      
+      // toast.js 加载后验证
+      if (module === 'toast.js') {
+        scripts.push(`    <script>
+      // 确保 Toast 可用（静默回退加载，不输出控制台日志）
+      (function(){
+        try {
+          if (typeof window.ShowToast !== 'function') {
+            fetch('../../utils/toast.js${cacheBust}').then(function(r){return r.text();}).then(function(code){ try{ eval(code); }catch(_){ } }).catch(function(){ /* silent */ });
+          }
+        } catch(_) {}
+      })();
+    </script>`);
+      }
     }
 
     return scripts.join('\n');
@@ -483,7 +530,7 @@ class SXMLCompiler {
     compiled = this.compileFor(compiled, data);
 
     // 5. 添加 HTML 结构（如果是纯 SXML）
-    compiled = this.wrapHtmlStructure(compiled);
+    compiled = this.wrapHtmlStructure(compiled, data);
 
     // 6. 添加编译标记注释
     compiled = this.addCompileMark(compiled);
@@ -518,7 +565,8 @@ class SXMLCompiler {
     for (const [wxEvent, htmlEvent] of Object.entries(eventMap)) {
       const regex = new RegExp(`\\s${wxEvent}\\s*=\\s*["']([^"']+)["']`, 'g');
       html = html.replace(regex, (match, handler) => {
-        return ` ${htmlEvent}="currentPage.${handler}(event)"`;
+  // 恢复为原始写法，便于开发调试，直接抛出异常暴露问题
+  return ` ${htmlEvent}="currentPage.${handler}(event)"`;
       });
     }
 
@@ -574,7 +622,7 @@ class SXMLCompiler {
   /**
    * 为纯 SXML 内容添加 HTML 结构
    */
-  wrapHtmlStructure(content) {
+  wrapHtmlStructure(content, data = {}) {
     // 检查是否已有 <!DOCTYPE html>
     if (content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')) {
       return content;
@@ -584,10 +632,24 @@ class SXMLCompiler {
     const config = this.pageConfig || {};
     const appConfig = this.appConfig || {};
     
-    // 标题：优先使用 pageConfig，然后使用 appConfig，最后使用默认值
-    const title = config.navigationBarTitleText || 
+    // 标题:优先使用 pageConfig,然后使用 appConfig,最后使用默认值
+    let title = config.navigationBarTitleText || 
                   (appConfig.app && appConfig.app.title) || 
                   'Your App';
+    
+    // 如果 title 包含模板变量,进行替换
+    if (title.includes('{{') && title.includes('}}')) {
+      title = title.replace(/\{\{([^}]+)\}\}/g, (match, expr) => {
+        expr = expr.trim();
+        try {
+          const value = this.evaluateExpression(expr, data);
+          return value !== undefined ? String(value) : match;
+        } catch (e) {
+          console.warn(`[wrapHtmlStructure] 无法替换标题中的模板变量: ${match}`, e);
+          return match;
+        }
+      });
+    }
 
     // 构建内联样式
     let bodyStyle = '';
@@ -614,8 +676,12 @@ class SXMLCompiler {
     const themeMeta = navBg ? `\n  <meta name="theme-color" content="${navBg}">` : '';
 
     // 构建页面专属CSS引用（如果存在）
+    // 开发环境下为 CSS 追加 cache-busting 参数，避免浏览器缓存导致样式不更新
+    const envRaw2 = String(this.env || '').toLowerCase();
+    const isDev2 = envRaw2 === 'dev' || envRaw2 === 'development';
+    const cssCacheBust = isDev2 ? (`?v=${Date.now()}`) : '';
     const pageCssLink = this.hasPageCss 
-      ? `  <link rel="preload" href="./${this.pageName}.css" as="style" />\n  <link rel="stylesheet" type="text/css" href="./${this.pageName}.css" />\n` 
+      ? `  <link rel="preload" href="./${this.pageName}.css${cssCacheBust}" as="style" />\n  <link rel="stylesheet" type="text/css" href="./${this.pageName}.css${cssCacheBust}" />\n` 
       : '';
 
     // 从外部配置读取安全策略和外部域
@@ -633,12 +699,42 @@ class SXMLCompiler {
     // Favicon 路径
     const faviconPath = (appConfig.branding && appConfig.branding.faviconPath) || '../../images/logo1.png';
 
+    const envRaw = String(this.env || '').toLowerCase();
+    const isProd = envRaw === 'prod' || envRaw === 'production';
+
+    const antiBotBlock = isProd ? `
+    <script>
+      (function(){
+        function detectBot(){
+          if (navigator.webdriver) return true;
+          if (window.navigator.plugins.length === 0) return true;
+          const ua = navigator.userAgent.toLowerCase();
+          const botPatterns = ['bot','crawl','spider','scrape','python','requests','urllib','scrapy','selenium','phantomjs'];
+          if (botPatterns.some(function(p){return ua.indexOf(p) >= 0;})) return true;
+          if (screen.width === 0 || screen.height === 0) return true;
+          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
+            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
+          }
+          return false;
+        }
+        function generateFingerprint(){
+          try{var c=document.createElement('canvas');var x=c.getContext('2d');x.textBaseline='top';x.font='14px Arial';x.fillText('browser fingerprint',2,2);return c.toDataURL().slice(-50);}catch(_){return 'na';}
+        }
+        if (detectBot()) {
+          document.body.innerHTML = '<div class="access-denied"><h1>Access Denied</h1><p>Automated access is not allowed.</p></div>';
+          console.error('Bot detected');
+          return;
+        }
+        try{ sessionStorage.setItem('_dfp', generateFingerprint()); }catch(_){}
+      })();
+    </script>` : '';
+
     return `<!DOCTYPE html>
 <html lang="zh-cn">
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- 安全策略 (CSP) - 临时允许内联样式和脚本以兼容现有代码 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src ${connectSrc}; base-uri 'self'; form-action 'self';">
   <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -671,18 +767,18 @@ ${pageCssLink}  <link rel="icon" href="${faviconPath}" type="image/x-icon" />
       opacity: 1; 
     }
     /* 仅隐藏需要替换文本内容的元素，避免把 input/button 等交互控件隐藏 */
-    [data-i18n],
-    [data-i18n-html] {
+    [data-i18n]:not(input):not(button):not(select):not(textarea),
+    [data-i18n-html]:not(input):not(button):not(select):not(textarea) {
       visibility: hidden;
     }
     .i18n-ready [data-i18n],
     .i18n-ready [data-i18n-html] {
       visibility: visible;
+    }
     /* Bot 检测拒绝访问样式 */
     .access-denied {
       padding: 50px;
       text-align: center;
-    }
     }
   </style>
 ${bodyStyle}
@@ -697,55 +793,9 @@ ${this.generateScriptTags()}
     <script type="text/javascript" src="../../utils/page.loader.js"></script>
     
   <!-- 页面加载完成后显示内容：优先等待 i18n 就绪，最多延迟 800ms -->
+    ${antiBotBlock}
     <script>
       (function(){
-        // 反爬虫检测：检测自动化工具特征
-        function detectBot() {
-          // 检测 Headless 浏览器
-          if (navigator.webdriver) return true;
-          
-          // 检测 Puppeteer/Playwright
-          if (window.navigator.plugins.length === 0) return true;
-          
-          // 检测常见爬虫 User-Agent
-          const ua = navigator.userAgent.toLowerCase();
-          const botPatterns = ['bot', 'crawl', 'spider', 'scrape', 'python', 'requests', 'urllib', 'scrapy', 'selenium', 'phantomjs'];
-          if (botPatterns.some(pattern => ua.includes(pattern))) return true;
-          
-          // 检测不正常的屏幕尺寸
-          if (screen.width === 0 || screen.height === 0) return true;
-          
-          // 检测缺少常见浏览器对象
-          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
-            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
-          }
-          
-          return false;
-        }
-        
-        // 生成设备指纹
-        function generateFingerprint() {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          ctx.textBaseline = 'top';
-          ctx.font = '14px Arial';
-          ctx.fillText('browser fingerprint', 2, 2);
-          return canvas.toDataURL().slice(-50);
-        }
-        
-        // 如果检测到机器人，隐藏内容或重定向
-        if (detectBot()) {
-          document.body.innerHTML = '<div class="access-denied"><h1>Access Denied</h1><p>Automated access is not allowed.</p></div>';
-          console.error('Bot detected');
-          return;
-        }
-        
-        // 生成并存储设备指纹（用于后端验证）
-        try {
-          const fp = generateFingerprint();
-          sessionStorage.setItem('_dfp', fp);
-        } catch (e) { /* ignore */ }
-        
         function reveal(){
           if (!document.body.classList.contains('loaded')) {
             document.body.classList.add('loaded');
@@ -757,11 +807,9 @@ ${this.generateScriptTags()}
             reveal();
           } else {
             window.addEventListener('i18n:ready', reveal, { once: true });
-            // 兜底：若 800ms 内未就绪也先显示，避免白屏过久
             setTimeout(reveal, 800);
           }
         } else {
-          // 无 i18n 时按 DOMContentLoaded 或立即显示
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', reveal);
           } else {
@@ -794,8 +842,10 @@ ${this.generateScriptTags()}
     // 步骤2:替换其他所有 {{}}
     result = result.replace(/\{\{([^}]+)\}\}/g, (match, expr) => {
       expr = expr.trim();
+      console.log(`[compileDataBinding] 发现模板变量: {{${expr}}}`);
       try {
         const value = this.evaluateExpression(expr, data);
+        console.log(`[compileDataBinding] 替换结果: {{${expr}}} -> ${value}`);
         return value !== undefined ? String(value) : match;
       } catch (e) {
         console.warn(`⚠️  无法解析表达式: ${expr}`, e.message);
@@ -940,39 +990,23 @@ ${this.generateScriptTags()}
 
   /**
    * 编译显示/隐藏 s:show
-   * 编译时设置初始 display 样式,同时保留 s:show 属性供运行时动态更新
    */
   compileShow(html, data) {
-    const regex = /<([^>]+)\s+(s[:：]show)\s*=\s*["']([^"']+)["']([^>]*)>/g;
-    let processedCount = 0;
+    const showRegex = /<(\w+)([^>]*)\s+s:show\s*=\s*["']([^"']+)["']([^>]*)>/g;
     
-    const result = html.replace(regex, (match, before, attrName, condition, after) => {
-      processedCount++;
-      
-      // 评估表达式得到初始显示状态
-      const shouldShow = this.evaluateExpression(condition, data);
-      
-      // 检查是否已有 style 属性
-      const styleMatch = before.match(/\bstyle\s*=\s*["']([^"']*)["']/);
-      let newTag;
-      
-      if (styleMatch) {
-        // 已有 style,追加 display
-        const existingStyle = styleMatch[1];
-        const displayValue = shouldShow ? '' : 'none';
-        const newStyle = existingStyle + (existingStyle && !existingStyle.endsWith(';') ? ';' : '') + `display:${displayValue}`;
-        newTag = `<${before.replace(styleMatch[0], `style="${newStyle}"`)} ${attrName}="${condition}"${after}>`;
-      } else {
-        // 无 style,添加新的
-        const displayValue = shouldShow ? '' : 'none';
-        newTag = `<${before} style="display:${displayValue}" ${attrName}="${condition}"${after}>`;
+    return html.replace(showRegex, (match, tag, before, condition, after) => {
+      try {
+        const cond = this.unwrapMustache ? this.unwrapMustache(condition) : condition;
+        const result = this.evaluateExpression(cond, data);
+        const display = result ? '' : ' style="display:none;"';
+        
+        // 移除 s:show，添加 style
+        return `<${tag}${before}${after}${display}>`;
+      } catch (e) {
+        console.warn(`⚠️  s:show 条件解析失败: ${condition}`);
+        return match;
       }
-      
-      return newTag;
     });
-    
-    console.log(`[compileShow] 处理了 ${processedCount} 个 s:show 指令,设置初始 display 状态`);
-    return result;
   }
 
   /**
@@ -1036,6 +1070,19 @@ ${this.generateScriptTags()}
   }
 
   /**
+   * 判断值是否为真(空值当作 false)
+   * @param {*} value - 要判断的值
+   * @returns {boolean}
+   */
+  isTruthy(value) {
+    // null、undefined、空字符串、0、false 都视为假
+    if (value === null || value === undefined || value === '' || value === 0 || value === false) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * 求值表达式（安全版本，不使用 new Function）
    */
   evaluateExpression(expr, data) {
@@ -1093,6 +1140,15 @@ ${this.generateScriptTags()}
       
       // 5. 处理直接变量（如 userName）
       if (/^\w+$/.test(cleanExpr)) {
+        // 特殊处理：APP_* 全局配置变量
+        if (cleanExpr.startsWith('APP_') && this.appConfig && this.appConfig.app) {
+          const configKey = cleanExpr.replace('APP_', '').toLowerCase();
+          // APP_NAME -> app.name, APP_TITLE -> app.title
+          console.log(`[evaluateExpression] APP_ 变量: ${cleanExpr} -> configKey: ${configKey}, value:`, this.appConfig.app[configKey]);
+          if (this.appConfig.app[configKey] !== undefined) {
+            return this.appConfig.app[configKey];
+          }
+        }
         return data[cleanExpr];
       }
       
@@ -1148,16 +1204,20 @@ ${this.generateScriptTags()}
         const leftVal = this.evaluateExpression(left, data);
         
         if (op === '&&') {
-          return leftVal ? this.evaluateExpression(right, data) : leftVal;
+          // 空值当作 false
+          return this.isTruthy(leftVal) ? this.evaluateExpression(right, data) : false;
         } else if (op === '||') {
-          return leftVal ? leftVal : this.evaluateExpression(right, data);
+          // 空值当作 false
+          return this.isTruthy(leftVal) ? leftVal : this.evaluateExpression(right, data);
         }
       }
       
       // 12. 处理取反运算符（如 !isActive）
       if (cleanExpr.startsWith('!')) {
         const innerExpr = cleanExpr.slice(1).trim();
-        return !this.evaluateExpression(innerExpr, data);
+        const innerVal = this.evaluateExpression(innerExpr, data);
+        // 使用 isTruthy 来判断,空值当作 false
+        return !this.isTruthy(innerVal);
       }
       
       // 如果以上都不匹配，返回原值

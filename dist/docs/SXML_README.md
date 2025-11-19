@@ -1,9 +1,12 @@
 # SXML (Super XML) 使用指南
 
-> 重要提示（语法更新）
+> 重要提示（语法与架构更新）
 >
 > - 指令统一采用冒号语法：`s:if`、`s:show`、`s:for`（替代早期文档中的 `s-if/s-show/s-for`）。
-> - 指令中的条件/表达式需使用 Mustache 包裹：例如 `s:if="{{isLogin}}"`、`s:show="{{visible}}"`、`s:else-if="{{score >= 60}}"`。
+> - 指令条件支持两种写法：可用 `{{ }}` 包裹，也可直接写表达式（编译器会自动兼容并去壳）。例如：
+>   - `s:if="isLogin"` 或 `s:if="{{ isLogin }}"`
+>   - `s:show="score >= 60"` 或 `s:show="{{ score >= 60 }}"`
+> - 所有 SXML 指令均在“编译期”处理，浏览器端不再加载 `sxml.parser.js`。
 >
 > 文档中的部分示例可能仍保留旧写法，请以以上规则为准。
 
@@ -11,12 +14,18 @@ SXML 是声明式模板语法，让你可以使用声明式的方式编写页面
 
 ## 📦 快速开始
 
-### 1. 引入 SXML 解析器
+### 1. 运行方式（预编译）
 
-在页面 HTML 中引入 `sxml.parser.js`：
+开发阶段由开发服务器实时编译（`dev-server-sxml.js`），构建阶段由 `build.js` 预编译为纯 HTML。
+浏览器只需加载 `page.loader.js`（页面生命周期与入口），无需加载 `sxml.parser.js`。
+
+编译器会自动按页面依赖注入脚本（如 `utils/config.js`、`utils/i18n.js`）、并注入对应环境的配置脚本：
 
 ```html
-<script src="../../utils/sxml.parser.js"></script>
+<!-- 由编译器自动注入，示例（生产环境）-->
+<script src="../../config/app.config.prod.js"></script>
+<script>window.APP_CONFIG_URL = '../../config/app.config.prod.js';</script>
+<script src="../../utils/config.js"></script>
 <script src="../../utils/page.loader.js"></script>
 ```
 
@@ -64,16 +73,17 @@ Page({
 <view s-if="userType === 'admin'">Admin Panel</view>
 ```
 
-#### `s-show` - 控制显示/隐藏 (display: none)
+#### `s:show` - 控制显示/隐藏 (v-show 等效)
 
 ```xml
 <view s:show="loading">Loading...</view>
 <button s:show="!disabled">Submit</button>
 ```
 
-**区别：**
-- `s-if` 控制是否渲染到 DOM
-- `s-show` 仅控制 CSS display 属性
+**编译期语义：**
+- `s:if` 控制是否渲染到 DOM（不满足条件时完全移除）。
+- `s:show` 等效于 Vue 的 `v-show`：编译期计算表达式，条件为假时为元素增加 `style="display:none"`，条件为真时移除该属性。
+- 真值规则：`undefined`/`null`/空字符串/`0`/`false` 视为假，其余视为真。
 
 ---
 

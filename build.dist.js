@@ -62,6 +62,22 @@ function copyStaticDirs() {
   });
 }
 
+// 附加：复制根级别的通用入口脚本（app.js）到 dist 根目录
+function copyRootAppJs() {
+  try {
+    const src = path.join(SRC, 'app.js');
+    const dest = path.join(DIST, 'app.js');
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, dest);
+      console.log('  ✓ app.js');
+    } else {
+      console.warn('  ⚠️ 未找到根级 app.js，某些页面的 <script src="../../app.js"> 可能 404');
+    }
+  } catch (e) {
+    console.warn('  ⚠️ 复制 app.js 失败：', e.message);
+  }
+}
+
 // 步骤 4: 复制 utils 依赖（扫描 HTML 中引用的 js）
 function copyUtilsUsedByPages() {
   console.log('📚 复制 utils 依赖...');
@@ -102,6 +118,14 @@ function copyUtilsUsedByPages() {
       console.log(`  ✓ utils/${js}`);
     }
   }
+
+  // 兜底：拷贝整个 utils 目录，避免遗漏（例如正则未匹配到带参数的 script 或运行时动态加载）
+  try {
+    copyDir(utilsSrc, utilsDist);
+    console.log('  ✓ utils/ (full)');
+  } catch (e) {
+    console.warn('  ⚠️ utils 全量复制失败：', e.message);
+  }
 }
 
 // 步骤 5: 复制 index.html 到 dist 根目录
@@ -116,7 +140,8 @@ function copyIndex() {
     console.log('  ✓ 来自 pages/index/index.html');
   } else if (fs.existsSync(legacyIndex)) {
     fs.copyFileSync(legacyIndex, dest);
-    console.log('  ✓ 来自根目录 index.html（兼容旧版）');
+              // 允许带版本参数（?v=...）或其他查询串，例如 /utils/i18n.js?v=123
+              const regex = /<script[^>]+src=["'][\.\/?]*utils\/([^"']+\.js)(?:\?[^"']*)?["']/g;
   } else {
     console.warn('  ⚠️ 未找到首页源码（pages/index 或根目录 index.html）');
   }
@@ -147,7 +172,17 @@ function copyDocs() {
 cleanDist();
 buildPages();
 copyStaticDirs();
+copyRootAppJs();
 copyUtilsUsedByPages();
+// 额外复制 pages/webapp/vendor 依赖（本地 Swiper 等第三方库）
+(function copyWebappVendors(){
+  const srcVendor = path.join(SRC, 'pages', 'webapp', 'vendor');
+  const destVendor = path.join(DIST, 'pages', 'webapp', 'vendor');
+  if (fs.existsSync(srcVendor)) {
+    copyDir(srcVendor, destVendor);
+    console.log('  ✓ pages/webapp/vendor/');
+  }
+})();
 copyIndex();
 copyDocs();
 

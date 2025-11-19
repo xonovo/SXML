@@ -1,0 +1,410 @@
+/* Webapp 私有样式 - IEC Markets 布局 */
+.webapp-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+  color: #333;
+  padding: 0;
+}
+
+/* 全局重置 */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+}
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* 顶部 Header Bar */
+.header-bar {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.app-logo {
+  height: 42px;
+  width: auto; /* 保持纵横比，不变形 */
+  margin-right: 8px;
+  display: block;
+  object-fit: contain; /* 如果是 img 元素，确保缩放不裁剪 */
+}
+
+.header-title {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lang-btn {
+  padding: 6px 12px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lang-btn:hover {
+  background: #e0e0e0;
+}
+
+.notification-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.content {
+  flex: 1;
+  overflow-y: hidden; /* 首页不显示滚动条 */
+  padding: 0;
+  background: #f5f5f5;
+  min-height: 0;
+}
+
+.page-home {
+  /* 保持页面高度不超出可视区（减去 header + tabbar 高度） */
+  min-height: calc(100vh - 60px - 64px);
+  overflow: hidden;
+}
+
+/* Banner 轮播区 (Swiper) - 保留左右间距，不贴边 */
+.banner-swiper-container {
+  width: 100%;
+  /* 减小左右留白，让 banner 更宽 */
+  padding: 8px 8px 18px; /* 上 / 左右 / 下(为分页点预留内间距) */
+  position: relative;
+  box-sizing: border-box;
+  /* 透明背景，允许下方透出页面背景 */
+  background: transparent;
+  /* 限制轮播最大高度，避免图片放大占满整个可视区 */
+  max-height: 240px;
+  overflow: hidden;
+}
+
+.banner-swiper-container .swiper-wrapper {
+  display: flex;
+}
+
+.banner-swiper-container .swiper-slide {
+  width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  /* 尽量减少左右内边距，让图片更靠近边缘 */
+  padding: 0 4px; /* 每个 slide 内左右留白，调整此值改变间距 */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 使图片在 slide 中居中，避免被边缘裁切 */
+}
+
+.banner-img {
+  width: 100%;
+  max-width: 100%;
+  /* 固定高度并使用 object-fit 保持比例并剪裁，以避免图片被放大 */
+  height: 180px;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+  box-sizing: border-box;
+}
+
+/* 响应式：较小屏幕时降低轮播高度 */
+@media (max-width: 480px) {
+  .banner-swiper-container { max-height: 160px; }
+  .banner-img { height: 120px; }
+}
+
+.banner-swiper-container .swiper-pagination {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  bottom: 26px; /* 下移 26px，避免和 banner 贴得太近（使用 px 以兼容外部 CSS） */
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center; /* 使三个小点水平居中 */
+}
+
+.banner-swiper-container .swiper-pagination-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5); /* 未选中点：黑色 50% 透明 */
+  border: 0;
+}
+
+.banner-swiper-container .swiper-pagination-bullet-active {
+  background: #000; /* 选中点：纯黑 */
+  box-shadow: none; /* 清除原有阴影，保持简洁 */
+}
+
+/* 四合一功能入口 */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  padding: 20px 16px;
+  background: #fff;
+  margin: 0;
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.feature-item:active {
+  background: #f5f5f5;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+}
+
+.feature-label {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Section Title */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  padding: 16px 16px 12px;
+  color: #333;
+  background: #fff;
+  margin: 0;
+}
+
+/* Most Active 列表 */
+.most-active {
+  background: #fff;
+  padding: 0 16px 16px;
+}
+
+.active-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.active-row:last-child {
+  border-bottom: none;
+}
+
+.symbol-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.symbol-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.symbol-desc {
+  font-size: 12px;
+  color: #999;
+}
+
+.price-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-right: 12px;
+}
+
+.price-main {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.price-change {
+  font-size: 12px;
+  color: #ff6b6b;
+}
+
+.percent-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 60px;
+  text-align: center;
+}
+
+.badge-up {
+  background: #4caf50;
+  color: #fff;
+}
+
+.badge-down {
+  background: #f44336;
+  color: #fff;
+}
+
+/* 底部 tabbar */
+.tabbar {
+  display: flex;
+  height: 64px;
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+  padding: 0;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  transition: all 0.2s;
+}
+
+.tab-icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
+}
+
+.tab-label {
+  font-size: 11px;
+  color: #999;
+  font-weight: 500;
+}
+
+.tab-active .tab-label {
+  color: #ff5722;
+  font-weight: 600;
+}
+
+.tab:active {
+  background: #f5f5f5;
+}
+
+/* 页面切换 */
+.page {
+  width: 100%;
+}
+
+.page-home {
+  display: block;
+}
+
+.page-markets,
+.page-trades,
+.page-funds {
+  display: none;
+}
+
+/* 其他页面占位样式 */
+.page-markets,
+.page-trades,
+.page-funds {
+  padding: 16px;
+}
+
+.market-list,
+.trade-panel,
+.funds-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.tabbar{
+  height:64px;
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
+  border-top:1px solid rgba(255,255,255,0.03);
+  background:linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.12));
+  padding:6px 0;
+}
+.tab{background:none;border:0;outline:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;font-size:12px}
+.tab:active{opacity:0.8}
+.tab-icon{font-size:20px;margin-bottom:4px}
+.tab-label{font-size:11px}
+
+/* 页面切换过渡动画：禁用绝对定位，使用普通布局 */
+/* 
+.page{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  overflow:auto;
+  padding:12px;
+  opacity:0;
+  transform:translateY(6px);
+  transition:opacity .22s ease, transform .22s ease;
+  pointer-events:none;
+}
+.page.active{
+  opacity:1;
+  transform:translateY(0);
+  pointer-events:auto;
+}
+*/
+
+/* 运行时显示控制 (兼容旧的 hidden 类作为后备)
+   推荐在运行时移除 hidden 并使用 .active 控制可见性以便保留动画 */
+.hidden{display:none}
+
+/* 激活态样式 */
+.tab.active{color:var(--text)}
+.tab.active .tab-icon{color:var(--accent)}
+
+/* 响应式适配：在更大屏幕上居中显示最大宽度 */
+@media(min-width:700px){
+  .webapp-root{align-items:center}
+  .content{max-width:720px;width:100%}
+  .topbar{width:100%;max-width:720px}
+  .tabbar{max-width:720px;width:100%}
+}
+/* webapp 页面样式 */
+.container{ padding: 16px; }
+.title{ font-size: 20px; font-weight: 700; }

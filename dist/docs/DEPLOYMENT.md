@@ -58,11 +58,11 @@ sudo chmod 600 /etc/nginx/ssl/private.key
 
 ### 1. 编辑配置文件
 
-编辑 `config/app.config.json` 设置您的应用信息：
+编辑 `config/app.config.js`（或生产环境下的 `config/app.config.prod.js`）设置您的应用信息：
 
 ```bash
 # 编辑配置文件
-vi config/app.config.json
+vi config/app.config.js
 ```
 
 ### 2. 必须修改的配置项
@@ -117,7 +117,7 @@ vi config/app.config.json
 
 ```bash
 # 验证 JSON 格式是否正确
-node -e "console.log(JSON.parse(require('fs').readFileSync('config/app.config.json')))"
+node -e "console.log(require('./config/app.config.js'))"
 ```
 
 ---
@@ -135,7 +135,7 @@ cd your-backend
 npm install
 
 # ⭐ 编辑配置文件（必须在构建前完成）
-vi config/app.config.json
+vi config/app.config.prod.js
 
 # 构建生产版本（配置会自动注入）
 npm run build

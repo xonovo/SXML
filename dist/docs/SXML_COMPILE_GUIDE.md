@@ -81,7 +81,7 @@ ICE后台/
 SXML预编译器核心，支持：
 - ✅ `{{expression}}` 数据绑定
 - ✅ `s-if` 条件渲染
-- ✅ `s-show` 显示/隐藏
+- ✅ `s:show`（等效 v-show）显示/隐藏，编译期计算表达式，为假时注入 `display:none`
 - ✅ `s-for` 列表渲染
 
 ### dev-server-sxml.js
@@ -123,6 +123,7 @@ SXML预编译器核心，支持：
 ```html
 <!-- 编译前 -->
 <view s:show="codeStatus">内容</view>
+<!-- 编译后：codeStatus 为假时为该元素添加 style="display:none" -->
 
 <!-- 编译后（如果 codeStatus = false） -->
 <view style="display:none;">内容</view>

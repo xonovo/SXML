@@ -145,7 +145,7 @@ class SXMLCompiler {
     const combinedContent = sxmlContent + '\n' + jsContent;
 
     // 定义依赖检测规则（模块名 -> 检测特征）
-    const dependencyRules = {
+  const dependencyRules = {
       'jQuery_v3.js': [
         /\$\(/,                           // $( 或 $.
         /jQuery/,
@@ -223,6 +223,9 @@ class SXMLCompiler {
       'app.js',           // 全局 App（类似微信小程序 getApp）
       'logger.js',        // 日志系统（安全审计、性能监控）
       'zh-CN.js',         // 默认中文语言包（预加载，避免异步等待）
+      'en-US.js',         // 同时预加载英文，避免首次切换等待
+      'bootstrap.js',     // 轻量运行时桥与调试（语言切换桥等）
+      'rpx.js',           // rpx 自适应转换（SXML 模板可能含 rpx 单位）
       'i18n.js',          // 国际化系统
       'toast.js',         // Toast 组件（全局 ShowToast 等）
       'page.js',          // Page 函数（必需）
@@ -276,7 +279,10 @@ class SXMLCompiler {
       'config.js',         // 配置系统
       'app.js',            // 全局 App（在业务之前）
       'logger.js',         // 日志系统（在业务逻辑之前初始化）
+      'bootstrap.js',      // 运行时桥接/调试（尽早加载）
+      'rpx.js',            // rpx 适配需尽早处理行内样式
       'zh-CN.js',          // 预加载中文语言包（在 i18n.js 之前同步可用）
+      'en-US.js',          // 预加载英文语言包（避免首次切换等待）
       'i18n.js',           // 国际化
       'sapi.js',           // API 调用
       'wsapi.js',          // WebSocket
@@ -317,6 +323,8 @@ class SXMLCompiler {
       } else if (module.match(/^(zh-CN|en-US)\.js$/)) {
         // 语言包文件放在 locales/ 目录
         path = `../../locales/${module}${cacheBust}`;
+      } else if (module === 'bootstrap.js') {
+        path = `../../utils/${module}${cacheBust}`;
       } else {
         path = `../../utils/${module}${cacheBust}`;
       }
@@ -668,8 +676,12 @@ class SXMLCompiler {
     const themeMeta = navBg ? `\n  <meta name="theme-color" content="${navBg}">` : '';
 
     // 构建页面专属CSS引用（如果存在）
+    // 开发环境下为 CSS 追加 cache-busting 参数，避免浏览器缓存导致样式不更新
+    const envRaw2 = String(this.env || '').toLowerCase();
+    const isDev2 = envRaw2 === 'dev' || envRaw2 === 'development';
+    const cssCacheBust = isDev2 ? (`?v=${Date.now()}`) : '';
     const pageCssLink = this.hasPageCss 
-      ? `  <link rel="preload" href="./${this.pageName}.css" as="style" />\n  <link rel="stylesheet" type="text/css" href="./${this.pageName}.css" />\n` 
+      ? `  <link rel="preload" href="./${this.pageName}.css${cssCacheBust}" as="style" />\n  <link rel="stylesheet" type="text/css" href="./${this.pageName}.css${cssCacheBust}" />\n` 
       : '';
 
     // 从外部配置读取安全策略和外部域
@@ -687,12 +699,42 @@ class SXMLCompiler {
     // Favicon 路径
     const faviconPath = (appConfig.branding && appConfig.branding.faviconPath) || '../../images/logo1.png';
 
+    const envRaw = String(this.env || '').toLowerCase();
+    const isProd = envRaw === 'prod' || envRaw === 'production';
+
+    const antiBotBlock = isProd ? `
+    <script>
+      (function(){
+        function detectBot(){
+          if (navigator.webdriver) return true;
+          if (window.navigator.plugins.length === 0) return true;
+          const ua = navigator.userAgent.toLowerCase();
+          const botPatterns = ['bot','crawl','spider','scrape','python','requests','urllib','scrapy','selenium','phantomjs'];
+          if (botPatterns.some(function(p){return ua.indexOf(p) >= 0;})) return true;
+          if (screen.width === 0 || screen.height === 0) return true;
+          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
+            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
+          }
+          return false;
+        }
+        function generateFingerprint(){
+          try{var c=document.createElement('canvas');var x=c.getContext('2d');x.textBaseline='top';x.font='14px Arial';x.fillText('browser fingerprint',2,2);return c.toDataURL().slice(-50);}catch(_){return 'na';}
+        }
+        if (detectBot()) {
+          document.body.innerHTML = '<div class="access-denied"><h1>Access Denied</h1><p>Automated access is not allowed.</p></div>';
+          console.error('Bot detected');
+          return;
+        }
+        try{ sessionStorage.setItem('_dfp', generateFingerprint()); }catch(_){}
+      })();
+    </script>` : '';
+
     return `<!DOCTYPE html>
 <html lang="zh-cn">
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- 安全策略 (CSP) - 临时允许内联样式和脚本以兼容现有代码 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src ${connectSrc}; base-uri 'self'; form-action 'self';">
   <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -751,55 +793,9 @@ ${this.generateScriptTags()}
     <script type="text/javascript" src="../../utils/page.loader.js"></script>
     
   <!-- 页面加载完成后显示内容：优先等待 i18n 就绪，最多延迟 800ms -->
+    ${antiBotBlock}
     <script>
       (function(){
-        // 反爬虫检测：检测自动化工具特征
-        function detectBot() {
-          // 检测 Headless 浏览器
-          if (navigator.webdriver) return true;
-          
-          // 检测 Puppeteer/Playwright
-          if (window.navigator.plugins.length === 0) return true;
-          
-          // 检测常见爬虫 User-Agent
-          const ua = navigator.userAgent.toLowerCase();
-          const botPatterns = ['bot', 'crawl', 'spider', 'scrape', 'python', 'requests', 'urllib', 'scrapy', 'selenium', 'phantomjs'];
-          if (botPatterns.some(pattern => ua.includes(pattern))) return true;
-          
-          // 检测不正常的屏幕尺寸
-          if (screen.width === 0 || screen.height === 0) return true;
-          
-          // 检测缺少常见浏览器对象
-          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
-            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
-          }
-          
-          return false;
-        }
-        
-        // 生成设备指纹
-        function generateFingerprint() {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          ctx.textBaseline = 'top';
-          ctx.font = '14px Arial';
-          ctx.fillText('browser fingerprint', 2, 2);
-          return canvas.toDataURL().slice(-50);
-        }
-        
-        // 如果检测到机器人，隐藏内容或重定向
-        if (detectBot()) {
-          document.body.innerHTML = '<div class="access-denied"><h1>Access Denied</h1><p>Automated access is not allowed.</p></div>';
-          console.error('Bot detected');
-          return;
-        }
-        
-        // 生成并存储设备指纹（用于后端验证）
-        try {
-          const fp = generateFingerprint();
-          sessionStorage.setItem('_dfp', fp);
-        } catch (e) { /* ignore */ }
-        
         function reveal(){
           if (!document.body.classList.contains('loaded')) {
             document.body.classList.add('loaded');
@@ -811,11 +807,9 @@ ${this.generateScriptTags()}
             reveal();
           } else {
             window.addEventListener('i18n:ready', reveal, { once: true });
-            // 兜底：若 800ms 内未就绪也先显示，避免白屏过久
             setTimeout(reveal, 800);
           }
         } else {
-          // 无 i18n 时按 DOMContentLoaded 或立即显示
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', reveal);
           } else {

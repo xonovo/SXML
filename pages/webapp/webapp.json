@@ -1,12 +1,1 @@
-{
-  "navigationBarTitleText": "{{APP_TITLE}}",
-  "usingComponents": {},
-  "initialData": {
-    "priceBtc": "",
-    "priceEth": "",
-    "logoVariant": "white"
-  },
-  "style": {
-    "font-family": "'Microsoft YaHei', 'PingFangSC-Regular', sans-serif"
-  }
-}
+{"navigationBarTitleText":"webapp","usingComponents":{}}

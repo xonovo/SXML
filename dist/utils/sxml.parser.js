@@ -25,6 +25,8 @@
      * @param {HTMLElement} container - 容器元素
      */
     parse(container) {
+      console.log('🎯 [SXMLParser.parse] 开始解析容器:', container ? container.tagName : 'null');
+      
       if (!container) {
         console.warn('SXML: Container not found');
         return;
@@ -35,12 +37,16 @@
       
       // 解析数据绑定 {{ }}
       this.parseDataBinding(container);
+      
+      console.log('✅ [SXMLParser.parse] 解析完成');
     }
 
     /**
      * 解析指令 (s-if, s-for, s-show 等)
      */
     parseDirectives(container) {
+      console.log('🔧 [parseDirectives] 开始解析指令');
+      
       // 处理 s-for 指令
       this.parseFor(container);
       
@@ -55,6 +61,8 @@
       
       // 处理事件绑定 bind: 或 catch:
       this.parseEvents(container);
+      
+      console.log('✅ [parseDirectives] 指令解析完成');
     }
 
     /**
@@ -248,12 +256,17 @@
     parseShow(container) {
       const elements = container.querySelectorAll('[s-show],[s\\:show]');
       
+      console.log(`🔍 [parseShow] 找到 ${elements.length} 个 s:show 元素`);
+      
       elements.forEach(element => {
         const conditionRaw = element.getAttribute('s:show') || element.getAttribute('s-show');
         const condition = this.unwrapMustache(conditionRaw);
         
+        console.log(`📌 [parseShow] 元素:`, element.tagName, element.id || '', `原始条件: "${conditionRaw}" -> 解析后: "${condition}"`);
+        
         const render = () => {
           const result = this.evaluateExpression(condition);
+          console.log(`✨ [parseShow] 计算 "${condition}" = ${result}, 元素:`, element.tagName, element.id || '');
           element.style.display = result ? '' : 'none';
         };
         
@@ -562,15 +575,20 @@
 
   // 自动解析页面
   function autoParseOnLoad() {
+    console.log('🚀 [autoParseOnLoad] 开始自动解析, currentPage:', window.currentPage);
+    
     // 等待 Page 实例创建
     if (window.currentPage) {
       if (!globalParser) {
+        console.log('✅ [autoParseOnLoad] 创建 SXMLParser 实例');
         globalParser = new SXMLParser(window.currentPage);
         globalParser.parse(document.body);
         
         // 解析完成后显示页面内容
         document.body.classList.add('sxml-ready');
         console.log('✅ SXML parsed with currentPage');
+      } else {
+        console.log('⚠️  [autoParseOnLoad] globalParser 已存在,跳过');
       }
     } else {
       // 如果没有 Page 实例，延迟解析

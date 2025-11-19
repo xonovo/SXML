@@ -4,7 +4,7 @@
 >
 > **全新的适应 Web 3.0 开发框架** - 基于 SXML 模板引擎 + 响应式数据系统
 
-**开发者**: King, Rainbow Haruko
+**开发者**: Rainbow Haruko
 
 **📖 [在线文档](pages/docs/docs.html)** | **🚀 [快速开始](#快速开始)** | **💡 [GitHub](https://github.com/XujueKing/SXML)**
 
@@ -65,11 +65,11 @@ npm run build:prod
 npm run build
 ```
 
-**环境配置文件**：
-- `config/app.config.dev.json` - 开发环境（localhost）
-- `config/app.config.test.json` - 测试环境（test-api.example.com）
-- `config/app.config.prod.json` - 生产环境（api.example.com）
-- `config/app.config.json` - 默认配置（兼容旧版）
+**环境配置文件（JS UMD）**：
+- `config/app.config.dev.js` - 开发环境（localhost）
+- `config/app.config.test.js` - 测试环境（test-api.example.com）
+- `config/app.config.prod.js` - 生产环境（api.example.com）
+- `config/app.config.js` - 默认配置（fallback）
 
 **环境差异**：
 | 配置项 | 开发 | 测试 | 生产 |
@@ -82,16 +82,16 @@ npm run build
 
 ### 应用配置文件
 
-在使用本系统前，**必须先编辑配置文件** `config/app.config.json` 以设置您的应用品牌、域名和 API 地址。
+在使用本系统前，**必须先编辑配置文件** `config/app.config.js`（或 `config/app.config.{env}.js`）以设置您的应用品牌、域名和 API 地址。
 
 #### 配置文件位置
 ```
-config/app.config.json
+config/app.config.js
 ```
 
 #### 配置项说明
 
-```json
+```jsonc
 {
   "app": {
     "name": "Your App Name",              // 应用名称
@@ -124,6 +124,8 @@ config/app.config.json
 }
 ```
 
+说明：配置以 JS UMD 形式提供（同时支持浏览器与 Node）。浏览器端由编译器预注入 `window.APP_CONFIG`，`utils/config.js` 会直接使用该对象，无需再发起 JSON 请求。
+
 #### 模板占位符
 
 配置文件中的值会自动替换以下占位符：
@@ -142,14 +144,14 @@ config/app.config.json
 
 ```bash
 # 1. 复制配置模板（如需要）
-cp config/app.config.json config/app.config.prod.json
+cp config/app.config.js config/app.config.prod.js
 
 # 2. 编辑配置文件
 # 将 api.baseUrl 改为您的 API 服务器地址
 # 将 app.name 改为您的应用名称
 # 更新 security.connectSrc 添加您信任的域名
 
-# 3. 编译构建
+# 3. 编译构建（生产环境将注入 app.config.prod.js）
 npm run build
 
 # 配置会在编译时自动注入到 HTML 和 JavaScript 中

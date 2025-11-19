@@ -1,11 +1,319 @@
-<!-- webapp 页面（SXML 模板） -->
+<!-- Webapp 入口页面：响应式移动优先布局，底部 tabBar -->
+<view class="webapp-root">
+  <!-- 顶部安全区占位，确保刘海区域让出 -->
+  <view class="safe-top"></view>
+  <!-- 顶部 Logo 和语言切换区域 -->
 
-<view class="container">
-  <view class="header">
-    <text class="title">{{ pageTitle }}</text>
+  <!-- 主内容区 -->
+  <view class="content">
+    <!-- 所有页面都在编译后渲染，使用 JS 运行时切换显示 -->
+    <view class="pages-wrapper">
+      <view class="page page-home">
+        <!-- 首页专属头部：Logo + 语言切换，只在 home 显示 -->
+        <view class="header-bar home-only-header">
+          <img class="app-logo" src="../../images/app_logo_day.png" alt="ICE Markets" />
+          <view class="header-right">
+            <!-- 语言按钮（单一 onclick，避免编译叠加重复） -->
+            <button class="lang-btn" onclick="if(window.__langClickBridge){__langClickBridge(event)}else if(window.i18n){var n=window.i18n.lang==='zh-CN'?'en-US':'zh-CN';window.i18n.setLang(n);this.textContent=n==='zh-CN'?'English':'中文';}">English</button>
+            <button class="notification-btn" bindtap="showNotification" aria-label="通知">
+              <span class="bell-icon">🔔</span>
+            </button>
+          </view>
+        </view>
+          <!-- Banner 广告轮播区 (Swiper) -->
+          <view class="banner-swiper-container">
+            <view class="swiper-wrapper">
+              <view class="swiper-slide">
+                <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Wealth is at hand" />
+              </view>
+              <view class="swiper-slide">
+                <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 2" />
+              </view>
+              <view class="swiper-slide">
+                <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 3" />
+              </view>
+            </view>
+            <!-- 分页指示器 -->
+            <view class="swiper-pagination" style="transform: translateY(calc(10rpx - 10px));"></view>
+          </view>
+
+          <!-- 四合一功能入口 -->
+          <view class="feature-grid">
+            <button class="feature-item" data-key="deposit" bindtap="onFeature" data-i18n-aria-label="webapp.features.deposit">
+              <img class="feature-icon" src="../../images/app_home_1_day.png" alt="Deposit" data-i18n-alt="webapp.features.deposit" />
+              <div class="feature-label" data-i18n="webapp.features.deposit">Deposit</div>
+            </button>
+            <button class="feature-item" data-key="withdrawal" bindtap="onFeature" data-i18n-aria-label="webapp.features.withdrawal">
+              <img class="feature-icon" src="../../images/app_home_2_day.png" alt="Withdrawal" data-i18n-alt="webapp.features.withdrawal" />
+              <div class="feature-label" data-i18n="webapp.features.withdrawal">Withdrawal</div>
+            </button>
+            <button class="feature-item" data-key="help" bindtap="onFeature" data-i18n-aria-label="webapp.features.help">
+              <img class="feature-icon" src="../../images/app_home_3_day.png" alt="Help" data-i18n-alt="webapp.features.help" />
+              <div class="feature-label" data-i18n="webapp.features.help">Help</div>
+            </button>
+            <button class="feature-item" data-key="support" bindtap="onFeature" data-i18n-aria-label="webapp.features.support">
+              <img class="feature-icon" src="../../images/app_home_4_day.png" alt="Support" data-i18n-alt="webapp.features.support" />
+              <div class="feature-label" data-i18n="webapp.features.support">Support</div>
+            </button>
+          </view>
+
+          <!-- Most Active 列表 -->
+          <view class="section-title" data-i18n="webapp.sections.mostActive">Most Active</view>
+          <view class="most-active">
+            <view class="active-row">
+              <view class="symbol-info">
+                <div class="symbol-name">EURUSD</div>
+                <div class="symbol-desc">EUR/USD</div>
+              </view>
+              <view class="price-info">
+                <div class="price-main">1.17018</div>
+                <div class="price-change">+1.2356</div>
+              </view>
+              <view class="percent-badge badge-down">-0.47%</view>
+            </view>
+            <view class="active-row">
+              <view class="symbol-info">
+                <div class="symbol-name">XAUUSD</div>
+                <div class="symbol-desc">Gold</div>
+              </view>
+              <view class="price-info">
+                <div class="price-main">3634.48</div>
+                <div class="price-change"></div>
+              </view>
+              <view class="percent-badge badge-down">-0.03%</view>
+            </view>
+            <view class="active-row">
+              <view class="symbol-info">
+                <div class="symbol-name">XTIUSD</div>
+                <div class="symbol-desc">US Crude Oil</div>
+              </view>
+              <view class="price-info">
+                <div class="price-main">63.326</div>
+                <div class="price-change"></div>
+              </view>
+              <view class="percent-badge badge-up">+1.01%</view>
+            </view>
+            <view class="active-row">
+              <view class="symbol-info">
+                <div class="symbol-name">EURGBP</div>
+                <div class="symbol-desc">Euro to Poun</div>
+              </view>
+              <view class="price-info">
+                <div class="price-main">0.86508</div>
+                <div class="price-change"></div>
+              </view>
+              <view class="percent-badge badge-down">-0.37%</view>
+            </view>
+          </view>
+      </view>
+
+      <view class="page page-markets">
+        <view class="section-title">行情 (Markets)</view>
+        <view class="market-list">
+          <!-- 占位：实际应由 JS 或 websocket 填充 -->
+          <view class="market-row">BTC / USD <span class="price">${{ priceBtc || '---' }}</span></view>
+          <view class="market-row">ETH / USD <span class="price">${{ priceEth || '---' }}</span></view>
+        </view>
+      </view>
+
+      <view class="page page-trades">
+        <view class="section-title">交易 (Trades)</view>
+        <view class="trade-panel">下单面板占位（限价/市价/止损）</view>
+      </view>
+
+      <view class="page page-funds">
+        <!-- Tab 切换 -->
+        <view class="funds-tabs">
+          <button class="funds-tab active" data-type="capital" bindtap="switchFundsTab" data-i18n="webapp.funds.tabs.capital">Capital</button>
+          <button class="funds-tab" data-type="leveraged" bindtap="switchFundsTab" data-i18n="webapp.funds.tabs.leveraged">Leveraged</button>
+        </view>
+
+        <!-- Capital 页面 -->
+        <view class="funds-content funds-capital active">
+          <!-- 两层卡片容器 -->
+          <view class="asset-card-wrapper">
+            <!-- 内层：金色渐变卡片 -->
+            <view class="asset-card">
+              <view class="asset-main-row">
+                <!-- 左侧：Total asset balance -->
+                <view class="asset-left">
+                  <view class="asset-title" data-i18n="webapp.funds.capital.totalAssetBalance">Total asset balance</view>
+                  <view class="asset-amount">0.00 <text class="currency">USDT</text></view>
+                  <view class="asset-subtitle">≈ $0.00</view>
+                </view>
+                
+                <!-- 右侧：capital balance -->
+                <view class="asset-right">
+                  <view class="balance-label" data-i18n="webapp.funds.capital.capitalBalance">capital balance</view>
+                  <view class="balance-amount">0.00 <text class="balance-currency">USDT</text></view>
+                </view>
+              </view>
+
+              <view class="asset-divider"></view>
+
+              <!-- 操作按钮 -->
+              <view class="asset-actions">
+                <button class="action-btn" bindtap="onDeposit">
+                  <img class="action-icon" src="../../images/app_funds_3_day.png" alt="Deposit" data-i18n-alt="webapp.funds.capital.actions.deposit" />
+                  <text class="action-label" data-i18n="webapp.funds.capital.actions.deposit">Deposit</text>
+                </button>
+                <button class="action-btn" bindtap="onWithdrawal">
+                  <img class="action-icon" src="../../images/app_funds_4_day.png" alt="withdrawal" data-i18n-alt="webapp.funds.capital.actions.withdrawal" />
+                  <text class="action-label" data-i18n="webapp.funds.capital.actions.withdrawal">withdrawal</text>
+                </button>
+                <button class="action-btn" bindtap="onDetails">
+                  <img class="action-icon" src="../../images/app_funds_5_day.png" alt="details" data-i18n-alt="webapp.funds.capital.actions.details" />
+                  <text class="action-label" data-i18n="webapp.funds.capital.actions.details">details</text>
+                </button>
+              </view>
+            </view>
+
+            <!-- 账户信息区（在金色卡片外，但在包装器内）-->
+            <view class="account-info-bar">
+              <view class="account-section">
+                <text class="account-label" data-i18n="webapp.funds.capital.accountNumber">Account number</text>
+                <view class="account-row">
+                  <img class="account-icon" src="../../images/app_funds_8_day.png" alt="Account" />
+                  <span class="account-number">ICE00000001</span>
+                </view>
+              </view>
+              <button class="settings-btn" bindtap="onSettings" data-i18n-aria-label="webapp.funds.capital.settings">
+                <img class="settings-icon" src="../../images/app_funds_7_day.png" alt="Settings" data-i18n-alt="webapp.funds.capital.settings" />
+              </button>
+            </view>
+          </view>
+
+          <!-- 账户详情列表 -->
+          <view class="account-details">
+            <view class="detail-row">
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.balance">Balance</text>
+              <text class="detail-value">0.00</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.profitLoss">Profit/Loss</text>
+              <text class="detail-value">20</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.netWorth">Net worth</text>
+              <text class="detail-value">0.00</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.margin">Margin</text>
+              <text class="detail-value">0.00</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.credit">Credit</text>
+              <text class="detail-value">0.00</text>
+            </view>
+            <view class="detail-row">
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.availableMargin">Available Margin</text>
+              <text class="detail-value">0.00</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Leveraged 页面 -->
+        <view class="funds-content funds-leveraged" style="display: none;">
+          <!-- 资产信息 -->
+          <view class="lev-asset-info">
+            <view class="lev-balance">
+              <text class="lev-label" data-i18n="webapp.funds.leveraged.totalAssetBalance">Total asset balance</text>
+              <view class="lev-amount-row">
+                <text class="lev-amount">0.00 <text class="currency">USDT</text></text>
+                <view class="lev-multiplier">
+                  <text>20 x</text>
+                  <img class="lev-multiplier-icon" src="../../images/app_tabbar_9_day.png" alt="multiplier" />
+                </view>
+              </view>
+              <text class="lev-subtitle" data-i18n="webapp.funds.leveraged.approxDollar">≈ $0.00</text>
+              <text class="lev-profit"><span data-i18n="webapp.funds.leveraged.todaysPnL">Today's profit and loss:</span> <text class="profit-value">+$0.00 (+0.76%)</text></text>
+            </view>
+
+            <view class="lev-stats">
+              <view class="stat-item">
+                <text class="stat-label" data-i18n="webapp.funds.leveraged.collateralUSDT">collateral (USDT)</text>
+                <text class="stat-value">0</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label" data-i18n="webapp.funds.leveraged.leverageRatio">Leverage ratio</text>
+                <text class="stat-value">20</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label" data-i18n="webapp.funds.leveraged.totalLiabilitiesUSDT">Total liabilities (USDT)</text>
+                <text class="stat-value">0.00</text>
+                <text class="stat-subtitle">≈ $0.00</text>
+              </view>
+              <view class="stat-item">
+                <text class="stat-label" data-i18n="webapp.funds.leveraged.accountEquityUSDT">Account Equity (USDT)</text>
+                <text class="stat-value">0.00</text>
+                <text class="stat-subtitle">≈ $0.00</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 操作按钮 -->
+          <view class="lev-actions">
+            <button class="lev-action-btn primary" bindtap="onLoan" data-i18n="webapp.funds.leveraged.actions.loan">loan</button>
+            <button class="lev-action-btn" bindtap="onRepayment" data-i18n="webapp.funds.leveraged.actions.repayment">repayment</button>
+            <button class="lev-action-btn" bindtap="onTransfer" data-i18n="webapp.funds.leveraged.actions.transfer">transfer</button>
+          </view>
+
+          <!-- 学习链接 -->
+          <view class="learn-link" bindtap="onLearnLeveraged">
+            <img class="learn-icon" src="../../images/app_funds_1_day.png" alt="Learn" data-i18n-alt="webapp.funds.leveraged.learn" />
+            <text data-i18n="webapp.funds.leveraged.learn">Learn how to use leveraged trading</text>
+          </view>
+
+          <!-- USDT 详情 -->
+          <view class="usdt-details">
+            <view class="usdt-header">
+              <img class="usdt-icon" src="../../images/app_funds_2_day.png" alt="USDT" />
+              <text class="usdt-title">USDT</text>
+            </view>
+            <view class="usdt-stats">
+              <view class="usdt-stat">
+                <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.available">available</text>
+                <text class="usdt-value">0.00</text>
+              </view>
+              <view class="usdt-stat">
+                <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.netAssets">net assets</text>
+                <text class="usdt-value">20</text>
+              </view>
+              <view class="usdt-stat">
+                <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.borrowed">Borrowed</text>
+                <text class="usdt-value">0.00</text>
+              </view>
+              <view class="usdt-stat">
+                <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.interest">interest</text>
+                <text class="usdt-value">0.00</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 
-  <view class="content">
-    <text>这里是 webapp 页面内容。</text>
+  <!-- 底部 TabBar -->
+  <view class="tabbar">
+    <button class="tab tab-active" bindtap="switchTab" data-tab="home">
+      <img class="tab-icon" src="../../images/app_tabbar_1_day.png" alt="Home" data-i18n-alt="webapp.common.home" />
+      <text class="tab-label" data-i18n="webapp.common.home">Home</text>
+    </button>
+    <button class="tab" bindtap="switchTab" data-tab="markets">
+      <img class="tab-icon" src="../../images/app_tabbar_2_day.png" alt="Markets" data-i18n-alt="webapp.common.markets" />
+      <text class="tab-label" data-i18n="webapp.common.markets">Markets</text>
+    </button>
+    <button class="tab" bindtap="switchTab" data-tab="trades">
+      <img class="tab-icon" src="../../images/app_tabbar_3_day.png" alt="Trades" data-i18n-alt="webapp.common.trades" />
+      <text class="tab-label" data-i18n="webapp.common.trades">Trades</text>
+    </button>
+    <button class="tab" bindtap="switchTab" data-tab="funds">
+      <img class="tab-icon" src="../../images/app_tabbar_4_day.png" alt="Funds" data-i18n-alt="webapp.common.funds" />
+      <text class="tab-label" data-i18n="webapp.common.funds">Funds</text>
+    </button>
   </view>
 </view>
+<!-- webapp 页面(SXML 模板) -->
+
+<!-- webapp 页面(SXML 模板) -->

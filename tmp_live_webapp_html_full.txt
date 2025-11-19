@@ -1,0 +1,339 @@
+﻿<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- iOS / PWA helpers -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <!-- 控制 Android / Chrome 状态栏颜色 -->
+  <meta name="theme-color" content="#ffffff">
+  <!-- 安全策略 (CSP) - 临时允许内联样式和脚本以兼容现有代码 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:8080 ws://localhost:8080 https://ipapi.co https://api.ipify.org; base-uri 'self'; form-action 'self';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  
+  <meta name="sxml-compiled" content="true">
+  <!-- 防止缓存 -->
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  
+  <title>ICE Markets</title>
+  
+  <!-- 连接优化：预解析与预连接，降低握手延迟 -->
+  <link rel="dns-prefetch" href="//localhost:8080" />
+  <link rel="preconnect" href="http://localhost:8080" crossorigin />
+  
+  <!-- 预加载关键CSS，防止FOUC（无样式内容闪烁）-->
+  <link rel="preload" href="../../css/element.css" as="style" />
+  <link rel="stylesheet" type="text/css" href="../../css/element.css" />
+  <link rel="preload" href="./webapp.css" as="style" />
+  <link rel="stylesheet" type="text/css" href="./webapp.css" />
+  <link rel="icon" href="../../images/logo1.png" type="image/x-icon" />
+  
+  <!-- 防止页面闪烁的内联关键CSS -->
+  <style>
+    /* 首屏淡入 */
+    body { 
+      opacity: 0; 
+      transition: opacity 0.3s ease-in;
+    }
+    body.loaded { 
+      opacity: 1; 
+    }
+    /* 仅隐藏需要替换文本内容的元素，避免把 input/button 等交互控件隐藏 */
+    [data-i18n]:not(input):not(button):not(select):not(textarea),
+    [data-i18n-html]:not(input):not(button):not(select):not(textarea) {
+      visibility: hidden;
+    }
+    .i18n-ready [data-i18n],
+    .i18n-ready [data-i18n-html] {
+      visibility: visible;
+    }
+    /* Bot 检测拒绝访问样式 */
+    .access-denied {
+      padding: 50px;
+      text-align: center;
+    }
+  </style>
+
+</head>
+<body>
+<!-- SXML Compiled at 2025-11-19T07:11:52.812Z -->
+
+<!-- Webapp 入口页面：响应式移动优先布局，底部 tabBar -->
+<div class="webapp-root">
+  <!-- 主内容区 -->
+  <div class="content">
+    <!-- 顶部 Logo 和语言切换区域 -->
+    <div class="header-bar">
+      <img class="app-logo" src="../../images/app_logo_day.png" alt="ICE Markets" >
+      <div class="header-right">
+        <button class="lang-btn" onclick="currentPage.toggleLanguage(event)">English</button>
+        <button class="notification-btn" onclick="currentPage.showNotification(event)" aria-label="通知">
+          <span class="bell-icon">🔔</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 所有页面都在编译后渲染，使用 JS 运行时切换显示 -->
+    <div class="page page-home">
+        <!-- Banner 广告轮播区 (Swiper) -->
+        <div class="banner-swiper-container">
+          <div class="swiper-wrapper">
+            <div class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Wealth is at hand" >
+            </div>
+            <div class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 2" >
+            </div>
+            <div class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 3" >
+            </div>
+          </div>
+          <!-- 分页指示器 -->
+          <div class="swiper-pagination" style="transform: translateY(5px);"></div>
+        </div>
+
+        <!-- 四合一功能入口 -->
+        <div class="feature-grid">
+          <button class="feature-item" data-key="deposit" aria-label="Deposit" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_1_day.png" alt="Deposit" >
+            <div class="feature-label">Deposit</div>
+          </button>
+          <button class="feature-item" data-key="withdrawal" aria-label="Withdrawal" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_2_day.png" alt="Withdrawal" >
+            <div class="feature-label">Withdrawal</div>
+          </button>
+          <button class="feature-item" data-key="help" aria-label="Help" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_3_day.png" alt="Help" >
+            <div class="feature-label">Help</div>
+          </button>
+          <button class="feature-item" data-key="support" aria-label="Support" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_4_day.png" alt="Support" >
+            <div class="feature-label">Support</div>
+          </button>
+        </div>
+
+        <!-- Most Active 列表 -->
+        <div class="section-title">Most Active</div>
+        <div class="most-active">
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">EURUSD</div>
+              <div class="symbol-desc">EUR/USD</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">1.17018</div>
+              <div class="price-change">+1.2356</div>
+            </div>
+            <div class="percent-badge badge-down">-0.47%</div>
+          </div>
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">XAUUSD</div>
+              <div class="symbol-desc">Gold</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">3634.48</div>
+              <div class="price-change"></div>
+            </div>
+            <div class="percent-badge badge-down">-0.03%</div>
+          </div>
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">XTIUSD</div>
+              <div class="symbol-desc">US Crude Oil</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">63.326</div>
+              <div class="price-change"></div>
+            </div>
+            <div class="percent-badge badge-up">+1.01%</div>
+          </div>
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">EURGBP</div>
+              <div class="symbol-desc">Euro to Poun</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">0.86508</div>
+              <div class="price-change"></div>
+            </div>
+            <div class="percent-badge badge-down">-0.37%</div>
+          </div>
+        </div>
+    </div>
+
+    <div class="page page-markets hidden">
+      <div class="section-title">行情 (Markets)</div>
+      <div class="market-list">
+        <!-- 占位：实际应由 JS 或 websocket 填充 -->
+        <div class="market-row">BTC / USD <span class="price">$---</span></div>
+        <div class="market-row">ETH / USD <span class="price">$---</span></div>
+      </div>
+    </div>
+
+    <div class="page page-trades hidden">
+      <div class="section-title">交易 (Trades)</div>
+      <div class="trade-panel">下单面板占位（限价/市价/止损）</div>
+    </div>
+
+    <div class="page page-funds hidden">
+      <div class="section-title">资产 (Funds)</div>
+      <div class="funds-panel">账户余额、可用保证金、仓位等</div>
+    </div>
+  </div>
+
+  <!-- 底部 TabBar -->
+  <div class="tabbar">
+    <button class="tab tab-active" onclick="currentPage.switchTab(event)" data-tab="home">
+      <img class="tab-icon" src="../../images/app_tabbar_1_day.png" alt="Home" >
+      <span class="tab-label">Home</span>
+    </button>
+    <button class="tab" onclick="currentPage.switchTab(event)" data-tab="markets">
+      <img class="tab-icon" src="../../images/app_tabbar_2_day.png" alt="Markets" >
+      <span class="tab-label">Markets</span>
+    </button>
+    <button class="tab" onclick="currentPage.switchTab(event)" data-tab="trades">
+      <img class="tab-icon" src="../../images/app_tabbar_3_day.png" alt="Trades" >
+      <span class="tab-label">Trades</span>
+    </button>
+    <button class="tab" onclick="currentPage.switchTab(event)" data-tab="funds">
+      <img class="tab-icon" src="../../images/app_tabbar_4_day.png" alt="Funds" >
+      <span class="tab-label">Funds</span>
+    </button>
+  </div>
+</div>
+<!-- webapp 页面(SXML 模板) -->
+
+<!-- webapp 页面(SXML 模板) -->
+
+
+  <!-- 动态依赖库（根据页面实际使用智能引入）-->
+    <!-- API 签名映射配置（必须在 config.js 之前加载）-->
+    <script type="text/javascript" src="../../config/api-sign-map.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../config/app.config.dev.js?v=1763536312812"></script>
+    <script>window.APP_CONFIG_URL = '../../config/app.config.dev.js?v=1763536312812';</script>
+    <script type="text/javascript" src="../../utils/config.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../app.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../utils/logger.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../locales/zh-CN.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../utils/i18n.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../utils/toast.js?v=1763536312812"></script>
+    <script>
+      // 确保 Toast 可用（静默回退加载，不输出控制台日志）
+      (function(){
+        try {
+          if (typeof window.ShowToast !== 'function') {
+            fetch('../../utils/toast.js?v=1763536312812').then(function(r){return r.text();}).then(function(code){ try{ eval(code); }catch(_){ } }).catch(function(){ /* silent */ });
+          }
+        } catch(_) {}
+      })();
+    </script>
+    <script type="text/javascript" src="../../utils/page.js?v=1763536312812"></script>
+    <script type="text/javascript" src="../../utils/onload.js?v=1763536312812"></script>
+  <!-- 页面加载器 -->
+    <script>window.SXML_PRECOMPILED = true;</script>
+    <script type="text/javascript" src="../../utils/page.loader.js"></script>
+    
+  <!-- 页面加载完成后显示内容：优先等待 i18n 就绪，最多延迟 800ms -->
+    <script>
+      (function(){
+        // 反爬虫检测：检测自动化工具特征
+        function detectBot() {
+          // 检测 Headless 浏览器
+          if (navigator.webdriver) return true;
+          
+          // 检测 Puppeteer/Playwright
+          if (window.navigator.plugins.length === 0) return true;
+          
+          // 检测常见爬虫 User-Agent
+          const ua = navigator.userAgent.toLowerCase();
+          const botPatterns = ['bot', 'crawl', 'spider', 'scrape', 'python', 'requests', 'urllib', 'scrapy', 'selenium', 'phantomjs'];
+          if (botPatterns.some(pattern => ua.includes(pattern))) return true;
+          
+          // 检测不正常的屏幕尺寸
+          if (screen.width === 0 || screen.height === 0) return true;
+          
+          // 检测缺少常见浏览器对象
+          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
+            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
+          }
+          
+          return false;
+        }
+        
+        // 生成设备指纹
+        function generateFingerprint() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          ctx.textBaseline = 'top';
+          ctx.font = '14px Arial';
+          ctx.fillText('browser fingerprint', 2, 2);
+          return canvas.toDataURL().slice(-50);
+        }
+        
+        // 如果检测到机器人，隐藏内容或重定向
+        if (detectBot()) {
+          document.body.innerHTML = '<div class="access-denied"><h1>Access Denied</h1><p>Automated access is not allowed.</p></div>';
+          console.error('Bot detected');
+          return;
+        }
+        
+        // 生成并存储设备指纹（用于后端验证）
+        try {
+          const fp = generateFingerprint();
+          sessionStorage.setItem('_dfp', fp);
+        } catch (e) { /* ignore */ }
+        
+        function reveal(){
+          if (!document.body.classList.contains('loaded')) {
+            document.body.classList.add('loaded');
+          }
+        }
+        // 若 i18n 存在，等待其就绪事件，确保翻译文本已应用再显示
+        if (window.i18n) {
+          if (document.documentElement.classList.contains('i18n-ready')) {
+            reveal();
+          } else {
+            window.addEventListener('i18n:ready', reveal, { once: true });
+            // 兜底：若 800ms 内未就绪也先显示，避免白屏过久
+            setTimeout(reveal, 800);
+          }
+        } else {
+          // 无 i18n 时按 DOMContentLoaded 或立即显示
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', reveal);
+          } else {
+            reveal();
+          }
+        }
+      })();
+    </script>
+<script src="/utils/mini-sdk.js" nonce="eTnblCR0lAPZyHmxwI2Dgw=="></script>
+
+    <!-- 开发模式标记 -->
+    <script nonce="eTnblCR0lAPZyHmxwI2Dgw==">
+      console.log('🔧 开发模式 - SXML 已预编译 (DEVELOPMENT)');
+      // EventSource 热刷新
+      (function(){
+        try {
+          var es = new EventSource('/__dev_events');
+          es.onmessage = function(ev){
+            try {
+              var d = JSON.parse(ev.data||'{}');
+              if (d.type === 'reload') {
+                console.log('♻️  文件变更自动刷新:', d.file);
+                location.reload();
+              }
+            } catch(_){}
+          };
+        } catch(_) {}
+      })();
+    </script>
+  
+</body>
+</html>

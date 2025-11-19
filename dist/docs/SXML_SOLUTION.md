@@ -8,7 +8,7 @@ SXML 文件本质是 XML 格式，浏览器不会自动解析和渲染它们。
 
 ### 方案一：直接在 HTML 中使用 SXML 语法（推荐）⭐
 
-直接在 HTML 的 `<body>` 中使用 SXML 标签和指令，`sxml.parser.js` 会在页面加载后自动解析。
+推荐采用“预编译”方案：在开发/构建阶段将 SXML 转为纯 HTML，浏览器不再加载 `sxml.parser.js`。
 
 #### 示例：
 
@@ -19,7 +19,7 @@ SXML 文件本质是 XML 格式，浏览器不会自动解析和渲染它们。
     <meta charset="utf-8" />
     <title>Login</title>
     <!-- 引入 SXML 解析器 -->
-    <script src="../../utils/sxml.parser.js"></script>
+    <!-- 运行时不需要 sxml.parser.js，改为由编译器注入依赖与配置 -->
     <script src="../../utils/page.loader.js"></script>
 </head>
 
@@ -92,7 +92,7 @@ image {
 </body>
 ```
 
-然后修改 `sxml.parser.js` 读取模板并渲染到目标容器。
+运行时无需解析模板；模板已在构建时被编译为标准 HTML，依赖脚本由编译器按需注入。
 
 **优点：**
 - ✅ HTML 结构清晰
@@ -113,7 +113,7 @@ image {
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="../../utils/sxml.parser.js"></script>
+    <!-- 此处省略 sxml.parser.js -->
     <script src="../../utils/page.loader.js"></script>
 </head>
 <body id="app">
@@ -223,7 +223,7 @@ swiper {
     </style>
     
     <script src="../../utils/jQuery_v3.js"></script>
-    <script src="../../utils/sxml.parser.js"></script>
+    <!-- 此处省略 sxml.parser.js -->
     <script src="../../utils/page.loader.js"></script>
 </head>
 

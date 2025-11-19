@@ -20,7 +20,7 @@ npm install nodemailer
 
 ### 2. 配置 SMTP 服务器
 
-编辑 `config/app.config.json`,添加邮件配置:
+编辑 `config/app.config.js`（或生产环境的 `config/app.config.prod.js`），添加邮件配置:
 
 ```json
 {

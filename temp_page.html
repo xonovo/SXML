@@ -1,0 +1,312 @@
+﻿<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- å®å¨ç­ç¥ (CSP) - ä¸´æ¶åè®¸åèæ ·å¼åèæ¬ä»¥å¼å®¹ç°æä»£ç  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:8080 ws://localhost:8080 https://ipapi.co https://api.ipify.org; base-uri 'self'; form-action 'self';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  
+  <meta name="sxml-compiled" content="true">
+  <!-- é²æ­¢ç¼å­ -->
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  
+  <title>ICE Markets</title>
+  
+  <!-- è¿æ¥ä¼åï¼é¢è§£æä¸é¢è¿æ¥ï¼éä½æ¡æå»¶è¿ -->
+  <link rel="dns-prefetch" href="//localhost:8080" />
+  <link rel="preconnect" href="http://localhost:8080" crossorigin />
+  
+  <!-- é¢å è½½å³é®CSSï¼é²æ­¢FOUCï¼æ æ ·å¼åå®¹éªçï¼-->
+  <link rel="preload" href="../../css/element.css" as="style" />
+  <link rel="stylesheet" type="text/css" href="../../css/element.css" />
+  <link rel="preload" href="./webapp.css" as="style" />
+  <link rel="stylesheet" type="text/css" href="./webapp.css" />
+  <link rel="icon" href="../../images/logo1.png" type="image/x-icon" />
+  
+  <!-- é²æ­¢é¡µé¢éªççåèå³é®CSS -->
+  <style>
+    /* é¦å±æ·¡å¥ */
+    body { 
+      opacity: 0; 
+      transition: opacity 0.3s ease-in;
+    }
+    body.loaded { 
+      opacity: 1; 
+    }
+    /* ä»éèéè¦æ¿æ¢ææ¬åå®¹çåç´ ï¼é¿åæ input/button ç­äº¤äºæ§ä»¶éè */
+    [data-i18n]:not(input):not(button):not(select):not(textarea),
+    [data-i18n-html]:not(input):not(button):not(select):not(textarea) {
+      visibility: hidden;
+    }
+    .i18n-ready [data-i18n],
+    .i18n-ready [data-i18n-html] {
+      visibility: visible;
+    }
+    /* Bot æ£æµæç»è®¿é®æ ·å¼ */
+    .access-denied {
+      padding: 50px;
+      text-align: center;
+    }
+  </style>
+
+</head>
+<body>
+<!-- SXML Compiled at 2025-11-19T05:29:47.747Z -->
+
+<!-- Webapp å¥å£é¡µé¢ï¼ååºå¼ç§»å¨ä¼åå¸å±ï¼åºé¨ tabBar -->
+<div class="webapp-root">
+  <!-- ä¸»åå®¹åº -->
+  <div class="content">
+    <!-- é¡¶é¨ Logo åè¯­è¨åæ¢åºå -->
+    <div class="header-bar">
+      <img class="app-logo" src="../../images/app_logo_day.png" alt="ICE Markets" >
+      <div class="header-right">
+        <button class="lang-btn" onclick="currentPage.toggleLanguage(event)">English</button>
+        <button class="notification-btn" onclick="currentPage.showNotification(event)" aria-label="éç¥">
+          <span class="bell-icon">ð</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ææé¡µé¢é½å¨ç¼è¯åæ¸²æï¼ä½¿ç¨ JS è¿è¡æ¶åæ¢æ¾ç¤º -->
+    <div class="page page-home">
+        <!-- Banner å¹¿åè½®æ­åº (Swiper) -->
+        <div class="banner-swiper-container">
+          <div class="swiper-wrapper">
+            <div class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Wealth is at hand" >
+            </div>
+            <div class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 2" >
+            </div>
+            <div class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 3" >
+            </div>
+          </div>
+          <!-- åé¡µæç¤ºå¨ -->
+          <div class="swiper-pagination"></div>
+        </div>
+
+        <!-- ååä¸åè½å¥å£ -->
+        <div class="feature-grid">
+          <button class="feature-item" data-key="deposit" aria-label="Deposit" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_1_day.png" alt="Deposit" >
+            <div class="feature-label">Deposit</div>
+          </button>
+          <button class="feature-item" data-key="withdrawal" aria-label="Withdrawal" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_2_day.png" alt="Withdrawal" >
+            <div class="feature-label">Withdrawal</div>
+          </button>
+          <button class="feature-item" data-key="help" aria-label="Help" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_3_day.png" alt="Help" >
+            <div class="feature-label">Help</div>
+          </button>
+          <button class="feature-item" data-key="support" aria-label="Support" onclick="currentPage.onFeature(event)">
+            <img class="feature-icon" src="../../images/app_home_4_day.png" alt="Support" >
+            <div class="feature-label">Support</div>
+          </button>
+        </div>
+
+        <!-- Most Active åè¡¨ -->
+        <div class="section-title">Most Active</div>
+        <div class="most-active">
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">EURUSD</div>
+              <div class="symbol-desc">EUR/USD</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">1.17018</div>
+              <div class="price-change">+1.2356</div>
+            </div>
+            <div class="percent-badge badge-down">-0.47%</div>
+          </div>
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">XAUUSD</div>
+              <div class="symbol-desc">Gold</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">3634.48</div>
+              <div class="price-change"></div>
+            </div>
+            <div class="percent-badge badge-down">-0.03%</div>
+          </div>
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">XTIUSD</div>
+              <div class="symbol-desc">US Crude Oil</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">63.326</div>
+              <div class="price-change"></div>
+            </div>
+            <div class="percent-badge badge-up">+1.01%</div>
+          </div>
+          <div class="active-row">
+            <div class="symbol-info">
+              <div class="symbol-name">EURGBP</div>
+              <div class="symbol-desc">Euro to Poun</div>
+            </div>
+            <div class="price-info">
+              <div class="price-main">0.86508</div>
+              <div class="price-change"></div>
+            </div>
+            <div class="percent-badge badge-down">-0.37%</div>
+          </div>
+        </div>
+    </div>
+
+    <div class="page page-markets hidden">
+      <div class="section-title">è¡æ (Markets)</div>
+      <div class="market-list">
+        <!-- å ä½ï¼å®éåºç± JS æ websocket å¡«å -->
+        <div class="market-row">BTC / USD <span class="price">$---</span></div>
+        <div class="market-row">ETH / USD <span class="price">$---</span></div>
+      </div>
+    </div>
+
+    <div class="page page-trades hidden">
+      <div class="section-title">äº¤æ (Trades)</div>
+      <div class="trade-panel">ä¸åé¢æ¿å ä½ï¼éä»·/å¸ä»·/æ­¢æï¼</div>
+    </div>
+
+    <div class="page page-funds hidden">
+      <div class="section-title">èµäº§ (Funds)</div>
+      <div class="funds-panel">è´¦æ·ä½é¢ãå¯ç¨ä¿è¯éãä»ä½ç­</div>
+    </div>
+  </div>
+
+  <!-- åºé¨ TabBar -->
+  <div class="tabbar">
+    <button class="tab tab-active" onclick="currentPage.switchTab(event)" data-tab="home">
+      <img class="tab-icon" src="../../images/app_tabbar_1_day.png" alt="Home" >
+      <span class="tab-label">Home</span>
+    </button>
+    <button class="tab" onclick="currentPage.switchTab(event)" data-tab="markets">
+      <img class="tab-icon" src="../../images/app_tabbar_2_day.png" alt="Markets" >
+      <span class="tab-label">Markets</span>
+    </button>
+    <button class="tab" onclick="currentPage.switchTab(event)" data-tab="trades">
+      <img class="tab-icon" src="../../images/app_tabbar_3_day.png" alt="Trades" >
+      <span class="tab-label">Trades</span>
+    </button>
+    <button class="tab" onclick="currentPage.switchTab(event)" data-tab="funds">
+      <img class="tab-icon" src="../../images/app_tabbar_4_day.png" alt="Funds" >
+      <span class="tab-label">Funds</span>
+    </button>
+  </div>
+</div>
+<!-- webapp é¡µé¢(SXML æ¨¡æ¿) -->
+
+<!-- webapp é¡µé¢(SXML æ¨¡æ¿) -->
+
+
+  <!-- å¨æä¾èµåºï¼æ ¹æ®é¡µé¢å®éä½¿ç¨æºè½å¼å¥ï¼-->
+    <!-- API ç­¾åæ å°éç½®ï¼å¿é¡»å¨ config.js ä¹åå è½½ï¼-->
+    <script type="text/javascript" src="../../config/api-sign-map.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../config/app.config.dev.js?v=1763530187747"></script>
+    <script>window.APP_CONFIG_URL = '../../config/app.config.dev.js?v=1763530187747';</script>
+    <script type="text/javascript" src="../../utils/config.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../app.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../utils/logger.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../locales/zh-CN.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../utils/i18n.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../utils/toast.js?v=1763530187747"></script>
+    <script>
+      // ç¡®ä¿ Toast å¯ç¨ï¼éé»åéå è½½ï¼ä¸è¾åºæ§å¶å°æ¥å¿ï¼
+      (function(){
+        try {
+          if (typeof window.ShowToast !== 'function') {
+            fetch('../../utils/toast.js?v=1763530187747').then(function(r){return r.text();}).then(function(code){ try{ eval(code); }catch(_){ } }).catch(function(){ /* silent */ });
+          }
+        } catch(_) {}
+      })();
+    </script>
+    <script type="text/javascript" src="../../utils/page.js?v=1763530187747"></script>
+    <script type="text/javascript" src="../../utils/onload.js?v=1763530187747"></script>
+  <!-- é¡µé¢å è½½å¨ -->
+    <script>window.SXML_PRECOMPILED = true;</script>
+    <script type="text/javascript" src="../../utils/page.loader.js"></script>
+    
+  <!-- é¡µé¢å è½½å®æåæ¾ç¤ºåå®¹ï¼ä¼åç­å¾ i18n å°±ç»ªï¼æå¤å»¶è¿ 800ms -->
+    <script>
+      (function(){
+        // åç¬è«æ£æµï¼æ£æµèªå¨åå·¥å·ç¹å¾
+        function detectBot() {
+          // æ£æµ Headless æµè§å¨
+          if (navigator.webdriver) return true;
+          
+          // æ£æµ Puppeteer/Playwright
+          if (window.navigator.plugins.length === 0) return true;
+          
+          // æ£æµå¸¸è§ç¬è« User-Agent
+          const ua = navigator.userAgent.toLowerCase();
+          const botPatterns = ['bot', 'crawl', 'spider', 'scrape', 'python', 'requests', 'urllib', 'scrapy', 'selenium', 'phantomjs'];
+          if (botPatterns.some(pattern => ua.includes(pattern))) return true;
+          
+          // æ£æµä¸æ­£å¸¸çå±å¹å°ºå¯¸
+          if (screen.width === 0 || screen.height === 0) return true;
+          
+          // æ£æµç¼ºå°å¸¸è§æµè§å¨å¯¹è±¡
+          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
+            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
+          }
+          
+          return false;
+        }
+        
+        // çæè®¾å¤æçº¹
+        function generateFingerprint() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          ctx.textBaseline = 'top';
+          ctx.font = '14px Arial';
+          ctx.fillText('browser fingerprint', 2, 2);
+          return canvas.toDataURL().slice(-50);
+        }
+        
+        // å¦ææ£æµå°æºå¨äººï¼éèåå®¹æéå®å
+        if (detectBot()) {
+          document.body.innerHTML = '<div class="access-denied"><h1>Access Denied</h1><p>Automated access is not allowed.</p></div>';
+          console.error('Bot detected');
+          return;
+        }
+        
+        // çæå¹¶å­å¨è®¾å¤æçº¹ï¼ç¨äºåç«¯éªè¯ï¼
+        try {
+          const fp = generateFingerprint();
+          sessionStorage.setItem('_dfp', fp);
+        } catch (e) { /* ignore */ }
+        
+        function reveal(){
+          if (!document.body.classList.contains('loaded')) {
+            document.body.classList.add('loaded');
+          }
+        }
+        // è¥ i18n å­å¨ï¼ç­å¾å¶å°±ç»ªäºä»¶ï¼ç¡®ä¿ç¿»è¯ææ¬å·²åºç¨åæ¾ç¤º
+        if (window.i18n) {
+          if (document.documentElement.classList.contains('i18n-ready')) {
+            reveal();
+          } else {
+            window.addEventListener('i18n:ready', reveal, { once: true });
+            // ååºï¼è¥ 800ms åæªå°±ç»ªä¹åæ¾ç¤ºï¼é¿åç½å±è¿ä¹
+            setTimeout(reveal, 800);
+          }
+        } else {
+          // æ  i18n æ¶æ DOMContentLoaded æç«å³æ¾ç¤º
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', reveal);
+          } else {
+            reveal();
+          }
+        }
+      })();
+    </script>
+</body>
+</html>

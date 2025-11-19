@@ -224,7 +224,7 @@ class SuperAPI {
         const gmtDate = new Date(parseInt(timestamp, 10));
         // 使用 getUTCDay 获取 GMT 0时区的星期几
         const weekday = gmtDate.getUTCDay();
-        let ivSource = baseApiKey;
+        let ivSource = dynamicKey;
         // 确保有足够长度的字符串（跳过weekday个字符后还需要12个字符）
         while (ivSource.length < weekday + 12) ivSource += baseApiKey;
         // 从第weekday+1个字符开始取12字节

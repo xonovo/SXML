@@ -1,127 +1,276 @@
-// webapp 页面逻辑 - 底部 tabBar（Home, Markets, Trades, Funds）
+﻿// webapp 页面逻辑 - 对应复杂版页面结构（轮播/功能入口/资金页等）
 Page({
   data: {
     pageTitle: 'ICE Markets',
-    active: 'home', // home | markets | trades | funds
-    tabs: [
-      { key: 'home', label: 'Home' },
-      { key: 'markets', label: 'Markets' },
-      { key: 'trades', label: 'Trades' },
-      { key: 'funds', label: 'Funds' }
-    ]
+    active: 'home',
+    currentLang: 'English'
   },
 
   onLoad() {
-    this.updateTitle();
-    // 根据全局配置动态应用主题（白天 / 夜间）
+    try { document.title = this.data.pageTitle || document.title; } catch(_) {}
+    // 初始化语言状态并应用
     try {
-      const applyTheme = (mode) => {
-        try {
-          const el = document.body || document.documentElement;
-          if (!el) return;
-          if (mode === 'day' || mode === 'light') {
-            el.classList.add('theme-day');
-          } else {
-            el.classList.remove('theme-day');
-          }
-        } catch (_) {}
-      };
+      if (window.i18n) {
+        window.i18n.load(window.i18n.lang).then(() => {
+          window.i18n.apply();
+          this.setData({ currentLang: window.i18n.lang === 'zh-CN' ? '中文' : 'English' });
+          const btn = document.querySelector('.lang-btn');
+          if (btn) btn.textContent = (window.i18n.lang === 'zh-CN') ? 'English' : '中文';
+        });
+        window.addEventListener('i18n:ready', () => {
+          try { window.i18n.apply(); } catch(_){}
+          this.setData({ currentLang: window.i18n.lang === 'zh-CN' ? '中文' : 'English' });
+          const btn = document.querySelector('.lang-btn');
+          if (btn) btn.textContent = (window.i18n.lang === 'zh-CN') ? 'English' : '中文';
+        }, { once: true });
+      }
+    } catch(_) {}
 
-      // 优先读取 window.APP_CONFIG.theme 或 window.APP_CONFIG.themeMode
-      if (window && window.APP_CONFIG && (window.APP_CONFIG.theme || window.APP_CONFIG.themeMode)) {
-        applyTheme((window.APP_CONFIG.theme || window.APP_CONFIG.themeMode).toString().toLowerCase());
-      } else {
-        // 若 APP_CONFIG 尚未加载（config.js 异步注入），尝试短轮询几次
-        let tries = 0;
-        const timer = setInterval(() => {
-          tries++;
-          if (window && window.APP_CONFIG && (window.APP_CONFIG.theme || window.APP_CONFIG.themeMode)) {
-            applyTheme((window.APP_CONFIG.theme || window.APP_CONFIG.themeMode).toString().toLowerCase());
-            clearInterval(timer);
-          } else if (tries > 10) {
-            clearInterval(timer);
-          }
-        }, 200);
-      }
-    } catch (_) {}
-    // 在运行时根据 active 切换显示：先移除 hidden（以允许过渡），再激活初始 tab
+    // 初始化轮播
+    this.initSwiper();
+
+    // 默认激活首页
     try {
-      const root = document.querySelector('.webapp-root');
-      if (root) {
-        root.querySelectorAll('.page').forEach(p => p.classList.remove('hidden'));
-        const start = root.querySelector(`.page-${this.data.active}`);
-        if (start) start.classList.add('active');
+      const homePage = document.querySelector('.page-home');
+      if (homePage && !homePage.classList.contains('active')) homePage.classList.add('active');
+    } catch(e) { console.warn('activate home failed', e); }
+
+    // 资金页：创建视口并初始化高度
+    try {
+      this.ensureFundsViewport();
+      const vp = document.querySelector('.funds-viewport');
+      const active = document.querySelector('.funds-content.active');
+      if (vp && active) {
+        // 先用自然高度，下一帧锁定为 px，避免首帧跳变
+        vp.style.height = active.offsetHeight + 'px';
+        setTimeout(() => { try { vp.style.height = 'auto'; } catch(_) {} }, 0);
       }
-    } catch (_) {}
-    // 小延时确保 DOM 准备好，然后统一入口逻辑
-    setTimeout(() => { this.switchTab(this.data.active); this.updateThemeToggleUI(); }, 50);
+    } catch(e) { console.warn('init funds viewport failed', e); }
   },
 
-  updateTitle() {
-    try { document.title = this.data.pageTitle || document.title; } catch(_) {}
+  ensureFundsViewport() {
+    try {
+      const fundsPage = document.querySelector('.page-funds');
+      if (!fundsPage) return;
+      if (fundsPage.querySelector('.funds-viewport')) return; // already present
+      const tabs = fundsPage.querySelector('.funds-tabs');
+      const contents = fundsPage.querySelectorAll('.funds-content');
+      if (!tabs || !contents.length) return;
+      const vp = document.createElement('div');
+      vp.className = 'funds-viewport';
+      // 插入到 tabs 后面
+      tabs.insertAdjacentElement('afterend', vp);
+      contents.forEach(c => vp.appendChild(c));
+      // 移除所有 inline display:none，交由 CSS/JS 控制
+      vp.querySelectorAll('.funds-content').forEach(c => { try { c.style.removeProperty('display'); } catch(_) {} });
+      // 设定初始高度
+      const active = vp.querySelector('.funds-content.active') || vp.querySelector('.funds-content');
+      if (active) vp.style.height = active.offsetHeight + 'px';
+    } catch(_) {}
+  },
+
+  async toggleLanguage() {
+    try {
+      if (!window.i18n) return;
+      const next = window.i18n.lang === 'zh-CN' ? 'en-US' : 'zh-CN';
+      await window.i18n.setLang(next);
+      this.setData({ currentLang: next === 'zh-CN' ? '中文' : 'English' });
+      const btn = document.querySelector('.lang-btn');
+      if (btn) btn.textContent = (next === 'zh-CN') ? 'English' : '中文';
+    } catch(e) { console.warn('toggleLanguage failed', e); }
+  },
+
+  showNotification() {
+    try { (window.ShowToast || console.log)('通知'); } catch(_) {}
+  },
+
+  onFeature(e) {
+    const key = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key;
+    console.log('feature click:', key);
   },
 
   switchTab(e) {
-    // 支持传入事件对象或字符串 tab key
-    const tab = (typeof e === 'string') ? e : (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.tab) || (e && e.target && e.target.dataset && e.target.dataset.tab);
+    const tab = e.currentTarget.dataset.tab;
     if (!tab) return;
-    // 更新页面数据状态
-    try { this.setData({ active: tab }); } catch (_) { /* ignore if setData not available */ }
-
-    // 运行时切换 DOM：通过 .active class 切换并依赖 CSS 过渡
+    this.setData({ active: tab });
+    // 更新 tab 激活样式
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(t => t.classList.toggle('tab-active', t.dataset.tab === tab));
+    // 横向滑动：根据 tab 切换 pages-wrapper 的 transform
     try {
-      const root = document.querySelector('.webapp-root');
-      if (root) {
-        const current = root.querySelector('.page.active');
-        const target = root.querySelector(`.page-${tab}`);
-        if (current && target && current === target) {
-          // 已在目标页，无需切换
-        } else {
-          if (current) current.classList.remove('active');
-          if (target) target.classList.add('active');
-        }
-
-        // 更新 tab 按钮激活态
-        root.querySelectorAll('.tab').forEach(btn => {
-          try {
-            const t = btn.getAttribute('data-tab') || btn.dataset.tab;
-            if (t === tab) btn.classList.add('active'); else btn.classList.remove('active');
-          } catch (_) {}
-        });
+      const wrapper = document.querySelector('.pages-wrapper');
+      if (wrapper) {
+        const map = { home: 0, markets: 1, trades: 2, funds: 3 };
+        const idx = map[tab] || 0;
+        wrapper.style.transform = `translateX(-${idx * 25}%)`;
       }
-    } catch (err) {
-      // 防御性容错
-      console.warn('switchTab DOM update failed', err);
-    }
-
-    // 可选：触发特定 tab 的数据加载
-    if (tab === 'markets') { this.loadMarkets(); }
+    } catch(_) {}
   },
 
-  // 示例占位方法：在切换到 Markets 时可以加载行情数据
-  loadMarkets() {
-    // TODO: 使用 WebSocket 或 API 拉取实时行情并渲染
-    console.log('加载Markets数据（占位）');
-  }
+  switchFundsTab(e) {
+    const type = e.currentTarget.dataset.type;
+    const tabs = document.querySelectorAll('.funds-tab');
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.type === type));
+    this.ensureFundsViewport();
+    const vp = document.querySelector('.funds-viewport');
+    const views = document.querySelectorAll('.funds-content');
+    const next = document.querySelector('.funds-content.funds-' + type);
+    const prev = document.querySelector('.funds-content.active');
+    if (prev === next) return;
 
-  // 切换主题（由页面按钮调用）
-  ,toggleTheme() {
-    try {
-  // 检查 body 或 html 上是否存在 theme-day（两者可能在不同时间被设置）
-  const isDay = ((document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('theme-day')) || (document.body && document.body.classList && document.body.classList.contains('theme-day'))) || false;
-  const newMode = isDay ? 'night' : 'day';
-      try { if (window && window.setAppTheme) window.setAppTheme(newMode); } catch (_) {}
-      this.updateThemeToggleUI();
-    } catch (e) { console.warn('toggleTheme failed', e); }
-  }
+    // 锁定当前高度为 px，准备过渡
+    let fromH = 0;
+    try { fromH = (vp && (vp.clientHeight || vp.offsetHeight)) || (prev && prev.offsetHeight) || 0; } catch(_) {}
+    if (vp && fromH) vp.style.height = fromH + 'px';
 
-  // 更新主题切换按钮显示
-  ,updateThemeToggleUI() {
+    // 让上一个视图平滑离场
+    if (prev) {
+      prev.classList.remove('active');
+      prev.classList.add('leaving');
+      const cleanup = (ev) => {
+        try {
+          if (ev && ev.target !== prev) return;
+          prev.classList.remove('leaving');
+          prev.removeEventListener('transitionend', cleanup);
+        } catch(_) {}
+      };
+      try { prev.addEventListener('transitionend', cleanup); } catch(_) {}
+    }
+
+    // 进入新视图
+    if (next) {
+      next.classList.add('active');
+      try { next.style.removeProperty('display'); } catch(_) {}
+    }
+
+    // 下一帧测量目标高度并过渡
+    requestAnimationFrame(() => {
+      try {
+        if (!vp || !next) return;
+        const toH = next.offsetHeight;
+        // 强制回流再设置，确保过渡触发
+        void vp.offsetHeight;
+        vp.style.height = toH + 'px';
+        const done = () => {
+          try { vp.style.height = 'auto'; vp.removeEventListener('transitionend', done); } catch(_) {}
+        };
+        vp.addEventListener('transitionend', done);
+      } catch(_) {}
+    });
+  },
+
+  // 资金页按钮处理（占位实现）
+  onDeposit() { try { (window.ShowToast || console.log)('Deposit'); } catch(_) {} },
+  onWithdrawal() { try { (window.ShowToast || console.log)('Withdrawal'); } catch(_) {} },
+  onDetails() { try { (window.ShowToast || console.log)('Details'); } catch(_) {} },
+  onSettings() { try { (window.ShowToast || console.log)('Settings'); } catch(_) {} },
+  onLoan() { try { (window.ShowToast || console.log)('Loan'); } catch(_) {} },
+  onRepayment() { try { (window.ShowToast || console.log)('Repayment'); } catch(_) {} },
+  onTransfer() { try { (window.ShowToast || console.log)('Transfer'); } catch(_) {} },
+  onLearnLeveraged() { try { (window.ShowToast || console.log)('Learn leveraged'); } catch(_) {} },
+
+  initSwiper() {
+    // 优先使用本地 vendor（已在构建阶段复制到 dist/pages/webapp/vendor）
+    const localCss = '/pages/webapp/vendor/swiper-bundle.min.css';
+    const localJs = '/pages/webapp/vendor/swiper-bundle.min.js';
+    const cdnCss = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css';
+    const cdnJs = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js';
+
+    function loadCss(href) {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = href;
+      document.head.appendChild(l);
+      return l;
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = false;
+        s.onload = () => resolve(s);
+        s.onerror = () => reject(new Error('load error ' + src));
+        document.body.appendChild(s);
+      });
+    }
+
+    loadCss(localCss);
+    (async () => {
+      try {
+        await loadScript(localJs);
+        console.log('Swiper 本地脚本加载成功');
+      } catch (eLocal) {
+        console.warn('本地 Swiper 加载失败，尝试 CDN:', eLocal && eLocal.message);
+        loadCss(cdnCss);
+        try {
+          await loadScript(cdnJs);
+        } catch (eCdn) {
+          console.warn('CDN 加载失败，启用回退轮播');
+          this.initBasicCarousel();
+          return;
+        }
+      }
+      try {
+        if (typeof Swiper !== 'undefined') {
+          new Swiper('.banner-swiper-container', {
+            loop: true,
+            slidesPerView: 1,
+            spaceBetween: 8,
+            autoplay: { delay: 3000, disableOnInteraction: false },
+            pagination: { el: '.swiper-pagination', clickable: true },
+            speed: 400
+          });
+        } else {
+          this.initBasicCarousel();
+        }
+      } catch (eInit) {
+        console.warn('Swiper 初始化异常，启用回退:', eInit && eInit.message);
+        this.initBasicCarousel();
+      }
+    })();
+  },
+
+  // 轻量轮播回退
+  initBasicCarousel() {
     try {
-      const btn = document.querySelector('.theme-toggle');
-      if (!btn) return;
-  const isDay = ((document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('theme-day')) || (document.body && document.body.classList && document.body.classList.contains('theme-day'))) || false;
-      btn.textContent = isDay ? '🌞' : '🌙';
-    } catch (_) {}
+      const container = document.querySelector('.banner-swiper-container');
+      if (!container) return;
+      const wrapper = container.querySelector('.swiper-wrapper');
+      const slides = Array.from(container.querySelectorAll('.swiper-slide'));
+      if (!wrapper || !slides || slides.length <= 1) return;
+
+      wrapper.style.display = 'flex';
+      wrapper.style.width = `${slides.length * 100}%`;
+      wrapper.style.transition = 'transform 0.45s ease';
+      wrapper.style.transform = 'translateX(0)';
+      slides.forEach(s => { s.style.flex = '0 0 100%'; s.style.boxSizing = 'border-box'; });
+
+      const pagination = container.querySelector('.swiper-pagination');
+      if (pagination) {
+        pagination.innerHTML = '';
+        slides.forEach((_, i) => {
+          const b = document.createElement('button');
+          b.className = 'basic-bullet';
+          b.style.width = '8px'; b.style.height = '8px'; b.style.borderRadius = '50%';
+          b.style.margin = '0 4px'; b.style.border = '0';
+          b.style.background = i === 0 ? '#fff' : 'rgba(255,255,255,0.6)';
+          b.addEventListener('click', () => { currentIndex = i; wrapper.style.transform = `translateX(-${currentIndex * 100}%)`; updateBullets(); });
+          pagination.appendChild(b);
+        });
+      }
+
+      let currentIndex = 0;
+      function updateBullets() {
+        if (!pagination) return;
+        Array.from(pagination.children).forEach((c, ci) => c.style.background = ci === currentIndex ? '#fff' : 'rgba(255,255,255,0.6)');
+      }
+
+      setInterval(() => {
+        currentIndex = (currentIndex + 1) % slides.length;
+        wrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+        updateBullets();
+      }, 3000);
+    } catch (e) { console.warn('basic carousel failed', e); }
   }
 });
