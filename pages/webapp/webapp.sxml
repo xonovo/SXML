@@ -14,97 +14,105 @@
           <img class="app-logo" src="../../images/app_logo_day.png" alt="ICE Markets" />
           <view class="header-right">
             <!-- 语言按钮（单一 onclick，避免编译叠加重复） -->
-            <button class="lang-btn" onclick="if(window.__langClickBridge){__langClickBridge(event)}else if(window.i18n){var n=window.i18n.lang==='zh-CN'?'en-US':'zh-CN';window.i18n.setLang(n);this.textContent=n==='zh-CN'?'English':'中文';}">English</button>
+            <button class="lang-btn"
+              onclick="if(window.__langClickBridge){__langClickBridge(event)}else if(window.i18n){var n=window.i18n.lang==='zh-CN'?'en-US':'zh-CN';window.i18n.setLang(n);this.textContent=n==='zh-CN'?'English':'中文';}">English</button>
             <button class="notification-btn" bindtap="showNotification" aria-label="通知">
               <span class="bell-icon">🔔</span>
             </button>
           </view>
         </view>
-          <!-- Banner 广告轮播区 (Swiper) -->
-          <view class="banner-swiper-container">
-            <view class="swiper-wrapper">
-              <view class="swiper-slide">
-                <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Wealth is at hand" />
-              </view>
-              <view class="swiper-slide">
-                <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 2" />
-              </view>
-              <view class="swiper-slide">
-                <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 3" />
-              </view>
+        <!-- Banner 广告轮播区 (Swiper) -->
+        <view class="banner-swiper-container">
+          <view class="swiper-wrapper">
+            <view class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Wealth is at hand" />
             </view>
-            <!-- 分页指示器 -->
-            <view class="swiper-pagination" style="transform: translateY(calc(10rpx - 10px));"></view>
+            <view class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 2" />
+            </view>
+            <view class="swiper-slide">
+              <img class="banner-img" src="../../images/app_home_ad_day.png" alt="Promotion 3" />
+            </view>
           </view>
+          <!-- 分页指示器 -->
+          <view class="swiper-pagination" style="transform: translateY(calc(10rpx - 10px));"></view>
+        </view>
 
-          <!-- 四合一功能入口 -->
-          <view class="feature-grid">
-            <button class="feature-item" data-key="deposit" bindtap="onFeature" data-i18n-aria-label="webapp.features.deposit">
-              <img class="feature-icon" src="../../images/app_home_1_day.png" alt="Deposit" data-i18n-alt="webapp.features.deposit" />
-              <div class="feature-label" data-i18n="webapp.features.deposit">Deposit</div>
-            </button>
-            <button class="feature-item" data-key="withdrawal" bindtap="onFeature" data-i18n-aria-label="webapp.features.withdrawal">
-              <img class="feature-icon" src="../../images/app_home_2_day.png" alt="Withdrawal" data-i18n-alt="webapp.features.withdrawal" />
-              <div class="feature-label" data-i18n="webapp.features.withdrawal">Withdrawal</div>
-            </button>
-            <button class="feature-item" data-key="help" bindtap="onFeature" data-i18n-aria-label="webapp.features.help">
-              <img class="feature-icon" src="../../images/app_home_3_day.png" alt="Help" data-i18n-alt="webapp.features.help" />
-              <div class="feature-label" data-i18n="webapp.features.help">Help</div>
-            </button>
-            <button class="feature-item" data-key="support" bindtap="onFeature" data-i18n-aria-label="webapp.features.support">
-              <img class="feature-icon" src="../../images/app_home_4_day.png" alt="Support" data-i18n-alt="webapp.features.support" />
-              <div class="feature-label" data-i18n="webapp.features.support">Support</div>
-            </button>
-          </view>
+        <!-- 四合一功能入口 -->
+        <view class="feature-grid">
+          <button class="feature-item" data-key="deposit" bindtap="onFeature"
+            data-i18n-aria-label="webapp.features.deposit">
+            <img class="feature-icon" src="../../images/app_home_1_day.png" alt="Deposit"
+              data-i18n-alt="webapp.features.deposit" />
+            <div class="feature-label" data-i18n="webapp.features.deposit">Deposit</div>
+          </button>
+          <button class="feature-item" data-key="withdrawal" bindtap="onFeature"
+            data-i18n-aria-label="webapp.features.withdrawal">
+            <img class="feature-icon" src="../../images/app_home_2_day.png" alt="Withdrawal"
+              data-i18n-alt="webapp.features.withdrawal" />
+            <div class="feature-label" data-i18n="webapp.features.withdrawal">Withdrawal</div>
+          </button>
+          <button class="feature-item" data-key="help" bindtap="onFeature" data-i18n-aria-label="webapp.features.help">
+            <img class="feature-icon" src="../../images/app_home_3_day.png" alt="Help"
+              data-i18n-alt="webapp.features.help" />
+            <div class="feature-label" data-i18n="webapp.features.help">Help</div>
+          </button>
+          <button class="feature-item" data-key="support" bindtap="onFeature"
+            data-i18n-aria-label="webapp.features.support">
+            <img class="feature-icon" src="../../images/app_home_4_day.png" alt="Support"
+              data-i18n-alt="webapp.features.support" />
+            <div class="feature-label" data-i18n="webapp.features.support">Support</div>
+          </button>
+        </view>
 
-          <!-- Most Active 列表 -->
-          <view class="section-title" data-i18n="webapp.sections.mostActive">Most Active</view>
-          <view class="most-active">
-            <view class="active-row">
-              <view class="symbol-info">
-                <div class="symbol-name">EURUSD</div>
-                <div class="symbol-desc">EUR/USD</div>
-              </view>
-              <view class="price-info">
-                <div class="price-main">1.17018</div>
-                <div class="price-change">+1.2356</div>
-              </view>
-              <view class="percent-badge badge-down">-0.47%</view>
+        <!-- Most Active 列表 -->
+        <view class="section-title" data-i18n="webapp.sections.mostActive">Most Active</view>
+        <view class="most-active">
+          <view class="active-row">
+            <view class="symbol-info">
+              <div class="symbol-name">EURUSD</div>
+              <div class="symbol-desc">EUR/USD</div>
             </view>
-            <view class="active-row">
-              <view class="symbol-info">
-                <div class="symbol-name">XAUUSD</div>
-                <div class="symbol-desc">Gold</div>
-              </view>
-              <view class="price-info">
-                <div class="price-main">3634.48</div>
-                <div class="price-change"></div>
-              </view>
-              <view class="percent-badge badge-down">-0.03%</view>
+            <view class="price-info">
+              <div class="price-main">1.17018</div>
+              <div class="price-change">+1.2356</div>
             </view>
-            <view class="active-row">
-              <view class="symbol-info">
-                <div class="symbol-name">XTIUSD</div>
-                <div class="symbol-desc">US Crude Oil</div>
-              </view>
-              <view class="price-info">
-                <div class="price-main">63.326</div>
-                <div class="price-change"></div>
-              </view>
-              <view class="percent-badge badge-up">+1.01%</view>
-            </view>
-            <view class="active-row">
-              <view class="symbol-info">
-                <div class="symbol-name">EURGBP</div>
-                <div class="symbol-desc">Euro to Poun</div>
-              </view>
-              <view class="price-info">
-                <div class="price-main">0.86508</div>
-                <div class="price-change"></div>
-              </view>
-              <view class="percent-badge badge-down">-0.37%</view>
-            </view>
+            <view class="percent-badge badge-down">-0.47%</view>
           </view>
+          <view class="active-row">
+            <view class="symbol-info">
+              <div class="symbol-name">XAUUSD</div>
+              <div class="symbol-desc">Gold</div>
+            </view>
+            <view class="price-info">
+              <div class="price-main">3634.48</div>
+              <div class="price-change"></div>
+            </view>
+            <view class="percent-badge badge-down">-0.03%</view>
+          </view>
+          <view class="active-row">
+            <view class="symbol-info">
+              <div class="symbol-name">XTIUSD</div>
+              <div class="symbol-desc">US Crude Oil</div>
+            </view>
+            <view class="price-info">
+              <div class="price-main">63.326</div>
+              <div class="price-change"></div>
+            </view>
+            <view class="percent-badge badge-up">+1.01%</view>
+          </view>
+          <view class="active-row">
+            <view class="symbol-info">
+              <div class="symbol-name">EURGBP</div>
+              <div class="symbol-desc">Euro to Poun</div>
+            </view>
+            <view class="price-info">
+              <div class="price-main">0.86508</div>
+              <div class="price-change"></div>
+            </view>
+            <view class="percent-badge badge-down">-0.37%</view>
+          </view>
+        </view>
       </view>
 
       <view class="page page-markets">
@@ -117,15 +125,586 @@
       </view>
 
       <view class="page page-trades">
-        <view class="section-title">交易 (Trades)</view>
-        <view class="trade-panel">下单面板占位（限价/市价/止损）</view>
+        <!-- Trades 页面：按照提供的布局实现 -->
+        <view class="trade-page">
+          <!-- 顶部内页 Tab：Capital / Leveraged -->
+          <view class="trade-tabs">
+            <button class="trade-tab active" data-type="capital" bindtap="switchTradeTab">Capital</button>
+            <button class="trade-tab" data-type="leveraged" bindtap="switchTradeTab">Leveraged</button>
+          </view>
+          <!-- 主滑动容器：包裹 Capital 和 Leveraged 两个面板 -->
+          <view class="trade-main-swiper">
+            <view class="swiper-wrapper">
+              <!-- Capital页面 (第一个 slide) -->
+              <view class="trade-capital-section swiper-slide active">
+                <!-- Capital 品种与统计头 -->
+                <view class="trade-header">
+                  <view class="th-left">
+                    <button class="symbol-switcher" bindtap="onSymbolSwitch">
+                      <text class="symbol">EURUSD</text>
+                      <img class="symbol-icon" src="../../images/app_trades_1_day.png" alt="Switch" />
+                    </button>
+                    <text class="change up">+ 0.88%</text>
+                  </view>
+                  <!-- Capital 统计区域 (恢复) -->
+                  <view class="th-right compact">
+                    <text class="stat">Open <b>3676.000</b></text>
+                    <text class="stat">Close <b>3540.000</b></text>
+                    <text class="stat">High <b>3676.670</b></text>
+                    <text class="stat">Low <b>3624.740</b></text>
+                  </view>
+                </view>
+
+                <!-- Capital 交易表单 -->
+                <view class="trade-content trade-capital">
+                  <!-- 布局：左列(订单簿+表单) + 右列(指标) -->
+                  <view class="trade-layout">
+                    <!-- 左侧：上方绿色抛盘 / 下方红色买盘 -->
+                    <view class="trade-left">
+                      <view class="book-columns">
+                        <!-- 表头：Quote / Volume -->
+                        <view class="book-header">
+                          <text class="col-title">Quote
+                            <text class="col-sub">(USDT)</text>
+                          </text>
+                          <text class="col-title align-right">Volume
+                            <text class="col-sub">(EURUSD)</text>
+                          </text>
+                        </view>
+
+                        <!-- 上：绿色抛盘(卖) 长列表 -->
+                        <view class="orderbook asks">
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                        </view>
+
+                        <!-- 中：最新价块 -->
+                        <view class="book-last">
+                          <view class="last-price-row up">
+                            <text class="last-price">2063.33</text>
+                            <img class="price-arrow" src="../../images/app_trades_4_day.png" alt="Up" />
+                          </view>
+                          <text class="last-change up">+0.56</text>
+                        </view>
+
+                        <!-- 下：红色买盘 长列表 -->
+                        <view class="orderbook bids">
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text
+                              class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text
+                              class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+
+                    <!-- 右侧：完整操作区域 -->
+                    <view class="trade-right">
+                      <view class="order-panel">
+                        <!-- 多空切换与下单类型 -->
+                        <view class="order-segment seg-trapezoid line-box2">
+                          <view class="line-box"></view>
+                          <button class="seg-btn long active" data-side="long"
+                            bindtap="toggleLongShort"><text>Long</text></button>
+                          <button class="seg-btn short" data-side="short"
+                            bindtap="toggleLongShort"><text>Short</text></button>
+                        </view>
+                        <view class="order-type">
+                          <button class="type-btn" data-form="capital" bindtap="onOrderTypeSelect">Market Order
+                            ▾</button>
+                        </view>
+
+                        <!-- 报价/手数/滑条/跟价 -->
+                        <view class="order-form">
+                          <view class="form-row floating-field" data-field="quote">
+                            <view class="stepper floating-shell" data-target="price">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Quote (USDT)</text>
+                                <input class="num" type="number" value="0.00" data-key="price" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                          <view class="form-row floating-field" data-field="volume">
+                            <view class="stepper floating-shell" data-target="volume">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Volume (EURUSD)</text>
+                                <input class="num" type="number" value="0" data-key="volume" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                          <view class="allocation-picker" data-picker="capital" data-amount-key="price"
+                            data-volume-key="volume" data-max-amount="46.2584" data-max-volume="3546.2584"
+                            data-amount-unit="USDT" data-volume-unit="EURUSD">
+                            <view class="allocation-track" data-role="track">
+                              <view class="allocation-fill" data-role="fill"></view>
+                              <view class="allocation-thumb" data-role="thumb"></view>
+                            </view>
+                            <view class="allocation-marks">
+                              <button class="mark" data-value="0">0%</button>
+                              <button class="mark" data-value="25">25%</button>
+                              <button class="mark" data-value="50">50%</button>
+                              <button class="mark" data-value="75">75%</button>
+                              <button class="mark" data-value="100">100%</button>
+                            </view>
+                          </view>
+                          <view class="form-row floating-field with-addon" data-field="lastPrice">
+                            <view class="stepper floating-shell" data-target="lastPrice">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Last Price (USDT)</text>
+                                <input class="num" type="number" value="0.00" data-key="lastPrice" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                        </view>
+
+                        <!-- 止盈止损 -->
+                        <view class="sl-switch" data-sl-target="capital">
+                          <label><input id="sl-enable" type="checkbox" checked /> <text>S/L and T/P</text></label>
+                        </view>
+                        <view class="order-form tp-sl-form" data-sl-form="capital">
+                          <view class="form-row floating-field" data-field="tp">
+                            <view class="stepper floating-shell" data-target="tp">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Take Profit</text>
+                                <input class="num" type="number" value="0" data-key="tp" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                          <view class="form-row floating-field" data-field="sl">
+                            <view class="stepper floating-shell" data-target="sl">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Stop Loss</text>
+                                <input class="num" type="number" value="0" data-key="sl" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                        </view>
+
+                        <view class="metrics">
+                          <view class="metric-row">
+                            <text class="metric-label">Available</text>
+                            <view class="metric-value">
+                              <text>46.2584</text>
+                              <text class="metric-unit">USDT</text>
+                            </view>
+                          </view>
+                          <view class="metric-row">
+                            <text class="metric-label">Buyable</text>
+                            <view class="metric-value">
+                              <text>3546.2584</text>
+                              <text class="metric-unit">EURUSD</text>
+                            </view>
+                          </view>
+                          <view class="metric-row">
+                            <text class="metric-label">Spread</text>
+                            <view class="metric-value">
+                              <text>50</text>
+                              <text class="metric-unit">USDT</text>
+                            </view>
+                          </view>
+                        </view>
+
+                        <button class="buy-btn long" bindtap="onBuy">Buy EURUSD</button>
+                      </view>
+                    </view>
+                  </view>
+
+                  <!-- 子标签：Pending / Position (Swiper) -->
+                  <view class="trade-subtabs">
+                    <button class="subtab active" data-panel="pending" bindtap="switchTradePanel">Pending Order
+                      (0)</button>
+                    <button class="subtab" data-panel="position" bindtap="switchTradePanel">Position (1)</button>
+                  </view>
+                  <view class="trade-subpanel-swiper" data-subpanel="capital">
+                    <view class="swiper-wrapper">
+                      <!-- Pending Order -->
+                      <view class="swiper-slide" data-panel="pending">
+                        <view class="trade-subpanel pending">
+                          <view class="pending-list">
+                            <view class="pending-item" data-order-id="1">
+                              <view class="pending-delete-btn" bindtap="deletePendingOrder">
+                                <text>Cancel</text>
+                              </view>
+                              <view class="pending-row">
+                                <view>
+                                  <text class="pending-symbol">EURUSD</text>
+                                  <text class="pending-type">Limit · Buy</text>
+                                </view>
+                                <view class="pending-meta">
+                                  <text class="pending-price">2,066.3300</text>
+                                  <text class="pending-status">GTC</text>
+                                </view>
+                              </view>
+                            </view>
+                            <view class="pending-item" data-order-id="2">
+                              <view class="pending-delete-btn" bindtap="deletePendingOrder">
+                                <text>Cancel</text>
+                              </view>
+                              <view class="pending-row">
+                                <view>
+                                  <text class="pending-symbol">XAUUSD</text>
+                                  <text class="pending-type">Stop · Sell</text>
+                                </view>
+                                <view class="pending-meta">
+                                  <text class="pending-price">1,984.5200</text>
+                                  <text class="pending-status">IOC</text>
+                                </view>
+                              </view>
+                            </view>
+                          </view>
+                        </view>
+                      </view>
+                      <!-- Position -->
+                      <view class="swiper-slide" data-panel="position">
+                        <view class="trade-subpanel position">
+                          <view class="position-card">
+                            <view class="pos-header">
+                              <text class="dot long"></text>
+                              <text class="pos-symbol">EURUSD</text>
+                              <text class="pos-ccy">(USDT)</text>
+                            </view>
+                            <view class="pos-grid">
+                              <view class="pos-row"><text>Balance (EUR)</text><text>2,066.3300</text></view>
+                              <view class="pos-row"><text>Surplus Value</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Liability</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Open Price</text><text>2,066.3300</text></view>
+                              <view class="pos-row"><text>Index Price</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Liquidation</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Hourly Interest</text><text>0.00713462%</text></view>
+                              <view class="pos-row"><text>Profit and Loss</text><text class="pnl up">+50.20</text>
+                              </view>
+                            </view>
+                            <view class="pos-actions">
+                              <button class="pos-btn">Close Position</button>
+                              <button class="pos-btn">S/L and T/P</button>
+                            </view>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+                    <!-- <view class="trade-subpanel-pagination"></view> -->
+                  </view>
+                </view>
+              </view>
+              <!-- Leveraged页面 (第二个 slide) -->
+              <view class="trade-leveraged-section swiper-slide">
+
+                <!-- Leveraged 品种与统计头 -->
+                <view class="trade-header">
+                  <view class="th-left">
+                    <button class="symbol-switcher" bindtap="onSymbolSwitch">
+                      <text class="symbol">EURUSD</text>
+                      <img class="symbol-icon" src="../../images/app_trades_1_day.png" alt="Switch" />
+                    </button>
+                    <text class="change up">+ 0.88%</text>
+                  </view>
+                  <!-- Leveraged 模式标签 (移动至此) -->
+                  <view class="leveraged-mode-tabs header-inline" data-mode-group="leveraged">
+                    <button class="lev-mode-tab active" data-mode="full" bindtap="switchLeveragedMode">Full Position</button>
+                    <button class="lev-mode-tab" data-mode="multiplier" bindtap="switchLeveragedMode">20x</button>
+                    <button class="lev-mode-tab" data-mode="loan" bindtap="switchLeveragedMode">Loan/Repay</button>
+                  </view>
+                </view>
+
+                <!-- Leveraged 交易表单（布局同上，细节差异：默认 Short 绿色） -->
+                <view class="trade-content trade-leveraged">
+                  <view class="trade-layout">
+                    <!-- 左侧：上方绿色抛盘 / 下方红色买盘 -->
+                    <view class="trade-left">
+                      <view class="book-columns">
+                        <!-- 表头：Quote / Volume -->
+                        <view class="book-header">
+                          <text class="col-title">Quote
+                            <text class="col-sub">(USDT)</text>
+                          </text>
+                          <text class="col-title align-right">Volume
+                            <text class="col-sub">(EURUSD)</text>
+                          </text>
+                        </view>
+
+                        <!-- 上：绿色抛盘(卖) 长列表 -->
+                        <view class="orderbook asks">
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row up"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                        </view>
+
+                        <!-- 中：最新价块 -->
+                        <view class="book-last">
+                          <view class="last-price-row up">
+                            <text class="last-price">2063.33</text>
+                            <img class="price-arrow" src="../../images/app_trades_4_day.png" alt="Up" />
+                          </view>
+                          <text class="last-change up">+0.56</text>
+                        </view>
+
+                        <!-- 下：红色买盘 长列表 -->
+                        <view class="orderbook bids">
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text
+                              class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text
+                              class="volume">3649K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">36K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">3K</text>
+                          </view>
+                          <view class="ob-row down"><text class="quote">3649.0000</text><text class="volume">364K</text>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+
+                    <!-- 右侧：完整操作区域 -->
+                    <view class="trade-right">
+                      <view class="order-panel">
+                        <!-- 多空切换与下单类型 (复制 Capital 布局, 仅参数区别) -->
+                        <view class="order-segment seg-trapezoid line-box2">
+                          <view class="line-box"></view>
+                          <button class="seg-btn long" data-side="long"
+                            bindtap="toggleLongShort"><text>Long</text></button>
+                          <button class="seg-btn short active" data-side="short"
+                            bindtap="toggleLongShort"><text>Short</text></button>
+                        </view>
+                        <view class="order-type">
+                          <button class="type-btn" data-form="leveraged" bindtap="onOrderTypeSelect">Market Order
+                            ▾</button>
+                        </view>
+
+                        <!-- 报价/手数/滑条/跟价 (参数 key 使用带 L 后缀) -->
+                        <view class="order-form">
+                          <view class="form-row floating-field" data-field="quoteL">
+                            <view class="stepper floating-shell" data-target="priceL">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Quote (USDT)</text>
+                                <input class="num" type="number" value="0.00" data-key="priceL" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                          <view class="form-row floating-field" data-field="volumeL">
+                            <view class="stepper floating-shell" data-target="volumeL">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Volume (EURUSD)</text>
+                                <input class="num" type="number" value="0" data-key="volumeL" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                          <view class="allocation-picker" data-picker="leveraged" data-amount-key="priceL"
+                            data-volume-key="volumeL" data-max-amount="46.2584" data-max-volume="3546.2584"
+                            data-amount-unit="USDT" data-volume-unit="EURUSD">
+                            <view class="allocation-track" data-role="track">
+                              <view class="allocation-fill" data-role="fill"></view>
+                              <view class="allocation-thumb" data-role="thumb"></view>
+                            </view>
+                            <view class="allocation-marks">
+                              <button class="mark" data-value="0">0%</button>
+                              <button class="mark" data-value="25">25%</button>
+                              <button class="mark" data-value="50">50%</button>
+                              <button class="mark" data-value="75">75%</button>
+                              <button class="mark" data-value="100">100%</button>
+                            </view>
+                          </view>
+                          <view class="form-row floating-field with-addon" data-field="lastPriceL">
+                            <view class="stepper floating-shell" data-target="lastPriceL">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Last Price (USDT)</text>
+                                <input class="num" type="number" value="0.00" data-key="lastPriceL" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                        </view>
+
+                        <!-- 止盈止损 -->
+                        <view class="sl-switch" data-sl-target="leveraged">
+                          <label><input id="sl-enable-lev" type="checkbox" checked /> <text>S/L and T/P</text></label>
+                        </view>
+                        <view class="order-form tp-sl-form" data-sl-form="leveraged">
+                          <view class="form-row floating-field" data-field="tpL">
+                            <view class="stepper floating-shell" data-target="tpL">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Take Profit</text>
+                                <input class="num" type="number" value="0" data-key="tpL" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                          <view class="form-row floating-field" data-field="slL">
+                            <view class="stepper floating-shell" data-target="slL">
+                              <button class="step minus" data-delta="-1" bindtap="onStep">−</button>
+                              <view class="floating-display">
+                                <text class="floating-label">Stop Loss</text>
+                                <input class="num" type="number" value="0" data-key="slL" />
+                              </view>
+                              <button class="step plus" data-delta="1" bindtap="onStep">＋</button>
+                            </view>
+                          </view>
+                        </view>
+
+                        <!-- Metrics -->
+                        <view class="metrics">
+                          <view class="metric-row">
+                            <text class="metric-label">Available</text>
+                            <view class="metric-value">
+                              <text>46.2584</text>
+                              <text class="metric-unit">USDT</text>
+                            </view>
+                          </view>
+                          <view class="metric-row">
+                            <text class="metric-label">Buyable</text>
+                            <view class="metric-value">
+                              <text>3546.2584</text>
+                              <text class="metric-unit">EURUSD</text>
+                            </view>
+                          </view>
+                          <view class="metric-row">
+                            <text class="metric-label">Spread</text>
+                            <view class="metric-value">
+                              <text>50</text>
+                              <text class="metric-unit">USDT</text>
+                            </view>
+                          </view>
+                        </view>
+
+                        <button class="buy-btn short" bindtap="onBuy">Buy EURUSD</button>
+                      </view>
+                    </view>
+                  </view>
+                  <view class="trade-subtabs">
+                    <button class="subtab active" data-panel="pending" bindtap="switchTradePanel">Pending Order
+                      (0)</button>
+                    <button class="subtab" data-panel="position" bindtap="switchTradePanel">Position (1)</button>
+                  </view>
+                  <view class="trade-subpanel-swiper" data-subpanel="leveraged">
+                    <view class="swiper-wrapper">
+                      <view class="swiper-slide" data-panel="pending">
+                        <view class="trade-subpanel pending">
+                          <view class="pending-list">
+                            <view class="pending-item" data-order-id="3">
+                              <view class="pending-delete-btn" bindtap="deletePendingOrder">
+                                <text>Cancel</text>
+                              </view>
+                              <view class="pending-row">
+                                <view>
+                                  <text class="pending-symbol">EURUSD</text>
+                                  <text class="pending-type">Limit · Sell</text>
+                                </view>
+                                <view class="pending-meta">
+                                  <text class="pending-price">2,070.0000</text>
+                                  <text class="pending-status">Post Only</text>
+                                </view>
+                              </view>
+                            </view>
+                          </view>
+                        </view>
+                      </view>
+                      <view class="swiper-slide" data-panel="position">
+                        <view class="trade-subpanel position">
+                          <view class="position-card">
+                            <view class="pos-header">
+                              <text class="dot short"></text>
+                              <text class="pos-symbol">EURUSD</text>
+                              <text class="pos-ccy">(USDT)</text>
+                            </view>
+                            <view class="pos-grid">
+                              <view class="pos-row"><text>Balance (EUR)</text><text>2,066.3300</text></view>
+                              <view class="pos-row"><text>Surplus Value</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Liability</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Open Price</text><text>2,066.3300</text></view>
+                              <view class="pos-row"><text>Index Price</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Liquidation</text><text>0.00</text></view>
+                              <view class="pos-row"><text>Hourly Interest</text><text>0.00713462%</text></view>
+                              <view class="pos-row"><text>Profit and Loss</text><text class="pnl up">+50.20</text>
+                              </view>
+                            </view>
+                            <view class="pos-actions">
+                              <button class="pos-btn">Close Position</button>
+                              <button class="pos-btn">S/L and T/P</button>
+                            </view>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+                    <!-- <view class="trade-subpanel-pagination"></view> -->
+                  </view>
+                </view>
+              </view>
+            </view><!-- 关闭 swiper-wrapper -->
+          </view><!-- 关闭 trade-main-swiper -->
+
+        </view>
       </view>
 
       <view class="page page-funds">
         <!-- Tab 切换 -->
         <view class="funds-tabs">
-          <button class="funds-tab active" data-type="capital" bindtap="switchFundsTab" data-i18n="webapp.funds.tabs.capital">Capital</button>
-          <button class="funds-tab" data-type="leveraged" bindtap="switchFundsTab" data-i18n="webapp.funds.tabs.leveraged">Leveraged</button>
+          <button class="funds-tab active" data-type="capital" bindtap="switchFundsTab"
+            data-i18n="webapp.funds.tabs.capital">Capital</button>
+          <button class="funds-tab" data-type="leveraged" bindtap="switchFundsTab"
+            data-i18n="webapp.funds.tabs.leveraged">Leveraged</button>
         </view>
 
         <!-- Capital 页面 -->
@@ -137,11 +716,12 @@
               <view class="asset-main-row">
                 <!-- 左侧：Total asset balance -->
                 <view class="asset-left">
-                  <view class="asset-title" data-i18n="webapp.funds.capital.totalAssetBalance">Total asset balance</view>
+                  <view class="asset-title" data-i18n="webapp.funds.capital.totalAssetBalance">Total asset balance
+                  </view>
                   <view class="asset-amount">0.00 <text class="currency">USDT</text></view>
                   <view class="asset-subtitle">≈ $0.00</view>
                 </view>
-                
+
                 <!-- 右侧：capital balance -->
                 <view class="asset-right">
                   <view class="balance-label" data-i18n="webapp.funds.capital.capitalBalance">capital balance</view>
@@ -154,15 +734,18 @@
               <!-- 操作按钮 -->
               <view class="asset-actions">
                 <button class="action-btn" bindtap="onDeposit">
-                  <img class="action-icon" src="../../images/app_funds_3_day.png" alt="Deposit" data-i18n-alt="webapp.funds.capital.actions.deposit" />
+                  <img class="action-icon" src="../../images/app_funds_3_day.png" alt="Deposit"
+                    data-i18n-alt="webapp.funds.capital.actions.deposit" />
                   <text class="action-label" data-i18n="webapp.funds.capital.actions.deposit">Deposit</text>
                 </button>
                 <button class="action-btn" bindtap="onWithdrawal">
-                  <img class="action-icon" src="../../images/app_funds_4_day.png" alt="withdrawal" data-i18n-alt="webapp.funds.capital.actions.withdrawal" />
+                  <img class="action-icon" src="../../images/app_funds_4_day.png" alt="withdrawal"
+                    data-i18n-alt="webapp.funds.capital.actions.withdrawal" />
                   <text class="action-label" data-i18n="webapp.funds.capital.actions.withdrawal">withdrawal</text>
                 </button>
                 <button class="action-btn" bindtap="onDetails">
-                  <img class="action-icon" src="../../images/app_funds_5_day.png" alt="details" data-i18n-alt="webapp.funds.capital.actions.details" />
+                  <img class="action-icon" src="../../images/app_funds_5_day.png" alt="details"
+                    data-i18n-alt="webapp.funds.capital.actions.details" />
                   <text class="action-label" data-i18n="webapp.funds.capital.actions.details">details</text>
                 </button>
               </view>
@@ -178,7 +761,8 @@
                 </view>
               </view>
               <button class="settings-btn" bindtap="onSettings" data-i18n-aria-label="webapp.funds.capital.settings">
-                <img class="settings-icon" src="../../images/app_funds_7_day.png" alt="Settings" data-i18n-alt="webapp.funds.capital.settings" />
+                <img class="settings-icon" src="../../images/app_funds_7_day.png" alt="Settings"
+                  data-i18n-alt="webapp.funds.capital.settings" />
               </button>
             </view>
           </view>
@@ -206,7 +790,8 @@
               <text class="detail-value">0.00</text>
             </view>
             <view class="detail-row">
-              <text class="detail-label" data-i18n="webapp.funds.capital.details.availableMargin">Available Margin</text>
+              <text class="detail-label" data-i18n="webapp.funds.capital.details.availableMargin">Available
+                Margin</text>
               <text class="detail-value">0.00</text>
             </view>
           </view>
@@ -226,7 +811,8 @@
                 </view>
               </view>
               <text class="lev-subtitle" data-i18n="webapp.funds.leveraged.approxDollar">≈ $0.00</text>
-              <text class="lev-profit"><span data-i18n="webapp.funds.leveraged.todaysPnL">Today's profit and loss:</span> <text class="profit-value">+$0.00 (+0.76%)</text></text>
+              <text class="lev-profit"><span data-i18n="webapp.funds.leveraged.todaysPnL">Today's profit and
+                  loss:</span> <text class="profit-value">+$0.00 (+0.76%)</text></text>
             </view>
 
             <view class="lev-stats">
@@ -239,12 +825,14 @@
                 <text class="stat-value">20</text>
               </view>
               <view class="stat-item">
-                <text class="stat-label" data-i18n="webapp.funds.leveraged.totalLiabilitiesUSDT">Total liabilities (USDT)</text>
+                <text class="stat-label" data-i18n="webapp.funds.leveraged.totalLiabilitiesUSDT">Total liabilities
+                  (USDT)</text>
                 <text class="stat-value">0.00</text>
                 <text class="stat-subtitle">≈ $0.00</text>
               </view>
               <view class="stat-item">
-                <text class="stat-label" data-i18n="webapp.funds.leveraged.accountEquityUSDT">Account Equity (USDT)</text>
+                <text class="stat-label" data-i18n="webapp.funds.leveraged.accountEquityUSDT">Account Equity
+                  (USDT)</text>
                 <text class="stat-value">0.00</text>
                 <text class="stat-subtitle">≈ $0.00</text>
               </view>
@@ -253,14 +841,18 @@
 
           <!-- 操作按钮 -->
           <view class="lev-actions">
-            <button class="lev-action-btn primary" bindtap="onLoan" data-i18n="webapp.funds.leveraged.actions.loan">loan</button>
-            <button class="lev-action-btn" bindtap="onRepayment" data-i18n="webapp.funds.leveraged.actions.repayment">repayment</button>
-            <button class="lev-action-btn" bindtap="onTransfer" data-i18n="webapp.funds.leveraged.actions.transfer">transfer</button>
+            <button class="lev-action-btn primary" bindtap="onLoan"
+              data-i18n="webapp.funds.leveraged.actions.loan">loan</button>
+            <button class="lev-action-btn" bindtap="onRepayment"
+              data-i18n="webapp.funds.leveraged.actions.repayment">repayment</button>
+            <button class="lev-action-btn" bindtap="onTransfer"
+              data-i18n="webapp.funds.leveraged.actions.transfer">transfer</button>
           </view>
 
           <!-- 学习链接 -->
           <view class="learn-link" bindtap="onLearnLeveraged">
-            <img class="learn-icon" src="../../images/app_funds_1_day.png" alt="Learn" data-i18n-alt="webapp.funds.leveraged.learn" />
+            <img class="learn-icon" src="../../images/app_funds_1_day.png" alt="Learn"
+              data-i18n-alt="webapp.funds.leveraged.learn" />
             <text data-i18n="webapp.funds.leveraged.learn">Learn how to use leveraged trading</text>
           </view>
 
@@ -292,6 +884,27 @@
         </view>
       </view>
     </view>
+
+    <!-- 通用弹窗组件：菜单/提示共用的底部弹层 -->
+    <view class="action-sheet" id="action-sheet" aria-hidden="true" data-mode="menu" data-theme="dark">
+      <view class="sheet-mask" bindtap="onSheetCancel"></view>
+      <view class="sheet-panel">
+        <view class="sheet-handle"></view>
+        <view class="sheet-header">
+          <text class="sheet-title">请选择</text>
+          <text class="sheet-subtitle"></text>
+        </view>
+        <view class="sheet-section sheet-menu"></view>
+        <view class="sheet-section sheet-alert">
+          <view class="sheet-alert-icon"></view>
+          <text class="sheet-alert-message">提示信息</text>
+        </view>
+        <view class="sheet-actions">
+          <button class="sheet-btn ghost" bindtap="onSheetCancel">取消</button>
+          <button class="sheet-btn primary" bindtap="onSheetConfirm">确认</button>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 底部 TabBar -->
@@ -301,7 +914,8 @@
       <text class="tab-label" data-i18n="webapp.common.home">Home</text>
     </button>
     <button class="tab" bindtap="switchTab" data-tab="markets">
-      <img class="tab-icon" src="../../images/app_tabbar_2_day.png" alt="Markets" data-i18n-alt="webapp.common.markets" />
+      <img class="tab-icon" src="../../images/app_tabbar_2_day.png" alt="Markets"
+        data-i18n-alt="webapp.common.markets" />
       <text class="tab-label" data-i18n="webapp.common.markets">Markets</text>
     </button>
     <button class="tab" bindtap="switchTab" data-tab="trades">
