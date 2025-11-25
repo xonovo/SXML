@@ -120,7 +120,7 @@
       document.addEventListener('click', function(ev){
         try {
           var t = ev.target; var cls = t && t.className ? String(t.className) : '';
-          console && console.log && console.log('[dbg-click]', t && t.tagName, cls);
+          // console && console.log && console.log('[dbg-click]', t && t.tagName, cls);
           // 视觉点击标记：在点击处显示一个小点 400ms
           try {
             var dot = document.createElement('div');

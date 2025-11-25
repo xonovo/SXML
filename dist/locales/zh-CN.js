@@ -115,14 +115,15 @@ window.LOCALE_zh_CN = {
                 "postOnly": "仅挂单"
             },
             "position": {
-                "balance": "余额(EUR)",
+                "balance": "余额",
                 "surplus": "盈余",
                 "liability": "负债",
                 "openPrice": "开仓价",
                 "indexPrice": "指数价",
                 "liquidation": "强平价",
                 "hourlyInterest": "小时利率",
-                "pnl": "盈亏"
+                "pnl": "盈亏",
+                "empty": "暂无持仓"
             },
             "leveragedModes": {
                 "full": "全仓",

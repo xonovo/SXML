@@ -224,7 +224,7 @@ Page({
     }
   },
 
-  // 登录账号验证（邮箱或账号）
+  // 登录邮箱验证（仅邮箱）
   validateMobileInput(element) {
     const value = element.value.trim();
     if (!value) {
@@ -232,11 +232,10 @@ Page({
       return;
     }
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const accountPattern = /^[A-Za-z0-9._-]{4,64}$/;
-    const isValid = emailPattern.test(value) || accountPattern.test(value);
+    const isValid = emailPattern.test(value);
     if (!isValid) {
-      element.setCustomValidity('Please enter a valid e-mail or account');
-      app.showToast('Please enter a valid e-mail or account', 'confirm');
+      element.setCustomValidity('Please enter a valid e-mail');
+      app.showToast('Please enter a valid e-mail', 'confirm');
     } else {
       element.setCustomValidity('');
     }
@@ -273,7 +272,7 @@ Page({
     const accountInput = document.getElementById('u');
     const accountValue = accountInput ? accountInput.value.trim() : '';
     if (!accountValue) {
-      app.showToast('E-mail/Account not filled in correctly!', 'Re-enter');
+      app.showToast('E-mail not filled in correctly!', 'Re-enter');
       if (accountInput) accountInput.focus();
       return;
     }

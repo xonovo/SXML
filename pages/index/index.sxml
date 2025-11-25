@@ -18,12 +18,12 @@
 
   <!-- 登录表单 -->
   <view class="login-form">
-    <!-- 邮箱/账号 -->
+    <!-- 邮箱 -->
     <view class="form-field">
-      <view class="field-label" data-i18n="login.label.account">E-mail / Account</view>
-      <input id="u" class="field-input" type="text" placeholder="Please enter e-mail/account"
-        data-i18n-placeholder="login.placeholder.account" bindfocus="u_onfocus"
-        bindblur="u_onblur" maxlength="50" />
+      <view class="field-label" data-i18n="login.label.email">E-mail</view>
+      <input id="u" class="field-input" type="email" placeholder="Please enter e-mail"
+        data-i18n-placeholder="login.placeholder.email" bindfocus="u_onfocus"
+        bindblur="u_onblur" maxlength="100" />
     </view>
 
     <!-- 密码 -->

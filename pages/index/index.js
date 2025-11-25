@@ -51,7 +51,6 @@ Page({
         pwdInput.setAttribute('autocomplete', 'new-password');
       }
     } catch (_) { }
-    try { sessionStorage.removeItem('p'); } catch (_) { }
     // 启用登录按钮
     try {
       const btn = document.getElementById('but');
@@ -207,7 +206,7 @@ Page({
       id = e.target && e.target.id;
     }
     const PLACEHOLDERS = {
-      u: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.account', '请输入手机号或账号') : '请输入手机号或账号',
+      u: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.email', '请输入邮箱') : '请输入邮箱',
       k: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.key', '数字密钥（Key）') : '数字密钥（Key）',
       p: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.password', '请输入密码') : '请输入密码'
     };
@@ -238,10 +237,9 @@ Page({
       return;
     }
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const accountPattern = /^[A-Za-z0-9._-]{4,64}$/;
-    const isValid = emailPattern.test(value) || accountPattern.test(value);
+    const isValid = emailPattern.test(value);
     if (!isValid) {
-      const msg = window.i18n ? window.i18n.t('login.toast.mobileFormat', '请输入有效的邮箱或账号') : '请输入有效的邮箱或账号';
+      const msg = window.i18n ? window.i18n.t('login.toast.emailFormat', '请输入有效的邮箱') : '请输入有效的邮箱';
       element.setCustomValidity(msg);
       app.showToast(msg, window.i18n ? window.i18n.t('login.toast.confirm') : 'confirm');
     } else {
@@ -296,6 +294,8 @@ Page({
     }
     return true;
   },
+  // ==================== 异步操作 ==================== 
+  //登录逻辑
   async loginEvent() {
     if (!this.checkEnvSupport()) {
       return; // 环境不满足，已提示
@@ -304,7 +304,7 @@ Page({
     const accountValue = accountInput ? accountInput.value.trim() : '';
     if (!accountValue) {
       app.showToast(
-        window.i18n ? window.i18n.t('login.toast.mobileRequired') : '邮箱/账号未正确填写！',
+        window.i18n ? window.i18n.t('login.toast.emailRequired') : '邮箱未正确填写！',
         window.i18n ? window.i18n.t('login.toast.reEnter') : '重新输入'
       );
       if (accountInput) accountInput.focus();
@@ -319,17 +319,20 @@ Page({
       return;
     }
 
-    sessionStorage.setItem("u", $("#u").val());
-    sessionStorage.setItem(
-      "p",
-      // 账号 + 明文密码 MD5（与加密/解密 apiKey 保持一致）
-      hex_md5_utf($("#u").val() + $("#p").val()).toUpperCase()
-    );
+     sessionStorage.setItem("u", $("#u").val());
+    // sessionStorage.setItem(
+    //   "p",
+    //   // 账号 + 明文密码 MD5（与加密/解密 apiKey 保持一致）
+    //   hex_md5_utf($("#u").val() + $("#p").val()).toUpperCase()
+    // );
+    var u = $("#u").val();
+    var p = hex_md5_utf($("#u").val() + $("#p").val()).toUpperCase()
+
     if (localStorage["apiKey"] && this.data.keyStatus) {
       const decryptedK = await Decrypt(
         localStorage["apiKey"],
-        sessionStorage["p"],
-        sessionStorage["p"].substring(0, 12)
+        p,
+        p.substring(0, 12)
       );
       sessionStorage.setItem("k", decryptedK);
       if (sessionStorage["k"] == "") {
@@ -340,7 +343,7 @@ Page({
         return;
       }
     } else {
-      if ($("#k").val().length < 11 || $("#k").val() == "") {
+      if ($("#k").val().length < 32 || $("#k").val() == "") {
         app.showToast(
           window.i18n ? window.i18n.t('login.toast.keyRequired') : "数字密钥位数必须为32位！",
           window.i18n ? window.i18n.t('login.toast.reEnter') : "重新输入"
@@ -351,10 +354,10 @@ Page({
     }
 
     window.superAPI = createSuperAPI();
-    this.loginInterface();
+    this.loginInterface(u, p);
   },
 
-  async loginInterface() {
+  async loginInterface(u,p) {
     try {
       if (!window.superAPI) {
         window.superAPI = createSuperAPI();
@@ -363,8 +366,8 @@ Page({
       const data = await window.superAPI.request(
         'I00002',
         {
-          userEmail: sessionStorage["u"],
-          userPassword: sessionStorage["p"],
+          userEmail: u,
+          userPassword: p,
           loginIp: this.data.loginIp,
           loginLocation: this.data.loginLocation,
           loginOs: this.data.loginOs,
@@ -375,17 +378,18 @@ Page({
 
       if (data && data.status) {
 
-        sessionStorage.setItem("USERINFO", JSON.stringify(data));
-
+        // sessionStorage.setItem("USERINFO", JSON.stringify(data));
+        // var USERINFO = JSON.stringify(data);
         try {
           const cipher = await Encrypt(
             sessionStorage["k"],
-            sessionStorage["p"],
-            sessionStorage["p"].substring(0, 12)
+            p,
+            p.substring(0, 12)
           );
           localStorage.setItem("apiKey", cipher);
-          localStorage.setItem("email", sessionStorage["u"]);
+          localStorage.setItem("email", u);
           localStorage.setItem("userAccount", data.userAccount);
+          sessionStorage.setItem("u", data.userAccount);
         } catch (e) {
           app.showToast(
             window.i18n ? window.i18n.t('login.toast.storageError') : "本地存储失败",
@@ -487,8 +491,9 @@ Page({
     try {
       localStorage.removeItem('apiKey');
       localStorage.removeItem('userAccount');
+      localStorage.removeItem('email');
       sessionStorage.removeItem('k');
-      sessionStorage.removeItem('USERINFO');
+      sessionStorage.removeItem('u');
 
       const mobileInput = document.getElementById('u');
       if (mobileInput) mobileInput.value = '';

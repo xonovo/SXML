@@ -344,7 +344,7 @@ class SuperAPI {
                             const iv2 = ivSource2.substring(weekday2, weekday2 + 12);
 
                             const decryptedData = await decryptData(response.data, decryptKey, iv2);
-
+console.log('Decrypted data:', decryptedData);
                             // 统一处理服务器响应格式：{ status, data, ... }
                             // 如果 status === 1 且 data 存在，则提取 data 并处理数组格式
                             if (decryptedData && decryptedData.status === 1 && decryptedData.data) {

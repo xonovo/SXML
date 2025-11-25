@@ -383,10 +383,10 @@
                 <!-- 子标签：Pending / Position (Swiper) -->
                 <view class="trade-subtabs">
                   <button class="subtab active" data-panel="pending" bindtap="switchTradePanel">
-                    <text data-i18n="webapp.trades.subtabs.pending">Pending Order</text> (0)
+                    <text data-i18n="webapp.trades.subtabs.pending">Pending Order</text>
                   </button>
                   <button class="subtab" data-panel="position" bindtap="switchTradePanel">
-                    <text data-i18n="webapp.trades.subtabs.position">Position</text> (1)
+                    <text data-i18n="webapp.trades.subtabs.position">Position</text>
                   </button>
                 </view>
                 <view class="trade-subpanel-swiper" data-subpanel="capital">
@@ -433,6 +433,8 @@
                     <!-- Position -->
                     <view class="swiper-slide" data-panel="position">
                       <view class="trade-subpanel position">
+                        <view class="position-list" data-position-scope="capital">
+                          <view class="position-empty" data-i18n="webapp.trades.position.empty" style="display: none;">No active positions</view>
                         <view class="position-card">
                           <view class="pos-header">
                             <text class="dot long"></text>
@@ -440,8 +442,7 @@
                             <text class="pos-ccy">(USDT)</text>
                           </view>
                           <view class="pos-grid">
-                            <view class="pos-row"><text data-i18n="webapp.trades.position.balance">Balance
-                                (EUR)</text><text>2,066.3300</text></view>
+                            <view class="pos-row"><text data-i18n="webapp.trades.position.balance">Balance</text><text>2,066.3300</text></view>
                             <view class="pos-row"><text data-i18n="webapp.trades.position.surplus">Surplus
                                 Value</text><text>0.00</text></view>
                             <view class="pos-row"><text
@@ -463,6 +464,7 @@
                             <button class="pos-btn" data-i18n="webapp.trades.buttons.closePosition">Close Position</button>
                             <button class="pos-btn" data-i18n="webapp.trades.buttons.sltp">S/L and T/P</button>
                           </view>
+                        </view>
                         </view>
                       </view>
                     </view>
@@ -693,10 +695,10 @@
                 </view>
                 <view class="trade-subtabs">
                   <button class="subtab active" data-panel="pending" bindtap="switchTradePanel">
-                    <text data-i18n="webapp.trades.subtabs.pending">Pending Order</text> (0)
+                    <text data-i18n="webapp.trades.subtabs.pending">Pending Order</text>
                   </button>
                   <button class="subtab" data-panel="position" bindtap="switchTradePanel">
-                    <text data-i18n="webapp.trades.subtabs.position">Position</text> (1)
+                    <text data-i18n="webapp.trades.subtabs.position">Position</text>
                   </button>
                 </view>
                 <view class="trade-subpanel-swiper" data-subpanel="leveraged">
@@ -726,6 +728,8 @@
                     </view>
                     <view class="swiper-slide" data-panel="position">
                       <view class="trade-subpanel position">
+                        <view class="position-list" data-position-scope="leveraged">
+                          <view class="position-empty" data-i18n="webapp.trades.position.empty" style="display: none;">No active positions</view>
                         <view class="position-card">
                           <view class="pos-header">
                             <text class="dot short"></text>
@@ -733,8 +737,7 @@
                             <text class="pos-ccy">(USDT)</text>
                           </view>
                           <view class="pos-grid">
-                            <view class="pos-row"><text data-i18n="webapp.trades.position.balance">Balance
-                                (EUR)</text><text>2,066.3300</text></view>
+                            <view class="pos-row"><text data-i18n="webapp.trades.position.balance">Balance</text><text>2,066.3300</text></view>
                             <view class="pos-row"><text data-i18n="webapp.trades.position.surplus">Surplus
                                 Value</text><text>0.00</text></view>
                             <view class="pos-row"><text
@@ -757,6 +760,7 @@
                               Position</button>
                             <button class="pos-btn" data-i18n="webapp.trades.buttons.sltp">S/L and T/P</button>
                           </view>
+                        </view>
                         </view>
                       </view>
                     </view>

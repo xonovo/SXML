@@ -1677,17 +1677,21 @@ html, body {
 .pending-price{ display:block; font-size:15px; font-weight:600; color:#111; }
 .pending-status{ display:block; font-size:11px; color:#999; margin-top:2px; }
 
+.position-list{ display:flex; flex-direction:column; gap:12px; }
+.position-empty{ padding:40px 20px; text-align:center; color:#999; font-size:14px; }
 .position-card{ background:#fff; border-radius:12px; margin:12px 0; }
 .pos-header{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .pos-header .dot{ width:10px; height:10px; border-radius:50%; }
 .pos-header .dot.long{ background:#e85a5a; }
 .pos-header .dot.short{ background:#2bb673; }
 .pos-symbol{ font-size:18px; font-weight:700; color:#111; }
-.pos-ccy{ font-size:12px; color:#999; }
+.pos-time{ font-size:11px; color:#999; }
+.pos-order{ font-size:12px; color:#999; margin-left:auto; }
 .pos-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; border-top:1px solid #f0f0f0; padding-top:12px; }
 .pos-row{ display:flex; justify-content:space-between; color:#666; font-size:13px; }
 .pos-row .pnl.up{ color:var(--color-bull); font-weight:600; }
 .pos-row .pnl.down{ color:var(--color-bear); font-weight:600; }
+.pos-unit{ color:#999; font-size:11px; font-weight:400; margin-left:2px; }
 .pos-actions{ display:flex; gap:12px; margin-top:14px; }
 .pos-btn{ flex:1; border:1px solid #e0e0e0; background:#f7f7f7; color:#555; border-radius:10px; padding:12px; font-weight:600; }
 .add-btn{ border:1px solid #e0e0e0; background:#f7f7f7; color:#000; border-radius:6px; padding:8px 18px; height: min-content; }

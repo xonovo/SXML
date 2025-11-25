@@ -21,6 +21,13 @@ Page({
 
   // 页面加载时触发
   onLoad(options) {
+    // 检查登录状态
+    if (!sessionStorage || !sessionStorage.getItem || !sessionStorage.getItem('k')) {
+      console.warn('[myInfo] 未登录，跳转到登录页');
+      window.location.replace('../../pages/index/index.html');
+      return;
+    }
+
     console.log('myInfo 页面加载', options);
     console.log('页面配置:', window.PAGE_CONFIG);
     

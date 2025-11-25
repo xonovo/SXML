@@ -45,6 +45,122 @@
     }
   }
 
+  function collectDepthPrices(side){
+    var prices = [];
+    if (!Array.isArray(side)) return prices;
+    if (Array.isArray(side[0]) && Array.isArray(side[1])) {
+      var priceArr = side[0];
+      for (var i = 0; i < priceArr.length; i++) {
+        var price = Number(priceArr[i]);
+        if (isFinite(price)) prices.push(price);
+      }
+      return prices;
+    }
+    for (var j = 0; j < side.length; j++) {
+      var entry = side[j];
+      var candidate;
+      if (Array.isArray(entry)) {
+        candidate = Number(entry[0]);
+      } else if (entry && typeof entry === 'object') {
+        candidate = Number(entry.price ?? entry.p ?? entry.v ?? entry.value ?? entry[0]);
+      } else {
+        candidate = Number(entry);
+      }
+      if (isFinite(candidate)) prices.push(candidate);
+    }
+    return prices;
+  }
+
+  function pickDepthExtreme(prices, type){
+    if (!prices || !prices.length) return null;
+    var target = prices[0];
+    for (var i = 1; i < prices.length; i++) {
+      var price = prices[i];
+      if (!isFinite(price)) continue;
+      if (!isFinite(target)) {
+        target = price;
+        continue;
+      }
+      if (type === 'ask') {
+        if (price < target) target = price;
+      } else if (type === 'bid') {
+        if (price > target) target = price;
+      }
+    }
+    return isFinite(target) ? target : null;
+  }
+
+  function maybeNormalizeDepthOrder(depth, symbol, store){
+    if (!depth || !Array.isArray(depth.asks) || !Array.isArray(depth.bids)) return;
+    var askPrices = collectDepthPrices(depth.asks);
+    var bidPrices = collectDepthPrices(depth.bids);
+    if (!askPrices.length || !bidPrices.length) return;
+    var bestAsk = pickDepthExtreme(askPrices, 'ask');
+    var bestBid = pickDepthExtreme(bidPrices, 'bid');
+    if (!isFinite(bestAsk) || !isFinite(bestBid)) return;
+    if (bestAsk >= bestBid) return;
+    var tmp = depth.asks;
+    depth.asks = depth.bids;
+    depth.bids = tmp;
+    if (store && store._depthSwapStats) {
+      var sym = symbol || 'unknown';
+      store._depthSwapStats[sym] = (store._depthSwapStats[sym] || 0) + 1;
+      if (store._debugEnabled && console && console.warn && store._depthSwapStats[sym] <= 5) {
+        console.warn('[MarketsStore] depth sides swapped for', sym, 'bestAsk', bestAsk, 'bestBid', bestBid);
+      }
+    }
+  }
+
+  var MARKETS_DEBUG_FLAG_KEY = 'MARKETS_WS_DEBUG';
+
+  function coerceDebugValue(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      var normalized = value.trim().toLowerCase();
+      if (!normalized) return null;
+      if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+      if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+    }
+    return null;
+  }
+
+  function readDebugFlagFromStorage() {
+    var val = null;
+    try {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem) {
+        val = sessionStorage.getItem(MARKETS_DEBUG_FLAG_KEY);
+        if (val !== null) return val;
+      }
+    } catch (_) {}
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem) {
+        val = localStorage.getItem(MARKETS_DEBUG_FLAG_KEY);
+        if (val !== null) return val;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function resolveDebugFlag(flag) {
+    var direct = coerceDebugValue(flag);
+    if (typeof direct === 'boolean') return direct;
+    if (globalScope && typeof globalScope.MARKETS_WS_DEBUG !== 'undefined') {
+      var globalVal = coerceDebugValue(globalScope.MARKETS_WS_DEBUG);
+      if (typeof globalVal === 'boolean') return globalVal;
+    }
+    if (globalScope && typeof globalScope.__MARKETS_WS_DEBUG__ !== 'undefined') {
+      var aliasVal = coerceDebugValue(globalScope.__MARKETS_WS_DEBUG__);
+      if (typeof aliasVal === 'boolean') return aliasVal;
+    }
+    var stored = readDebugFlagFromStorage();
+    if (stored !== null) {
+      var storedVal = coerceDebugValue(stored);
+      if (typeof storedVal === 'boolean') return storedVal;
+    }
+    return false;
+  }
+
   function MarketsStore(){
     this._bus = new EventBus();
     this._socket = null;
@@ -57,6 +173,8 @@
     this._staleThresholdMs = 30000; // 30s 无交易视为 stale
     this._resubscribeIntervalMs = 120000; // 每 2 分钟尝试一次全量重订阅（若 stale 持续）
     this._lastResubscribeAt = 0;
+    this._debugEnabled = resolveDebugFlag();
+    this._depthSwapStats = Object.create(null);
 
     // 交易日级别快照（按 symbol 存储 6.x 字段）
     this._dailySnapshot = Object.create(null); // symbol -> { yesterdayDate, yesterdayClose, todayDate, todayOpen, lastPrice, changeAbs, changePct, high, low, updatedAt }
@@ -349,7 +467,9 @@
 
   MarketsStore.prototype._handleData = function(payload){
     if (!payload) return;
-    console.log('[MarketsStore] _handleData 收到:', payload.code, 'hasData:', !!payload.data);
+    if (this._debugEnabled && console && console.log) {
+      console.log('[MarketsStore] _handleData 收到:', payload.code, 'hasData:', !!payload.data);
+    }
     var data = payload.data !== undefined ? payload.data : payload;
 
     // 统一适配层:将 Trade / Depth / Kline 的原始结构转成通用快照对象
@@ -370,7 +490,10 @@
           bids: item.bids || item.b || [],
           asks: item.asks || item.a || []
         };
-        console.log('[MarketsStore] 解析到深度数据:', sym, 'bids:', depth.bids.length, 'asks:', depth.asks.length);
+        maybeNormalizeDepthOrder(depth, sym, self);
+        if (self._debugEnabled && console && console.log) {
+          console.log('[MarketsStore] 解析到深度数据:', sym, 'bids:', depth.bids.length, 'asks:', depth.asks.length);
+        }
       }
 
       // Kline: 以 respList 或 klineList 形式存在
@@ -520,8 +643,8 @@
       self._quotes[sym] = snapshot;
       self._lastUpdateMap[sym] = snapshot.updatedAt || Date.now();
       // 添加调试日志
-      if (depth) {
-        console.log('[MarketsStore] emit update with depth:', sym, 'bids:', depth.bids?.length, 'asks:', depth.asks?.length);
+      if (depth && self._debugEnabled && console && console.log) {
+        console.log('[MarketsStore] emit update with depth:', sym, 'bids:', depth.bids && depth.bids.length, 'asks:', depth.asks && depth.asks.length);
       }
       self._bus.emit('update', sym, snapshot);
     }
@@ -549,7 +672,9 @@
     var creds = await resolveWsCredentials();
     if (!creds) {
       // 尝试访客模式（只建立连接不发送 auth，部分公开行情源可能允许匿名订阅）
-      if (console && console.log) console.log('[MarketsStore] 未找到登录凭证，进入访客试探模式');
+      if (this._debugEnabled && console && console.log) {
+        console.log('[MarketsStore] 未找到登录凭证，进入访客试探模式');
+      }
     }
     var endpoint = resolveWsEndpoint();
     var socket = new MarketsSocket({
@@ -559,7 +684,7 @@
       provider: 'internal',
       reconnect: true,
       useInfowayProtocol: true,
-      debug: true,
+      debug: this._debugEnabled,
       onStateChange: this._handleState.bind(this),
       onData: this._handleData.bind(this),
       onError: this._handleError.bind(this)
@@ -568,7 +693,9 @@
       socket.connect(creds);
     } else {
       // 没有凭证则直接标记 open，等待后续凭证补齐再重连
-      if (console && console.log) console.log('[MarketsStore] 访客模式：暂不鉴权，仅等待后续凭证');
+      if (this._debugEnabled && console && console.log) {
+        console.log('[MarketsStore] 访客模式：暂不鉴权，仅等待后续凭证');
+      }
       // 仍创建 socket 以便后续检测 ready 状态；由于 MarketsSocket.connect 会直接报 Missing credentials，这里绕开
       try { socket.credentials = {}; socket._emitState('connecting'); } catch(_) {}
     }

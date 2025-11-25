@@ -69,8 +69,8 @@ window.LOCALE_en_US = {
         "leveraged": "Leveraged"
       },
       "stats": {
-        "open": "Today Open",
-        "close": "Prev Close",
+        "open": "Open",
+        "close": "Close",
         "high": "High",
         "low": "Low"
       },
@@ -115,14 +115,15 @@ window.LOCALE_en_US = {
         "postOnly": "Post Only"
       },
       "position": {
-        "balance": "Balance (EUR)",
+        "balance": "Balance",
         "surplus": "Surplus Value",
         "liability": "Liability",
         "openPrice": "Open Price",
         "indexPrice": "Index Price",
         "liquidation": "Liquidation",
         "hourlyInterest": "Hourly Interest",
-        "pnl": "Profit and Loss"
+        "pnl": "Profit and Loss",
+        "empty": "No active positions"
       },
       "leveragedModes": {
         "full": "Full Position",

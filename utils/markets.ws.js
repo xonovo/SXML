@@ -149,6 +149,56 @@
     return 'trace-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   }
 
+  var MARKETS_DEBUG_FLAG_KEY = 'MARKETS_WS_DEBUG';
+
+  function coerceDebugValue(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      var normalized = value.trim().toLowerCase();
+      if (!normalized) return null;
+      if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+      if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+    }
+    return null;
+  }
+
+  function readDebugFlagFromStorage() {
+    var val = null;
+    try {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem) {
+        val = sessionStorage.getItem(MARKETS_DEBUG_FLAG_KEY);
+        if (val !== null) return val;
+      }
+    } catch (_) {}
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem) {
+        val = localStorage.getItem(MARKETS_DEBUG_FLAG_KEY);
+        if (val !== null) return val;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function resolveDebugFlag(value) {
+    var direct = coerceDebugValue(value);
+    if (typeof direct === 'boolean') return direct;
+    if (globalScope && typeof globalScope.MARKETS_WS_DEBUG !== 'undefined') {
+      var globalVal = coerceDebugValue(globalScope.MARKETS_WS_DEBUG);
+      if (typeof globalVal === 'boolean') return globalVal;
+    }
+    if (globalScope && typeof globalScope.__MARKETS_WS_DEBUG__ !== 'undefined') {
+      var aliasVal = coerceDebugValue(globalScope.__MARKETS_WS_DEBUG__);
+      if (typeof aliasVal === 'boolean') return aliasVal;
+    }
+    var stored = readDebugFlagFromStorage();
+    if (stored !== null) {
+      var storedVal = coerceDebugValue(stored);
+      if (typeof storedVal === 'boolean') return storedVal;
+    }
+    return false;
+  }
+
   function MarketsSocket(options) {
     options = options || {};
     this.options = {
@@ -161,7 +211,7 @@
       heartbeatInterval: options.heartbeatInterval || 15000,
       provider: options.provider || 'internal',
       useInfowayProtocol: options.useInfowayProtocol === true || /infoway-websocket/i.test(options.endpoint || ''),
-      debug: !!options.debug,
+      debug: resolveDebugFlag(options.debug),
       onStateChange: options.onStateChange,
       onData: options.onData,
       onError: options.onError
@@ -339,7 +389,7 @@
   MarketsSocket.prototype._handleMessage = function(evt) {
     if (!evt || typeof evt.data === 'undefined') return;
     var raw = evt.data;
-    console.log('[MarketsSocket] 收到消息:', raw.substring(0, 200));
+    this._log('收到消息:', raw.substring(0, 200));
     var msg;
     try {
       msg = JSON.parse(raw);
@@ -349,7 +399,7 @@
     }
     if (!msg) return;
     var displayCode = msg.code || (msg.data && msg.data.code) || 'N/A';
-    console.log('[MarketsSocket] 解析后: type=' + msg.type + ', code=' + displayCode + ', hasData:', !!msg.data);
+    this._log('解析后', { type: msg.type, code: displayCode, hasData: !!msg.data });
 
     // 基于 Infoway 100xx/110xx 协议号的精细识别（兼容无 type 的纯 code 消息）
     if (msg && typeof msg.code === 'number' && !msg.type) {
@@ -523,7 +573,7 @@
       }
       if (typeof self.options.onData === 'function') {
         var innerCode = (payload && payload.code) || (msg.data && msg.data.code) || 'N/A';
-        console.log('[MarketsSocket] 转发到 onData, code:', innerCode);
+        self._log('转发到 onData, code:', innerCode);
         try {
           self.options.onData(payload || null, msg);
         } catch (cbErr) {
