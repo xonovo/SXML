@@ -1,6 +1,6 @@
 // 登录页面 - 使用现代化 Web 3.0 开发模式
 // 通过 getApp() 访问全局方法(类似微信小程序)
-const app = getApp();
+var app; try { app = getApp(); } catch(_) { app = window.app || {}; }
 
 Page({
   // 页面数据
@@ -140,31 +140,31 @@ Page({
       return;
     }
 
-    const mobileInput = document.getElementById('u');
-    if (!mobileInput) {
-      console.warn('Mobile input element not found');
+    const accountInput = document.getElementById('u');
+    if (!accountInput) {
+      console.warn('Account input element not found');
       return;
     }
 
-    const mobile = mobileInput.value;
-    if (!mobile || mobile.length !== 11 || !/^\d{11}$/.test(mobile)) {
+    const account = accountInput.value ? accountInput.value.trim() : '';
+    if (!account) {
       return;
     }
 
-    const storedMobile = localStorage.getItem('userAccount');
+    const storedAccount = (localStorage.getItem('userAccount') || '').trim();
 
     try {
-      if (mobile !== storedMobile) {
+      if (account !== storedAccount) {
         this.setData({ keyStatus: false });
 
         const event = new CustomEvent('accountChange', {
-          detail: { mobile, matched: false }
+          detail: { account, mobile: account, matched: false }
         });
         document.dispatchEvent(event);
       } else {
         this.getConfig();
         const event = new CustomEvent('accountChange', {
-          detail: { mobile, matched: true }
+          detail: { account, mobile: account, matched: true }
         });
         document.dispatchEvent(event);
       }
@@ -183,7 +183,7 @@ Page({
     }
     // 使用 i18n 动态占位符，若 i18n 不可用则回退英文
     const PLACEHOLDERS = {
-      u: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.mobile', 'Please enter mobile phone') : 'Please enter mobile phone',
+  u: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.account', 'Please enter e-mail/account') : 'Please enter e-mail/account',
       k: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.key', 'digital key（Key）') : 'digital key（Key）',
       p: (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t('login.placeholder.password', 'Please enter the password') : 'Please enter the password'
     };
@@ -224,16 +224,21 @@ Page({
     }
   },
 
-  // 手机号验证
+  // 登录账号验证（邮箱或账号）
   validateMobileInput(element) {
     const value = element.value.trim();
-    if (value) {
-      if (!/^\d{11}$/.test(value)) {
-        element.setCustomValidity('Please enter an 11 digit mobile phone number');
-        app.showToast('The format of the phone number is incorrect', 'confirm');
-      } else {
-        element.setCustomValidity('');
-      }
+    if (!value) {
+      element.setCustomValidity('');
+      return;
+    }
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const accountPattern = /^[A-Za-z0-9._-]{4,64}$/;
+    const isValid = emailPattern.test(value) || accountPattern.test(value);
+    if (!isValid) {
+      element.setCustomValidity('Please enter a valid e-mail or account');
+      app.showToast('Please enter a valid e-mail or account', 'confirm');
+    } else {
+      element.setCustomValidity('');
     }
   },
 
@@ -265,13 +270,14 @@ Page({
 
   // 登录事件
   async loginEvent() {
-    if (
-      document.getElementById("u").value.length < 11 ||
-      document.getElementById("u").value == ""
-    ) {
-      app.showToast("The phone number is not filled in correctly!", "Re-enter");
+    const accountInput = document.getElementById('u');
+    const accountValue = accountInput ? accountInput.value.trim() : '';
+    if (!accountValue) {
+      app.showToast('E-mail/Account not filled in correctly!', 'Re-enter');
+      if (accountInput) accountInput.focus();
       return;
     }
+    this.validateMobileInput(accountInput);
     if ($("#p").val() == "") {
       app.showToast("Password not filled in!", "Re-enter");
       return;

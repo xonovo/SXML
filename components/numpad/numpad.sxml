@@ -1,0 +1,57 @@
+<!-- 通用数字键盘组件 -->
+<view class="numpad-container" id="numpad-container" aria-hidden="true">
+  <view class="numpad-mask" bindtap="onNumpadClose"></view>
+  <view class="numpad-panel">
+    <!-- 输入显示区域 -->
+    <view class="numpad-display">
+      <view class="display-header">
+        <text class="display-label" data-i18n="numpad.label">Amount</text>
+        <button class="display-close" bindtap="onNumpadClose" aria-label="Close">×</button>
+      </view>
+      <view class="display-value-wrap">
+        <text class="display-currency">USDT</text>
+        <text class="display-value" data-numpad-value>0</text>
+      </view>
+      <view class="display-approx">
+        ≈ $<text data-numpad-approx>0.00</text>
+      </view>
+    </view>
+
+    <!-- 快捷金额按钮 -->
+    <view class="numpad-shortcuts">
+      <button class="shortcut-btn" data-amount="100" bindtap="onShortcutTap">
+        100 <text class="shortcut-unit">USDT</text>
+      </button>
+      <button class="shortcut-btn" data-amount="1000" bindtap="onShortcutTap">
+        1000 <text class="shortcut-unit">USDT</text>
+      </button>
+      <button class="shortcut-btn" data-amount="10000" bindtap="onShortcutTap">
+        10000 <text class="shortcut-unit">USDT</text>
+      </button>
+      <button class="shortcut-btn" data-amount="100000" bindtap="onShortcutTap">
+        100000 <text class="shortcut-unit">USDT</text>
+      </button>
+    </view>
+
+    <!-- 数字键盘区域 -->
+    <view class="numpad-keys">
+      <button class="numpad-key" data-key="1" bindtap="onKeyTap">1</button>
+      <button class="numpad-key" data-key="2" bindtap="onKeyTap">2</button>
+      <button class="numpad-key" data-key="3" bindtap="onKeyTap">3</button>
+      <button class="numpad-key" data-key="4" bindtap="onKeyTap">4</button>
+      <button class="numpad-key" data-key="5" bindtap="onKeyTap">5</button>
+      <button class="numpad-key" data-key="6" bindtap="onKeyTap">6</button>
+      <button class="numpad-key" data-key="7" bindtap="onKeyTap">7</button>
+      <button class="numpad-key" data-key="8" bindtap="onKeyTap">8</button>
+      <button class="numpad-key" data-key="9" bindtap="onKeyTap">9</button>
+      <button class="numpad-key dot" data-key="." bindtap="onKeyTap">•</button>
+      <button class="numpad-key" data-key="0" bindtap="onKeyTap">0</button>
+      <button class="numpad-key delete" data-key="delete" bindtap="onKeyTap" aria-label="Delete">
+        <text class="delete-icon">⌫</text>
+      </button>
+    </view>
+
+    <!-- 确认按钮 -->
+    <button class="numpad-confirm" bindtap="onNumpadConfirm" data-i18n="numpad.confirm">Confirm</button>
+  </view>
+</view>

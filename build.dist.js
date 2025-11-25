@@ -136,12 +136,31 @@ function copyIndex() {
   const dest = path.join(DIST, 'index.html');
 
   if (fs.existsSync(compiledIndex)) {
-    fs.copyFileSync(compiledIndex, dest);
+    let html = fs.readFileSync(compiledIndex, 'utf8');
+
+    // 统一将 ../../ 前缀改写为 ./，以 dist 根目录作为静态资源基准
+    html = html.replace(/\.\.\/\.\.\//g, './');
+
+    // 将以 / 开头的静态资源改写为相对路径，方便部署在子路径
+    const rootDirs = ['css', 'images', 'utils', 'config', 'locales', 'pages'];
+    rootDirs.forEach(dir => {
+      const re = new RegExp(`(src|href)=(["'])\/${dir}\/`, 'gi');
+      html = html.replace(re, `$1=$2./${dir}/`);
+    });
+
+    // 保持页面私有样式位于 pages/index 目录，无需复制到根目录
+    html = html.replace(/(href=["'])\.\/index\.css/gi, '$1./pages/index/index.css');
+
+    // 注入页面加载器覆写，确保入口页面可加载 pages/index/index.html 的脚本
+    html = html.replace(
+      /<script[^>]+src=["']\.\/utils\/page\.loader\.js["'][^>]*><\/script>/i,
+      "<script>window.__SXML_PENDING_PAGE_URL__ = './pages/index/index.html';<\/script>\n    <script type=\"text/javascript\" src=\"./utils/page.loader.js\"></script>"
+    );
+
+    fs.writeFileSync(dest, html, 'utf8');
     console.log('  ✓ 来自 pages/index/index.html');
   } else if (fs.existsSync(legacyIndex)) {
     fs.copyFileSync(legacyIndex, dest);
-              // 允许带版本参数（?v=...）或其他查询串，例如 /utils/i18n.js?v=123
-              const regex = /<script[^>]+src=["'][\.\/?]*utils\/([^"']+\.js)(?:\?[^"']*)?["']/g;
   } else {
     console.warn('  ⚠️ 未找到首页源码（pages/index 或根目录 index.html）');
   }

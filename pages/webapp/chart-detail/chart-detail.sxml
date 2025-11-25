@@ -1,0 +1,77 @@
+<view class="chart-detail-page">
+  <view class="safe-top"></view>
+  <view class="chart-header">
+    <button class="back-button" bindtap="handleNavigateBack" aria-label="Back">
+      <span class="back-icon">⟵</span>
+    </button>
+    <view class="symbol-block">
+      <div class="symbol-line">
+        <div class="symbol-name" id="cd-symbol">--</div>
+        <div class="symbol-desc" id="cd-desc">--</div>
+      </div>
+      <div class="price-line">
+        <div class="symbol-price" id="cd-price">--</div>
+        <div class="symbol-change" id="cd-change">--</div>
+        <div class="symbol-change-pct" id="cd-change-pct">--</div>
+      </div>
+    </view>
+    <view class="market-pill" id="cd-market-pill">Realtime</view>
+  </view>
+
+  <view class="market-brief">
+    <div class="brief-item">
+      <label>24h High</label>
+      <span id="cd-high">--</span>
+    </div>
+    <div class="brief-item">
+      <label>24h Low</label>
+      <span id="cd-low">--</span>
+    </div>
+    <div class="brief-item">
+      <label>24h Volume</label>
+      <span id="cd-volume">--</span>
+    </div>
+  </view>
+
+  <view class="timeframe-toolbar">
+    <button class="timeframe-btn active" data-frame="1m">1m</button>
+    <button class="timeframe-btn" data-frame="5m">5m</button>
+    <button class="timeframe-btn" data-frame="15m">15m</button>
+    <button class="timeframe-btn" data-frame="1h">1h</button>
+    <button class="timeframe-btn" data-frame="4h">4h</button>
+    <button class="timeframe-btn" data-frame="1d">1d</button>
+  </view>
+
+  <view class="chart-shell">
+    <view id="chart-canvas" class="chart-canvas"></view>
+  </view>
+
+  <view class="stats-grid">
+    <div class="stat-card">
+      <label>Open</label>
+      <span id="cd-open">--</span>
+    </div>
+    <div class="stat-card">
+      <label>Close</label>
+      <span id="cd-close">--</span>
+    </div>
+    <div class="stat-card">
+      <label>High</label>
+      <span id="cd-high-card">--</span>
+    </div>
+    <div class="stat-card">
+      <label>Low</label>
+      <span id="cd-low-card">--</span>
+    </div>
+  </view>
+
+  <view class="action-panel">
+    <button class="trade-btn short" bindtap="handleSellShort">Sell Short</button>
+    <button class="trade-btn long" bindtap="handleBuyLong">Buy Long</button>
+  </view>
+
+  <view class="info-note">
+    <p>Powered by Infoway realtime quotes. Data refreshes automatically.</p>
+  </view>
+</view>
+<script src="/pages/webapp/vendor/lightweight-charts.standalone.production.js"></script>

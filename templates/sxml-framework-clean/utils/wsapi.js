@@ -674,7 +674,8 @@
         const timestamp = Date.now().toString();
         const dynamicKey = window.MD5(apiKey + timestamp).toUpperCase();
         
-        const weekday = new Date().getUTCDay();
+  const rawWeekday = new Date().getUTCDay();
+  const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
         let iv = apiKey.substring(weekday, weekday + 12);
         while (iv.length < 12) {
           iv += apiKey;
@@ -704,7 +705,8 @@
         const serverDynamic = window.MD5(apiKey + data.timestamp).toUpperCase();
         const decryptKey = serverDynamic.split('').reverse().join('');
         
-        const weekday = new Date(parseInt(data.timestamp)).getUTCDay();
+  const rawWeekday = new Date(parseInt(data.timestamp)).getUTCDay();
+  const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
         let iv = decryptKey.substring(weekday, weekday + 12);
         while (iv.length < 12) {
           iv += decryptKey;

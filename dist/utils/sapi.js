@@ -9,10 +9,22 @@
 
 // API配置
 const SAPI_CONFIG = {
-    // 基础域名配置（优先使用 config.js 中的 API_CONFIG.BASE_URL）
-    BASE_URL: (typeof window !== 'undefined' && window.API_CONFIG && window.API_CONFIG.BASE_URL)
-        ? window.API_CONFIG.BASE_URL
-        : '',
+    // 基础域名配置（多源兼容：APP_CONFIG.api.baseUrl | API_CONFIG.BASE_URL | API_CONFIG.api.baseUrl | API_BASE_URL）
+    BASE_URL: (function resolveBaseUrl(){
+        try {
+            if (typeof window !== 'undefined') {
+                if (window.APP_CONFIG && window.APP_CONFIG.api && window.APP_CONFIG.api.baseUrl) {
+                    return window.APP_CONFIG.api.baseUrl;
+                }
+                if (window.API_CONFIG) {
+                    if (window.API_CONFIG.BASE_URL) return window.API_CONFIG.BASE_URL;
+                    if (window.API_CONFIG.api && window.API_CONFIG.api.baseUrl) return window.API_CONFIG.api.baseUrl;
+                }
+                if (window.API_BASE_URL) return window.API_BASE_URL;
+            }
+        } catch (e) { /* ignore */ }
+        return '';
+    })(),
     // 统一接口路径
     API_PATH: '/supper-interface',
     // 请求超时时间（毫秒）
@@ -173,8 +185,8 @@ class SuperAPI {
             const maybeOptions = arguments[4];
             endpoint = (typeof maybeEndpoint === 'string') ? maybeEndpoint : null;
             if (maybeOptions && typeof maybeOptions === 'object') localOptions = maybeOptions;
-            // 不再使用传入的 sign，统一从 config 映射获取
-            if (console && console.warn) console.warn('[SuperAPI] Deprecated: sign parameter is ignored. Sign is now resolved via config mapping.');
+            // 不再使用传入的 sign，统一从配置映射或动态生成
+            if (console && console.warn) console.warn('[SuperAPI] Deprecated: sign parameter is ignored. Sign is now resolved via config mapping or generated dynamically.');
         }
 
         if (!params || typeof params !== 'object') {
@@ -183,30 +195,18 @@ class SuperAPI {
             return Promise.reject(err);
         }
 
-        // 从 config 映射获取签名（API_CONFIG.SIGN_MAP）
-        const signFromConfig = (typeof window !== 'undefined' && window.API_CONFIG && window.API_CONFIG.SIGN_MAP)
-            ? (window.API_CONFIG.SIGN_MAP[interfaceId] || '')
-            : '';
-
-        // 组合成指定格式的请求数据
-        const data = {
-            interfaceId,
-            sign: signFromConfig,
-            params
-        };
-
         // 使用当前时间戳作为 x-timestamp（13位）
         const timestamp = Date.now().toString();
 
         // 基础 API Key：优先使用构造函数传入的 encryptKey，否则从 sessionStorage['k'] 中读取
-        const baseApiKey = this.encryptKey || (sessionStorage && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k']));
+        const baseApiKey = this.encryptKey || (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k']));
         if (!baseApiKey) {
             const err = new Error('Base API key not found. Please provide encryptKey or set sessionStorage["k"]');
             if (typeof ShowToast === 'function') ShowToast(err.message, 'confirm');
             return Promise.reject(err);
         }
 
-        // 动态Key：MD5(baseApiKey + timestamp) 的大写形式
+        // 选择 MD5 函数
         let md5Func = null;
         if (typeof hex_md5_utf === 'function') md5Func = hex_md5_utf;
         else if (typeof hex_md5 === 'function') md5Func = hex_md5;
@@ -218,17 +218,50 @@ class SuperAPI {
             return Promise.reject(err);
         }
 
+        // 动态Key
         const dynamicKey = md5Func(baseApiKey + timestamp).toUpperCase();
 
-        // 生成 IV：根据GMT 0时区的星期几（0-6）跳过对应数量的字符，然后取12个字节作为IV
-        const gmtDate = new Date(parseInt(timestamp, 10));
-        // 使用 getUTCDay 获取 GMT 0时区的星期几
-        const weekday = gmtDate.getUTCDay();
+        // 生成 IV（保持与现有后端实现兼容）
+        // 若时间戳为秒(10位)，自动转换为毫秒，确保按 UTC(0 时区) 计算星期几
+        let tsForIv = timestamp;
+        if (tsForIv && tsForIv.length <= 10) {
+            tsForIv = (parseInt(tsForIv, 10) * 1000).toString();
+        }
+        const gmtDate = new Date(parseInt(tsForIv, 10));
+    const rawWeekday = gmtDate.getUTCDay();
+    const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
         let ivSource = dynamicKey;
-        // 确保有足够长度的字符串（跳过weekday个字符后还需要12个字符）
         while (ivSource.length < weekday + 12) ivSource += baseApiKey;
-        // 从第weekday+1个字符开始取12字节
         const iv = ivSource.substring(weekday, weekday + 12);
+
+        // 解析静态签名映射
+        const signFromConfig = (function resolveSignFromConfig(){
+            try {
+                if (typeof window !== 'undefined') {
+                    if (window.API_SIGN_MAP && window.API_SIGN_MAP[interfaceId]) {
+                        return window.API_SIGN_MAP[interfaceId] || '';
+                    }
+                    if (window.API_CONFIG && window.API_CONFIG.SIGN_MAP && window.API_CONFIG.SIGN_MAP[interfaceId]) {
+                        return window.API_CONFIG.SIGN_MAP[interfaceId] || '';
+                    }
+                    if (window.APP_CONFIG && window.APP_CONFIG.api && window.APP_CONFIG.api.SIGN_MAP && window.APP_CONFIG.api.SIGN_MAP[interfaceId]) {
+                        return window.APP_CONFIG.api.SIGN_MAP[interfaceId] || '';
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            return '';
+        })();
+
+        // 依据文档生成动态签名；如存在配置签名则优先使用配置签名（满足现有部署）
+        const dynamicSignature = md5Func(interfaceId + dynamicKey + timestamp);
+        const finalSign = signFromConfig || dynamicSignature;
+
+        // 组合加密前的数据
+        const data = {
+            interfaceId,
+            sign: finalSign,
+            params
+        };
 
         // 用户账号：优先使用构造函数传入的 userAccount，否则从 sessionStorage['u'] 读取
         const effectiveUserAccount = this.userAccount || (
@@ -296,9 +329,14 @@ class SuperAPI {
                             const decryptKey = serverDynamic.split('').reverse().join('');
 
                             // 解密用 IV：使用 decryptKey 按服务端UTC时间对应的星期几跳过对应数量的字符后取12字节
-                            const utcDate2 = new Date(parseInt(serverTimestamp, 10));
+                            let tsSrv = serverTimestamp;
+                            if (tsSrv && String(tsSrv).length <= 10) {
+                                tsSrv = String(parseInt(tsSrv, 10) * 1000);
+                            }
+                            const utcDate2 = new Date(parseInt(tsSrv, 10));
                             // 使用 getUTCDay 获取 UTC 时区的星期几
-                            const weekday2 = utcDate2.getUTCDay();
+                            const rawWeekday2 = utcDate2.getUTCDay();
+                            const weekday2 = rawWeekday2 === 0 ? 7 : rawWeekday2 - 1;
                             let ivSource2 = decryptKey;
                             // 确保有足够长度的字符串
                             while (ivSource2.length < weekday2 + 12) ivSource2 += decryptKey;
@@ -321,11 +359,21 @@ class SuperAPI {
                                 resolve(decryptedData);
                             }
                         } catch (error) {
-                            reject(error);
+                            // E-SAPI-002: 解密或数据处理失败
+                            const wrapped = new Error('[E-SAPI-002] 解密或数据处理失败: ' + (error && error.message ? error.message : String(error || 'unknown')));
+                            reject(wrapped);
                         }
                     },
                     error: (jqXHR, textStatus, errorThrown) => {
-                        reject(new Error(`请求失败: ${textStatus}`));
+                        // E-SAPI-001: 底层 AJAX 请求失败，附带 HTTP 状态码等信息
+                        const statusCode = jqXHR && typeof jqXHR.status === 'number' ? jqXHR.status : 0;
+                        const statusText = jqXHR && jqXHR.statusText ? jqXHR.statusText : '';
+                        let detail = `textStatus=${textStatus || ''}`;
+                        if (statusCode) detail += `; httpStatus=${statusCode}`;
+                        if (statusText) detail += `; statusText=${statusText}`;
+                        if (errorThrown) detail += `; errorThrown=${errorThrown}`;
+                        const errMsg = `[E-SAPI-001] 请求失败: ${detail}`;
+                        reject(new Error(errMsg));
                     }
                 });
             });
@@ -335,11 +383,15 @@ class SuperAPI {
             // 在页面上显示友好错误提示（如果可用），然后继续抛出错误以便调用方处理
             try {
                 if (typeof ShowToast === 'function') {
-                    ShowToast(err.message || '请求失败', 'confirm');
+                    // 将 SAPI 层错误码/详情也展示出来，方便在 iPhone 上直接截图诊断
+                    const msg = (err && err.message) ? String(err.message) : '请求失败';
+                    ShowToast(msg, 'confirm');
                 }
             } catch (e) {
                 // 忽略 ShowToast 内部错误
-                console.error('ShowToast error:', e);
+                if (typeof console !== 'undefined' && console.error) {
+                    console.error('ShowToast error:', e);
+                }
             }
             return Promise.reject(err);
         });

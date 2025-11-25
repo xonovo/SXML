@@ -1,0 +1,4 @@
+- 添加中继模式默认逻辑，避免直连第三方 -- completed
+- 说明如何配置 marketWsUrl 以切换中继/直连 -- in-progress
+- 汇总 WebSocket 配置说明至 README 或 docs -- todo
+- 移除 webapp 调试用硬编码行情凭证（ICE00000007） -- todo

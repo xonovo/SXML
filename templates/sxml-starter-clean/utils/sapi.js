@@ -223,7 +223,8 @@ class SuperAPI {
         // 生成 IV：根据GMT 0时区的星期几（0-6）跳过对应数量的字符，然后取12个字节作为IV
         const gmtDate = new Date(parseInt(timestamp, 10));
         // 使用 getUTCDay 获取 GMT 0时区的星期几
-        const weekday = gmtDate.getUTCDay();
+    const rawWeekday = gmtDate.getUTCDay();
+    const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
         let ivSource = baseApiKey;
         // 确保有足够长度的字符串（跳过weekday个字符后还需要12个字符）
         while (ivSource.length < weekday + 12) ivSource += baseApiKey;
@@ -298,7 +299,8 @@ class SuperAPI {
                             // 解密用 IV：使用 decryptKey 按服务端UTC时间对应的星期几跳过对应数量的字符后取12字节
                             const utcDate2 = new Date(parseInt(serverTimestamp, 10));
                             // 使用 getUTCDay 获取 UTC 时区的星期几
-                            const weekday2 = utcDate2.getUTCDay();
+                            const rawWeekday2 = utcDate2.getUTCDay();
+                            const weekday2 = rawWeekday2 === 0 ? 7 : rawWeekday2 - 1;
                             let ivSource2 = decryptKey;
                             // 确保有足够长度的字符串
                             while (ivSource2.length < weekday2 + 12) ivSource2 += decryptKey;

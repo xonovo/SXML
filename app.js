@@ -25,8 +25,8 @@
   const App = {
     // 内部状态：避免重复动态加载 Toast
     _toastLoadAttempted: false,
-    globalData: {
-        lang: 'zh-CN', // 默认语言
+  globalData: {
+    lang: 'en-US', // 默认语言
         user: null,
         loading: false,
         config: {},
@@ -54,7 +54,21 @@
      * 初始化语言
      */
     initLang() {
-        const lang = (localStorage.getItem('lang') || navigator.language || 'zh-CN');
+        const lang = (function() {
+          try {
+            const saved = localStorage.getItem('lang');
+            if (saved) return saved;
+          } catch (_) {}
+
+          try {
+            if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.i18n) {
+              const cfgLang = window.APP_CONFIG.i18n.defaultLang;
+              if (cfgLang) return cfgLang;
+            }
+          } catch (_) {}
+
+          return 'en-US';
+        })();
         this.globalData.lang = lang;
         // 若全局 i18n 存在，尝试切换
         if (window.i18n && typeof window.i18n.setLang === 'function') {
@@ -98,14 +112,15 @@
     },
     // 全局轻提示(封装 Toast,页面可通过 getApp().showToast 使用)
     showToast(msg, btn){
+      const payload = (btn && typeof btn === 'object') ? btn : (typeof btn !== 'undefined' ? { btnText: btn } : undefined);
       try {
         // 每次调用时都检查 Toast 是否可用
         if (typeof window.ShowToast === 'function') {
-          window.ShowToast(msg, btn);
+          window.ShowToast(msg, payload);
           return;
         }
         if (window.Toast && typeof window.Toast.show === 'function') {
-          window.Toast.show(msg, btn);
+          window.Toast.show(msg, payload);
           return;
         }
 
@@ -119,8 +134,8 @@
             .catch(err => console.debug('[App.showToast] toast.js load skipped/error:', err))
             .finally(() => {
               // 加载完成后再尝试一次
-              if (typeof window.ShowToast === 'function') return window.ShowToast(msg, btn);
-              if (window.Toast && typeof window.Toast.show === 'function') return window.Toast.show(msg, btn);
+              if (typeof window.ShowToast === 'function') return window.ShowToast(msg, payload);
+              if (window.Toast && typeof window.Toast.show === 'function') return window.Toast.show(msg, payload);
               // 仍不可用则降级
               alert(msg);
             });

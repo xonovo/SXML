@@ -21,9 +21,18 @@
   function detectLang() {
     const saved = localStorage.getItem('lang');
     if (saved) return saved;
-    const nav = (navigator.language || navigator.userLanguage || 'en-US');
-    // Normalize common cases
-    if (/^zh/i.test(nav)) return 'zh-CN';
+
+    // Allow应用配置覆盖默认语言
+    try {
+      if (typeof window !== 'undefined' && window.APP_CONFIG && window.APP_CONFIG.i18n) {
+        const cfgLang = window.APP_CONFIG.i18n.defaultLang;
+        if (cfgLang) return cfgLang;
+      }
+    } catch (_) {
+      // ignore and fallback to constant default
+    }
+
+    // 首次进入默认英文
     return 'en-US';
   }
 

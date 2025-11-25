@@ -24,6 +24,9 @@ class AESCrypto {
     }
     // 静态加密方法
     static async encrypt(text, key, iv) {
+        if (!window.crypto || !window.crypto.subtle) {
+            throw new Error('当前浏览器不支持 WebCrypto 安全加密');
+        }
         try {
             const encoder = new TextEncoder();
             const cryptoKey = await this.importKey(key);
@@ -46,6 +49,9 @@ class AESCrypto {
     }
     // 静态解密方法
     static async decrypt(encryptedText, key, iv) {
+        if (!window.crypto || !window.crypto.subtle) {
+            throw new Error('当前浏览器不支持 WebCrypto 安全加密');
+        }
         try {
             const decoder = new TextDecoder();
             const cryptoKey = await this.importKey(key);

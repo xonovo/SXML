@@ -1,0 +1,607 @@
+/* 充值页面样式 */
+:root {
+  --primary-gold: #d4af37;
+  --primary-gold-light: #f4d03f;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f8f8;
+  --border-color: #e0e0e0;
+  --success-color: #52c41a;
+  --danger-color: #ff4d4f;
+  --warning-color: #faad14;
+}
+
+.deposit-page {
+  min-height: 100vh;
+  background: var(--bg-secondary);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-top {
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg-primary);
+}
+
+/* 导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.nav-back {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.nav-back:hover {
+  background: var(--bg-secondary);
+}
+
+.back-icon {
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.nav-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nav-placeholder {
+  width: 40px;
+}
+
+/* 主内容区 */
+.deposit-content {
+  padding: 20px;
+}
+
+/* 币种信息卡片 */
+.coin-card {
+  background: linear-gradient(135deg, var(--primary-gold) 0%, var(--primary-gold-light) 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.coin-icon-wrap {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.coin-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.coin-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coin-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.coin-desc {
+  font-size: 14px;
+  color: rgba(26, 26, 26, 0.7);
+}
+
+.coin-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.balance-label {
+  font-size: 12px;
+  color: rgba(26, 26, 26, 0.7);
+}
+
+.balance-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* 充值方式选择 */
+.deposit-method-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.method-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.method-tab {
+  position: relative;
+  padding: 16px 12px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-primary);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.method-tab:hover {
+  border-color: var(--primary-gold);
+}
+
+.method-tab.active {
+  border-color: var(--primary-gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.method-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.method-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.method-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  background: var(--success-color);
+  color: #ffffff;
+  font-size: 10px;
+  border-radius: 4px;
+}
+
+.method-tab[data-method="bank"] .method-badge {
+  background: var(--warning-color);
+}
+
+/* 表单区域 */
+.deposit-form {
+  display: none;
+}
+
+.deposit-form.active {
+  display: block;
+}
+
+.form-section {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.form-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* 网络选择 */
+.form-select {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.form-select:hover {
+  border-color: var(--primary-gold);
+}
+
+.select-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.select-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.select-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.select-main {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.select-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.select-arrow {
+  font-size: 24px;
+  color: var(--text-tertiary);
+}
+
+/* 地址显示 */
+.address-box {
+  padding: 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.address-text {
+  flex: 1;
+  font-size: 14px;
+  font-family: monospace;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.address-copy {
+  padding: 6px 12px;
+  border: 1px solid var(--primary-gold);
+  background: transparent;
+  color: var(--primary-gold);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.address-copy:hover {
+  background: var(--primary-gold);
+  color: var(--text-primary);
+}
+
+.address-qr {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.qr-placeholder {
+  width: 200px;
+  height: 200px;
+  background: var(--bg-primary);
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* 金额输入 */
+.amount-input {
+  width: 100%;
+  padding: 20px 16px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-primary);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.amount-input:hover {
+  border-color: var(--primary-gold);
+}
+
+.amount-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-unit {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* 银行信息 */
+.bank-info-box {
+  padding: 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bank-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bank-info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.info-value-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-copy {
+  padding: 4px 8px;
+  border: 1px solid var(--primary-gold);
+  background: transparent;
+  color: var(--primary-gold);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.info-copy:hover {
+  background: var(--primary-gold);
+  color: var(--text-primary);
+}
+
+/* 上传按钮 */
+.upload-btn {
+  width: 100%;
+  padding: 24px;
+  border: 2px dashed var(--border-color);
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.upload-btn:hover {
+  border-color: var(--primary-gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.upload-icon {
+  width: 40px;
+  height: 40px;
+  opacity: 0.5;
+}
+
+.upload-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.voucher-preview {
+  display: none;
+  position: relative;
+  margin-top: 12px;
+}
+
+.voucher-preview[data-has-voucher="true"] {
+  display: block;
+}
+
+.voucher-image {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.voucher-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 77, 79, 0.9);
+  color: #ffffff;
+  font-size: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 文本域 */
+.form-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+}
+
+/* 提示信息 */
+.deposit-tips {
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(250, 173, 20, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(250, 173, 20, 0.2);
+}
+
+.tips-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tips-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.tips-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--warning-color);
+}
+
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tips-item {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* 提交按钮 */
+.submit-btn {
+  width: 100%;
+  height: 52px;
+  margin-top: 24px;
+  border: none;
+  background: linear-gradient(135deg, var(--primary-gold) 0%, var(--primary-gold-light) 100%);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.4);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] {
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #666666;
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #0f0f0f;
+  --border-color: #333333;
+}
+
+[data-theme="dark"] .coin-desc,
+[data-theme="dark"] .balance-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .method-tab.active {
+  background: rgba(212, 175, 55, 0.1);
+}
+
+[data-theme="dark"] .deposit-tips {
+  background: rgba(250, 173, 20, 0.15);
+  border-color: rgba(250, 173, 20, 0.3);
+}

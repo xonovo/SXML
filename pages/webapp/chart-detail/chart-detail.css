@@ -1,0 +1,224 @@
+:root {
+  --cd-bg: #06090f;
+  --cd-card-bg: #0f1622;
+  --cd-border: rgba(255, 255, 255, 0.08);
+  --cd-green: #00c48c;
+  --cd-red: #ff5b5b;
+  --cd-text-primary: #f2f6ff;
+  --cd-text-secondary: rgba(255, 255, 255, 0.65);
+}
+
+body, view, page {
+  background-color: var(--cd-bg);
+  color: var(--cd-text-primary);
+  font-family: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.chart-detail-page {
+  min-height: 100vh;
+  padding: 16px;
+  background: linear-gradient(180deg, #05090f 0%, #04060b 60%, #030408 100%);
+}
+
+.safe-top {
+  height: env(safe-area-inset-top, 24px);
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.back-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--cd-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--cd-text-primary);
+}
+
+.back-icon {
+  font-size: 18px;
+}
+
+.symbol-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.symbol-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.symbol-name {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.symbol-desc {
+  font-size: 13px;
+  color: var(--cd-text-secondary);
+}
+
+.price-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.symbol-price {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.symbol-change.up,
+.symbol-change-pct.up {
+  color: var(--cd-green);
+}
+
+.symbol-change.down,
+.symbol-change-pct.down {
+  color: var(--cd-red);
+}
+
+.market-pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0, 196, 140, 0.12);
+  border: 1px solid rgba(0, 196, 140, 0.35);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.market-brief {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.market-brief .brief-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--cd-border);
+}
+
+.market-brief label {
+  display: block;
+  font-size: 12px;
+  color: var(--cd-text-secondary);
+  margin-bottom: 6px;
+}
+
+.timeframe-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.timeframe-btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: 1px solid var(--cd-border);
+  color: var(--cd-text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.timeframe-btn.active {
+  color: var(--cd-text-primary);
+  border-color: var(--cd-green);
+  background: rgba(0, 196, 140, 0.16);
+}
+
+.chart-shell {
+  position: relative;
+  height: 320px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: radial-gradient(circle at top, rgba(0, 196, 140, 0.12), transparent 60%);
+  margin-bottom: 18px;
+}
+
+.chart-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--cd-card-bg);
+  border: 1px solid var(--cd-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-card label {
+  font-size: 12px;
+  color: var(--cd-text-secondary);
+}
+
+.stat-card span {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.action-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.trade-btn {
+  padding: 14px 0;
+  border-radius: 14px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.trade-btn.short {
+  background: linear-gradient(135deg, #ff5b5b, #f6416c);
+  box-shadow: 0 10px 25px rgba(255, 91, 91, 0.35);
+}
+
+.trade-btn.long {
+  background: linear-gradient(135deg, #00c48c, #00e29b);
+  box-shadow: 0 10px 25px rgba(0, 196, 140, 0.35);
+}
+
+.info-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--cd-text-secondary);
+}
+
+@media (min-width: 768px) {
+  .chart-detail-page {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+}

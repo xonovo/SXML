@@ -1,0 +1,187 @@
+<!-- 充值页面 -->
+<view class="deposit-page">
+  <!-- 安全区占位 -->
+  <view class="safe-top"></view>
+
+  <!-- 顶部导航栏 -->
+  <view class="nav-bar">
+    <button class="nav-back" bindtap="onBack" aria-label="返回">
+      <text class="back-icon">←</text>
+    </button>
+    <text class="nav-title" data-i18n="deposit.title">Deposit</text>
+    <view class="nav-placeholder"></view>
+  </view>
+
+  <!-- 主内容区 -->
+  <view class="deposit-content">
+    <!-- 币种信息卡片 -->
+    <view class="coin-card">
+      <view class="coin-icon-wrap">
+        <img class="coin-icon" src="../../images/app_funds_2_day.png" alt="USDT" />
+      </view>
+      <view class="coin-info">
+        <text class="coin-name">USDT</text>
+        <text class="coin-desc" data-i18n="deposit.coinDesc">Tether USD</text>
+      </view>
+      <view class="coin-balance">
+        <text class="balance-label" data-i18n="deposit.balance">Balance</text>
+        <text class="balance-value"><text data-deposit-field="balance">0.00</text> USDT</text>
+      </view>
+    </view>
+
+    <!-- 充值方式选择 -->
+    <view class="deposit-method-section">
+      <text class="section-title" data-i18n="deposit.selectMethod">Select deposit method</text>
+      <view class="method-tabs">
+        <button class="method-tab active" data-method="blockchain" bindtap="onMethodSwitch">
+          <img class="method-icon" src="../../images/app_coin_day.png" alt="Blockchain" />
+          <text class="method-label" data-i18n="deposit.methods.blockchain">On-chain deposit</text>
+          <text class="method-badge" data-i18n="deposit.methods.blockchainBadge">Recommended</text>
+        </button>
+        <button class="method-tab" data-method="bank" bindtap="onMethodSwitch">
+          <img class="method-icon" src="../../images/app_bank_day.png" alt="Bank" />
+          <text class="method-label" data-i18n="deposit.methods.bank">Bank transfer</text>
+          <text class="method-badge" data-i18n="deposit.methods.bankBadge">Manual review</text>
+        </button>
+      </view>
+    </view>
+
+    <!-- 区块链充值表单 -->
+    <view class="deposit-form blockchain-form active" data-form="blockchain">
+      <!-- 网络选择 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.blockchain.network">Select network</text>
+        <button class="form-select" bindtap="onNetworkSelect">
+          <view class="select-content">
+            <img class="select-icon" src="../../images/app_coin_day.png" alt="ERC20" />
+            <view class="select-text">
+              <text class="select-main" data-deposit-field="network">ERC20</text>
+              <text class="select-sub" data-i18n="deposit.blockchain.networkDesc">Ethereum network</text>
+            </view>
+          </view>
+          <text class="select-arrow">›</text>
+        </button>
+      </view>
+
+      <!-- 充值地址 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.blockchain.address">Deposit address</text>
+        <view class="address-box">
+          <text class="address-text" data-deposit-field="address">0x1234...5678</text>
+          <button class="address-copy" bindtap="onCopyAddress" data-i18n="deposit.blockchain.copy">Copy</button>
+        </view>
+        <view class="address-qr">
+          <view class="qr-placeholder">
+            <text data-i18n="deposit.blockchain.qrCode">QR Code</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 充值金额 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.blockchain.amount">Deposit amount</text>
+        <button class="amount-input" bindtap="onAmountClick">
+          <text class="amount-value" data-deposit-field="amount">0</text>
+          <text class="amount-unit">USDT</text>
+        </button>
+        <text class="form-hint" data-i18n="deposit.blockchain.minAmount">Minimum deposit: 10 USDT</text>
+      </view>
+
+      <!-- 提示信息 -->
+      <view class="deposit-tips">
+        <view class="tips-header">
+          <img class="tips-icon" src="../../images/app_home_3_day.png" alt="Tips" />
+          <text class="tips-title" data-i18n="deposit.blockchain.tips.title">Important reminders</text>
+        </view>
+        <view class="tips-list">
+          <text class="tips-item" data-i18n="deposit.blockchain.tips.item1">• Please ensure you select the correct network</text>
+          <text class="tips-item" data-i18n="deposit.blockchain.tips.item2">• Minimum deposit 10 USDT, less than this amount will not be credited</text>
+          <text class="tips-item" data-i18n="deposit.blockchain.tips.item3">• Credited after 12 network confirmations</text>
+          <text class="tips-item" data-i18n="deposit.blockchain.tips.item4">• Do not deposit any other assets to this address</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 银行转账表单 -->
+    <view class="deposit-form bank-form" data-form="bank" style="display: none;">
+      <!-- 充值金额 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.bank.amount">Deposit amount</text>
+        <button class="amount-input" bindtap="onAmountClick">
+          <text class="amount-value" data-deposit-field="bankAmount">0</text>
+          <text class="amount-unit">USDT</text>
+        </button>
+        <text class="form-hint" data-i18n="deposit.bank.minAmount">Minimum deposit: 100 USDT</text>
+      </view>
+
+      <!-- 银行信息 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.bank.info">Bank information</text>
+        <view class="bank-info-box">
+          <view class="bank-info-row">
+            <text class="info-label" data-i18n="deposit.bank.bankName">Bank name</text>
+            <text class="info-value">ICE Markets Bank</text>
+          </view>
+          <view class="bank-info-row">
+            <text class="info-label" data-i18n="deposit.bank.accountName">Account name</text>
+            <text class="info-value">ICE Markets Ltd</text>
+          </view>
+          <view class="bank-info-row">
+            <text class="info-label" data-i18n="deposit.bank.accountNumber">Account number</text>
+            <view class="info-value-wrap">
+              <text class="info-value">1234567890123456</text>
+              <button class="info-copy" bindtap="onCopyBankAccount" data-i18n="common.copy">Copy</button>
+            </view>
+          </view>
+          <view class="bank-info-row">
+            <text class="info-label" data-i18n="deposit.bank.swift">SWIFT code</text>
+            <text class="info-value">ICEMARKT</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 上传凭证 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.bank.voucher">Upload transfer voucher</text>
+        <button class="upload-btn" bindtap="onUploadVoucher">
+          <img class="upload-icon" src="../../images/app_home_3_day.png" alt="Upload" />
+          <text class="upload-text" data-i18n="deposit.bank.uploadText">Click to upload image</text>
+        </button>
+        <view class="voucher-preview" data-has-voucher="false">
+          <img class="voucher-image" src="" alt="Voucher" />
+          <button class="voucher-remove" bindtap="onRemoveVoucher">×</button>
+        </view>
+      </view>
+
+      <!-- 备注 -->
+      <view class="form-section">
+        <text class="form-label" data-i18n="deposit.bank.note">Note (optional)</text>
+        <textarea class="form-textarea" 
+          placeholder="Please enter your note" 
+          data-i18n-placeholder="deposit.bank.notePlaceholder"
+          data-field="note"
+          bindinput="onNoteInput"></textarea>
+      </view>
+
+      <!-- 提示信息 -->
+      <view class="deposit-tips">
+        <view class="tips-header">
+          <img class="tips-icon" src="../../images/app_home_3_day.png" alt="Tips" />
+          <text class="tips-title" data-i18n="deposit.bank.tips.title">Important reminders</text>
+        </view>
+        <view class="tips-list">
+          <text class="tips-item" data-i18n="deposit.bank.tips.item1">• Minimum deposit 100 USDT</text>
+          <text class="tips-item" data-i18n="deposit.bank.tips.item2">• Please upload a clear transfer voucher</text>
+          <text class="tips-item" data-i18n="deposit.bank.tips.item3">• Manual review within 24 hours</text>
+          <text class="tips-item" data-i18n="deposit.bank.tips.item4">• Please ensure the transfer amount matches your input</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 提交按钮 -->
+    <button class="submit-btn" bindtap="onSubmit" data-i18n="deposit.submit">Submit deposit request</button>
+  </view>
+
+  <!-- 数字键盘组件 -->
+  <s:include src="../../components/numpad/numpad.sxml" />
+</view>

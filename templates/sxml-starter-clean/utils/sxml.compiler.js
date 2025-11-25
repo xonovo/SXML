@@ -755,27 +755,26 @@ ${this.generateScriptTags()}
       (function(){
         // 反爬虫检测：检测自动化工具特征
         function detectBot() {
-          // 检测 Headless 浏览器
-          if (navigator.webdriver) return true;
-          
-          // 检测 Puppeteer/Playwright
-          if (window.navigator.plugins.length === 0) return true;
-          
-          // 检测常见爬虫 User-Agent
-          const ua = navigator.userAgent.toLowerCase();
-          const botPatterns = ['bot', 'crawl', 'spider', 'scrape', 'python', 'requests', 'urllib', 'scrapy', 'selenium', 'phantomjs'];
-          if (botPatterns.some(pattern => ua.includes(pattern))) return true;
-          
-          // 检测不正常的屏幕尺寸
-          if (screen.width === 0 || screen.height === 0) return true;
-          
-          // 检测缺少常见浏览器对象
-          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
-            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
+            const ua = navigator.userAgent ? navigator.userAgent.toLowerCase() : '';
+            const isIos = /iphone|ipad|ipod/.test(ua);
+            const isAndroid = /android/.test(ua);
+            const isMobile = isIos || isAndroid;
+            const isSafariUa = /safari/.test(ua) && !/chrome|crios|fxios|edge|edga|edgios/.test(ua);
+
+            if (navigator.webdriver) return true;
+            if (!isMobile && window.navigator && window.navigator.plugins && window.navigator.plugins.length === 0) return true;
+
+            const botPatterns = ['bot', 'crawl', 'spider', 'scrape', 'python', 'requests', 'urllib', 'scrapy', 'selenium', 'phantomjs'];
+            if (botPatterns.some(pattern => ua.includes(pattern))) return true;
+
+            if (screen.width === 0 || screen.height === 0) return true;
+
+            if (!window.chrome && !window.opera && !/firefox|edge|msie|trident/i.test(ua) && !isSafariUa) {
+              return true;
+            }
+
+            return false;
           }
-          
-          return false;
-        }
         
         // 生成设备指纹
         function generateFingerprint() {

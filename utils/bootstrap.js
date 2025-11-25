@@ -36,7 +36,7 @@
 
     // 0) 轻量可视化标记（默认显示 1.5s）：用于确认脚本已运行，即使控制台不可见
     try {
-      var VISUAL_DEBUG = true; // 如需彻底关闭，可在其它脚本中设置 window.__SXML_DEBUG_VISUAL = false
+      var VISUAL_DEBUG = false; // 已关闭可视化调试标记
       if (typeof window.__SXML_DEBUG_VISUAL === 'boolean') VISUAL_DEBUG = window.__SXML_DEBUG_VISUAL;
       if (VISUAL_DEBUG) {
         var tip = document.createElement('div');
@@ -150,11 +150,11 @@
             } catch(_) {}
             console && console.log && console.log('[bootstrap] bridge toggled ->', next);
             // 可视化兜底（非阻塞）
-            try { if (!window.__LANG_TOAST_ONCE) { window.__LANG_TOAST_ONCE = 1; __toast('Language: ' + (next === 'zh-CN' ? '中文' : 'English')); } } catch(_) {}
+            try { if (!window.__LANG_TOAST_ONCE) { window.__LANG_TOAST_ONCE = 1; } } catch(_) {}
           } else {
             console && console.warn && console.warn('[bootstrap] i18n not available');
-            // 最终兜底（非阻塞）
-            try { if (!window.__LANG_TOAST_ONCE) { window.__LANG_TOAST_ONCE = 1; __toast('Language toggle clicked'); } } catch(_) {}
+            // 最终兜底（静默）
+            try { window.__LANG_TOAST_ONCE = 1; } catch(_) {}
           }
         } catch(err) {
           console && console.warn && console.warn('[bootstrap] bridge error', err);
@@ -171,12 +171,12 @@
           // 安全闸：无论 Page 是否已就绪，都安排一次兜底反馈，若 200ms 内没有任何一方设置反馈标志，则提示
           try {
             var fired = false;
-            setTimeout(function(){ try{ if (!window.__LANG_FEEDBACK) { window.__LANG_FEEDBACK = true; __toast('Language toggle clicked'); } }catch(_){ } }, 200);
+            setTimeout(function(){ try{ if (!window.__LANG_FEEDBACK) { window.__LANG_FEEDBACK = true; } }catch(_){ } }, 200);
           } catch(_) {}
           if (window.currentPage && typeof window.currentPage.toggleLanguage === 'function') { return; } // page will handle
           if (!(window.i18n && typeof window.i18n.setLang === 'function')) {
-            // 仍未就绪：可视化兜底提示（非阻塞）
-            try { if (!window.__LANG_TOAST_ONCE) { window.__LANG_TOAST_ONCE = 1; __toast('Language toggle clicked'); } } catch(_) {}
+            // 仍未就绪：静默兜底
+            try { window.__LANG_TOAST_ONCE = 1; } catch(_) {}
             return;
           }
           var next = window.i18n.lang === 'zh-CN' ? 'en-US' : 'zh-CN';
@@ -184,7 +184,7 @@
           await window.i18n.setLang(next);
           try { btn.textContent = (next === 'zh-CN') ? 'English' : '中文'; } catch(_) {}
           console && console.log && console.log('[bootstrap] delegated toggled ->', next);
-          try { if (!window.__LANG_TOAST_ONCE) { window.__LANG_TOAST_ONCE = 1; __toast('Language: ' + (next === 'zh-CN' ? '中文' : 'English')); } } catch(_) {}
+          try { if (!window.__LANG_TOAST_ONCE) { window.__LANG_TOAST_ONCE = 1; } } catch(_) {}
         } catch(_) {}
       }, { capture: true });
     } catch(_) {}

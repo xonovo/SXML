@@ -1,0 +1,262 @@
+/* 通用数字键盘组件样式 */
+.numpad-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.numpad-container[aria-hidden="false"] {
+  display: flex;
+  opacity: 1;
+}
+
+.numpad-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.numpad-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--panel-bg, #ffffff);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.numpad-container[aria-hidden="false"] .numpad-panel {
+  transform: translateY(0);
+}
+
+/* 输入显示区域 */
+.numpad-display {
+  margin-bottom: 20px;
+}
+
+.display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.display-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.display-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--btn-ghost-bg, #f5f5f5);
+  border-radius: 50%;
+  font-size: 24px;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.display-close:hover {
+  background: var(--btn-ghost-hover, #e8e8e8);
+  color: var(--text-primary, #1a1a1a);
+}
+
+.display-value-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.display-currency {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+}
+
+.display-value {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+
+.display-approx {
+  font-size: 14px;
+  color: var(--text-tertiary, #999);
+}
+
+/* 快捷金额按钮 */
+.numpad-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.shortcut-btn {
+  padding: 12px 8px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--btn-bg, #f8f8f8);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.shortcut-btn:hover {
+  background: var(--btn-hover-bg, #e8e8e8);
+  border-color: var(--primary-color, #d4af37);
+}
+
+.shortcut-btn:active {
+  transform: scale(0.95);
+}
+
+.shortcut-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-secondary, #666);
+}
+
+/* 数字键盘 */
+.numpad-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.numpad-key {
+  height: 56px;
+  border: none;
+  background: var(--key-bg, #f5f5f5);
+  border-radius: 12px;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.numpad-key:hover {
+  background: var(--key-hover-bg, #e8e8e8);
+}
+
+.numpad-key:active {
+  transform: scale(0.95);
+  background: var(--key-active-bg, #d8d8d8);
+}
+
+.numpad-key.dot {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.numpad-key.delete {
+  background: var(--delete-bg, #fff3f3);
+}
+
+.numpad-key.delete:hover {
+  background: var(--delete-hover-bg, #ffe8e8);
+}
+
+.delete-icon {
+  font-size: 22px;
+  color: var(--danger-color, #ff4d4f);
+}
+
+/* 确认按钮 */
+.numpad-confirm {
+  width: 100%;
+  height: 52px;
+  border: none;
+  background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.numpad-confirm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.4);
+}
+
+.numpad-confirm:active {
+  transform: translateY(0);
+}
+
+/* 浅色主题适配 */
+[data-theme="light"] .numpad-panel {
+  --panel-bg: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --border-color: #e0e0e0;
+  --btn-bg: #f8f8f8;
+  --btn-hover-bg: #e8e8e8;
+  --btn-ghost-bg: #f5f5f5;
+  --btn-ghost-hover: #e8e8e8;
+  --key-bg: #f5f5f5;
+  --key-hover-bg: #e8e8e8;
+  --key-active-bg: #d8d8d8;
+  --delete-bg: #fff3f3;
+  --delete-hover-bg: #ffe8e8;
+  --danger-color: #ff4d4f;
+  --primary-color: #d4af37;
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .numpad-panel {
+  --panel-bg: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #666666;
+  --border-color: #333333;
+  --btn-bg: #2a2a2a;
+  --btn-hover-bg: #333333;
+  --btn-ghost-bg: #2a2a2a;
+  --btn-ghost-hover: #333333;
+  --key-bg: #2a2a2a;
+  --key-hover-bg: #333333;
+  --key-active-bg: #3a3a3a;
+  --delete-bg: #2a1a1a;
+  --delete-hover-bg: #3a2020;
+  --danger-color: #ff6b6b;
+  --primary-color: #f4d03f;
+}

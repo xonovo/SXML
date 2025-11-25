@@ -6,10 +6,33 @@
 (function(window) {
   'use strict';
 
+  function resolveActivePageInstance() {
+    try {
+      if (typeof window.__getActivePageInstance === 'function') {
+        const inst = window.__getActivePageInstance();
+        if (inst) {
+          return inst;
+        }
+      }
+    } catch (_) {}
+
+    if (window.__SXML_REAL_PAGE__) {
+      return window.__SXML_REAL_PAGE__;
+    }
+
+    if (window.currentPage && !window.currentPage.__sxmlStub) {
+      return window.currentPage;
+    }
+
+    return null;
+  }
+
   class SXMLParser {
     constructor(page) {
-      this.page = page;
+      this.page = page || resolveActivePageInstance();
       this.watchers = [];
+      this.watcherPoller = null;
+      this.patchSetData();
     }
 
     // 去除 Mustache 包裹
@@ -463,6 +486,94 @@
       });
     }
 
+    patchSetData() {
+      if (!this.page || this.page.__sxmlSetDataPatched) {
+        return;
+      }
+
+      const original = typeof this.page.setData === 'function' ? this.page.setData : null;
+      const parser = this;
+
+      this.page.setData = function patchedSetData() {
+        let result;
+        try {
+          if (original) {
+            result = original.apply(this, arguments);
+          } else {
+            const patch = arguments[0] || {};
+            this.data = this.data || {};
+            Object.keys(patch).forEach(key => {
+              this.data[key] = patch[key];
+            });
+          }
+        } catch (err) {
+          console.warn('SXML: setData error', err);
+        }
+
+        try {
+          parser.runWatchers();
+        } catch (e) {
+          console.warn('SXML: setData watcher error', e);
+        }
+
+        return result;
+      };
+
+      this.page.__sxmlSetDataPatched = true;
+    }
+
+    ensureWatcherPoller() {
+      if (this.watcherPoller) {
+        return;
+      }
+      this.watcherPoller = setInterval(() => {
+        try {
+          this.runWatchers();
+        } catch (err) {
+          console.warn('SXML: watcher polling error', err);
+        }
+      }, 250);
+    }
+
+    serializeWatcherValue(value) {
+      if (value === undefined) return '__SXML_UNDEFINED__';
+      if (value === null) return null;
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value);
+        } catch (_) {
+          return value;
+        }
+      }
+      return value;
+    }
+
+    runWatchers(options = {}) {
+      if (!this.watchers.length) {
+        return;
+      }
+      const force = options.force === true;
+      this.watchers.forEach(watcher => {
+        const currentRaw = this.getDataValue(watcher.path);
+        const serialized = this.serializeWatcherValue(currentRaw);
+        if (force || serialized !== watcher.lastValue) {
+          watcher.lastValue = serialized;
+          try {
+            watcher.callback();
+          } catch (err) {
+            console.warn('SXML: watcher callback error', watcher.path, err);
+          }
+        }
+      });
+    }
+
+    dispose() {
+      if (this.watcherPoller) {
+        clearInterval(this.watcherPoller);
+        this.watcherPoller = null;
+      }
+    }
+
     /**
      * 获取 page.data 中的值
      */
@@ -529,18 +640,19 @@
      * 监听数据变化
      */
     watchData(path, callback) {
-      if (!this.page || !this.page.setData) {
-        // 简单的轮询监听
-        this.watchers.push({ path, callback, lastValue: this.getDataValue(path) });
-        return;
-      }
+      const watcher = {
+        path,
+        callback,
+        lastValue: this.serializeWatcherValue(this.getDataValue(path))
+      };
+      this.watchers.push(watcher);
+      this.ensureWatcherPoller();
       
       // 如果 page 有 reactive 系统，使用 watch
       if (window.watch && typeof window.watch === 'function') {
-        // watch 期望一个函数，在函数内部访问数据并执行回调
         window.watch(() => {
-          this.getDataValue(path);  // 触发依赖收集
-          callback();  // 数据变化时执行回调
+          this.getDataValue(path);
+          callback();
         });
       }
     }
@@ -573,82 +685,107 @@
   // 全局解析器实例
   let globalParser = null;
 
+  function ensureParser(options = {}) {
+    const activePage = resolveActivePageInstance();
+    if (!activePage) {
+      console.log('⏳ [SXMLParser] 等待 Page 实例...');
+      return null;
+    }
+
+    if (!options.force && globalParser && globalParser.page === activePage) {
+      return globalParser;
+    }
+
+    if (globalParser && typeof globalParser.dispose === 'function') {
+      globalParser.dispose();
+    }
+
+    globalParser = new SXMLParser(activePage);
+    globalParser.parse(document.body);
+    document.body.classList.add('sxml-ready');
+    console.log('✅ SXML parsed with runtime directives');
+    return globalParser;
+  }
+
   // 自动解析页面
-  function autoParseOnLoad() {
-    console.log('🚀 [autoParseOnLoad] 开始自动解析, currentPage:', window.currentPage);
-    
-    // 等待 Page 实例创建
-    if (window.currentPage) {
-      if (!globalParser) {
-        console.log('✅ [autoParseOnLoad] 创建 SXMLParser 实例');
-        globalParser = new SXMLParser(window.currentPage);
-        globalParser.parse(document.body);
-        
-        // 解析完成后显示页面内容
-        document.body.classList.add('sxml-ready');
-        console.log('✅ SXML parsed with currentPage');
-      } else {
-        console.log('⚠️  [autoParseOnLoad] globalParser 已存在,跳过');
-      }
-    } else {
-      // 如果没有 Page 实例，延迟解析
-      console.log('⏳ Waiting for currentPage...');
+  function autoParseOnLoad(options = {}) {
+    const parser = ensureParser(options);
+    if (!parser) {
+      console.log('⏳ Waiting for currentPage (runtime directives)...');
     }
   }
 
   // 监听页面资源加载完成事件
   document.addEventListener('pageResourcesLoaded', function() {
-    // 稍微延迟，确保 Page() 已执行
-    setTimeout(autoParseOnLoad, 100);
+    setTimeout(() => autoParseOnLoad(), 100);
   });
 
   // 也监听 DOMContentLoaded 作为后备
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(autoParseOnLoad, 200);
+      setTimeout(() => autoParseOnLoad(), 200);
     });
+  } else {
+    setTimeout(() => autoParseOnLoad(), 50);
   }
 
-  // 扩展 Page 函数以支持 SXML
-  if (window.Page) {
-    const originalPage = window.Page;
-    
-    window.Page = function(config) {
-      const page = originalPage.call(this, config);
-      
-      // 在 onReady 中解析 SXML
-      const originalOnReady = page.onReady;
-      page.onReady = function() {
-        // 解析 SXML
-        if (!globalParser) {
-          globalParser = new SXMLParser(page);
-          globalParser.parse(document.body);
-          
-          // 解析完成后显示页面内容
-          document.body.classList.add('sxml-ready');
-          console.log('✅ SXML parsed in onReady');
-        }
-        
-        // 调用原始 onReady
-        if (originalOnReady) {
-          originalOnReady.call(this);
-        }
-      };
-      
+  function wrapPageFactory(factory) {
+    if (typeof factory !== 'function' || factory.__SXML_WRAPPED__) {
+      return factory;
+    }
+
+    function WrappedPage(config) {
+      const page = factory.call(this, config);
+      if (page && !page.__sxmlOnReadyPatched) {
+        const originalOnReady = page.onReady;
+        page.onReady = function() {
+          ensureParser({ force: true });
+          if (originalOnReady) {
+            return originalOnReady.apply(this, arguments);
+          }
+        };
+        page.__sxmlOnReadyPatched = true;
+      }
       return page;
-    };
+    }
+
+    WrappedPage.__SXML_WRAPPED__ = true;
+    return WrappedPage;
   }
+
+  function installPageHook() {
+    if (typeof window.Page === 'function') {
+      window.Page = wrapPageFactory(window.Page);
+      return;
+    }
+
+    if (window.__SXML_PAGE_HOOKED__) {
+      return;
+    }
+
+    Object.defineProperty(window, 'Page', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return window.__sxmlWrappedPageFactory;
+      },
+      set(value) {
+        window.__sxmlWrappedPageFactory = wrapPageFactory(value);
+      }
+    });
+
+    window.__SXML_PAGE_HOOKED__ = true;
+  }
+
+  installPageHook();
 
   // 提供手动刷新方法（轻量重渲染：仅数据绑定）
-  window.refreshSXML = function() {
-    if (window.currentPage) {
-      if (!globalParser) {
-        globalParser = new SXMLParser(window.currentPage);
-      }
-      // 只刷新数据绑定，不重新解析指令（避免重复添加监听器）
-      // s:show, s:if 等指令已通过 watch 自动响应数据变化
-      globalParser.parseDataBinding(document.body);
-      console.log('✅ SXML refreshed (bindings only)');
+  window.refreshSXML = function(options = {}) {
+    const parser = ensureParser(options);
+    if (parser) {
+      parser.runWatchers({ force: true });
+      parser.parseDataBinding(document.body);
+      console.log('✅ SXML refreshed (bindings + data bindings)');
     }
   };
 

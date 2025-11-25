@@ -29,6 +29,24 @@ const outputDir = path.join(__dirname, 'dist', 'pages');
 // 执行编译
 compiler.compilePages(pagesDir, outputDir);
 
+// 复制静态资源目录（如 vendor、共享依赖等）
+function copyDirectory(src, dest) {
+	const fs = require('fs');
+	if (!fs.existsSync(src)) return;
+	fs.mkdirSync(dest, { recursive: true });
+	for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+		const srcPath = path.join(src, entry.name);
+		const destPath = path.join(dest, entry.name);
+		if (entry.isDirectory()) {
+			copyDirectory(srcPath, destPath);
+		} else if (entry.isFile()) {
+			fs.copyFileSync(srcPath, destPath);
+		}
+	}
+}
+
+copyDirectory(path.join(pagesDir, 'webapp', 'vendor'), path.join(outputDir, 'webapp', 'vendor'));
+
 console.log('\n═══════════════════════════════════════');
 console.log('  构建完成！');
 console.log(`  输出目录: ${outputDir}`);

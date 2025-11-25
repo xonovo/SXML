@@ -1,21 +1,72 @@
-<!-- 首页入口（SXML）-->
+<!-- 手机登录页（SXML）- 自适应移动端 -->
+
+<!-- 顶部背景图：固定宽度居中，不撑满全屏 -->
+<image class="bg-banner" src="/images/app_home_bj_day.png" mode="widthFix" />
+
+<!-- 语言切换按钮（右上角） -->
+<view class="lang-switcher">
+  <button class="lang-btn" bindtap="toggleLanguage">English</button>
+</view>
 
 <view class="container">
-  <view class="hero">
-    <view class="logo" s:if="{{APP_LOGO}}">
-      <image :src="APP_LOGO" :alt="APP_TITLE" />
+<!-- 正文 -->
+<view class="mobile-login-container">
+  <!-- Logo 区域 -->
+  <view class="login-header">
+    <image class="logo" src="/images/app_login_logo_day.png" mode="aspectFit" />
+  </view>
+
+  <!-- 登录表单 -->
+  <view class="login-form">
+    <!-- 邮箱/账号 -->
+    <view class="form-field">
+      <view class="field-label" data-i18n="login.label.account">E-mail / Account</view>
+      <input id="u" class="field-input" type="text" placeholder="Please enter e-mail/account"
+        data-i18n-placeholder="login.placeholder.account" bindfocus="u_onfocus"
+        bindblur="u_onblur" maxlength="50" />
     </view>
-    <view class="title">{{ APP_TITLE }}</view>
-    <view class="subtitle">{{ APP_SUBTITLE }}</view>
-    <view class="desc" s:if="{{ APP_DESC }}">{{ APP_DESC }}</view>
+
+    <!-- 密码 -->
+    <view class="form-field">
+      <view class="field-label" data-i18n="login.label.password">Password</view>
+      <input id="p" class="field-input" type="password" placeholder="Please enter the password"
+        data-i18n-placeholder="login.placeholder.password" bindfocus="u_onfocus" bindblur="u_onblur"
+        autocomplete="new-password" value="" />
+    </view>
+
+    <!-- 通讯密钥（条件显示）-->
+    <view id="communication-key-block" class="form-field">
+      <view class="field-label" data-i18n="login.label.key">Communication Key</view>
+      <input id="k" class="field-input" type="text" placeholder="digital key (Key)"
+        data-i18n-placeholder="login.placeholder.key" bindfocus="u_onfocus" bindblur="u_onblur" maxlength="32" />
+      <view class="field-hint" data-i18n="login.hint.key">32-bit communication key, required for first
+        login<br />Communication key saved locally</view>
+    </view>
+
+    <view id="secure-key-banner" class="form-field secure-key-banner" style="display: none;">
+      <view class="secure-key-icon">
+        <svg id="l" class="lockIcon" viewBox="0 0 1024 1024" onclick="d_lock()" title="点击后密钥将会从此设备卸载">
+          <path d="M 512 88.704 L 149.312 239.424 v 225.088 c 0 54.528 9.536 107.328 28.672 158.72 a 516.48 516.48 0 0 0 202.24 253.696 A 460.8 460.8 0 0 0 512 936.256 a 460.928 460.928 0 0 0 131.712 -59.2 a 517.504 517.504 0 0 0 202.304 -253.76 a 451.52 451.52 0 0 0 28.672 -158.72 V 239.424 L 512 88.704 Z m 448 122.24 v 253.568 c 0 64.64 -11.328 127.424 -33.92 188.352 a 602.368 602.368 0 0 1 -235.52 295.36 A 548.544 548.544 0 0 1 512 1024 a 548.416 548.416 0 0 1 -178.56 -75.776 A 601.664 601.664 0 0 1 97.92 652.8 A 536.192 536.192 0 0 1 64 464.512 V 211.008 c 0 -17.28 10.368 -32.768 26.24 -39.36 L 495.68 3.328 a 42.752 42.752 0 0 1 32.768 0 l 405.312 168.32 c 15.936 6.592 26.304 22.144 26.304 39.36 Z M 460.8 564.416 L 699.712 320 L 768 389.76 L 460.8 704 L 256 494.528 l 68.288 -69.76 L 460.8 564.288 Z"></path>
+        </svg>
+      </view>
+      <view class="secure-key-copy">
+        <text class="secure-key-text">The current device has installed a secure encryption key. Click to log out and reload.</text>
+      </view>
+    </view>
+
+    <!-- 登录按钮 -->
+    <button id="but" class="login-btn" bindtap="loginEvent" data-i18n="login.button">LOGIN</button>
+
+    <!-- 注册入口 -->
+    <view class="login-footer">
+      <text class="footer-text" data-i18n="login.noAccount">还没有账号？</text>
+      <text class="footer-link" bindtap="goRegist" data-i18n="login.goRegist">sign up</text>
+    </view>
+    <!-- 页脚版权 -->
+    <view class="login-footnote">
+      <text>Copyright Reserved © IEC Markets 2026</text>
+    </view>
   </view>
 
-  <view class="actions">
-    <button class="primary" bindtap="goLogin">登录</button>
-    <button class="secondary" bindtap="goMyInfo">我的信息</button>
-  </view>
-
-  <view class="footnote">
-    <text>© {{ CURRENT_YEAR }} {{ APP_NAME }}</text>
-  </view>
+</view>
 </view>

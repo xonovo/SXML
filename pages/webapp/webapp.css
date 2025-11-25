@@ -11,6 +11,14 @@
   padding-right: 0;
   padding-bottom: 0;
   padding-left: 0;
+  --color-bull: #e53935; /* 东方式：涨红跌绿 */
+  --color-bear: #00a87e;
+  --badge-text-color: #fff;
+}
+
+.webapp-root.scheme-western {
+  --color-bull: #00a87e; /* 欧美式：涨绿跌红 */
+  --color-bear: #e53935;
 }
 
 /* 全局重置 */
@@ -18,7 +26,7 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #f5f5f5;
+  background: #f4f6fb;
 }
 *, *::before, *::after {
   box-sizing: border-box;
@@ -38,6 +46,21 @@ html, body {
   /* 仅首页显示，移除 sticky 使其与首页一起横向滑动 */
   position: relative;
   z-index: 1000;
+}
+
+.scheme-toggle-btn {
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  color: #333;
+}
+
+.scheme-toggle-btn:hover {
+  background: #f6f6f6;
 }
 
 /* 顶部安全区占位：兼容旧 iOS 与现代浏览器 */
@@ -89,8 +112,8 @@ html, body {
 }
 
 .notification-btn {
-  width: 32px;
-  height: 32px;
+  /* width: 20px; */
+  height: 20px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -99,12 +122,15 @@ html, body {
   position: relative;
   z-index: 1001;
 }
-
+.notification-icon {
+  width: 20px;
+  height: 20px;
+}
 .content {
   flex: 1;
   overflow: hidden; /* 隐藏滚动条，通过 JS 控制滚动 */
   padding: 0;
-  background: #f5f5f5; /* 主内容区为灰色，根容器顶部与 header 保持白色 */
+  background: #f4f6fb; /* 主内容区为灰色，根容器顶部与 header 保持白色 */
   min-height: 0;
   position: relative;
   /* 预留底部空间，避免被粘底 tabbar 遮挡 */
@@ -228,7 +254,7 @@ html, body {
 }
 
 .feature-item:active {
-  background: #f5f5f5;
+  background: #f4f6fb;
 }
 
 .feature-icon {
@@ -255,6 +281,7 @@ html, body {
 
 /* Most Active 列表 */
 .most-active {
+  width: 100%;
   background: #fff;
   padding: 0 16px 16px;
 }
@@ -275,6 +302,12 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.symbol-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .symbol-name {
@@ -305,26 +338,54 @@ html, body {
 
 .price-change {
   font-size: 12px;
-  color: #ff6b6b;
+  color: #666;
 }
+
+.price-change.up { color: var(--color-bull); }
+.price-change.down { color: var(--color-bear); }
 
 .percent-badge {
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   min-width: 60px;
   text-align: center;
+  background: #f1f3f5;
+  color: #333;
 }
 
-.badge-up {
-  background: #4caf50;
-  color: #fff;
+.percent-badge.up {
+  background: var(--color-bull);
+  color: var(--badge-text-color);
 }
 
-.badge-down {
-  background: #f44336;
-  color: #fff;
+.percent-badge.down {
+  background: var(--color-bear);
+  color: var(--badge-text-color);
+}
+
+.market-closed-tag {
+  border: 1px solid #d3d7de;
+  background: #fff;
+  color: #111;
+  border-radius: 999px;
+  font-size: 10px;
+  padding: 2px 6px;
+  line-height: 1;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.market-closed-tag[hidden] {
+  display: none !important;
+}
+
+.active-row.is-market-closed .price-main,
+.active-row.is-market-closed .price-change,
+.active-row.is-market-closed .percent-badge {
+  opacity: 0.65;
 }
 
 /* 底部 tabbar（统一定义见文件下方 .tabbar 规则） */
@@ -360,7 +421,7 @@ html, body {
 }
 
 .tab:active {
-  background: #f5f5f5;
+  background: #f4f6fb;
 }
 
 /* 页面切换 */
@@ -389,6 +450,309 @@ html, body {
   border-radius: 12px;
   padding: 16px;
   margin-top: 12px;
+}
+
+/* ========== Markets 页面样式 ========== */
+.page-markets {
+  padding: 0;
+  background: #f5f7fb;
+  color: #0f172a;
+}
+
+.markets-header {
+  padding: 24px 20px 18px;
+  background: #fff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom-left-radius: 32px;
+  border-bottom-right-radius: 32px;
+  box-shadow: 0 30px 40px rgba(15, 23, 42, 0.05);
+}
+
+.market-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.market-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+}
+
+.market-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.market-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.market-icon-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.icon-chart,
+.icon-edit {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  position: relative;
+}
+
+.icon-chart::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 2px;
+  width: 3px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 3px;
+  box-shadow: 6px -3px 0 currentColor, 12px -6px 0 currentColor;
+}
+
+.icon-edit::before,
+.icon-edit::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.icon-edit::before {
+  top: 7px;
+  height: 2px;
+  transform: rotate(-45deg);
+}
+
+.icon-edit::after {
+  bottom: 2px;
+  height: 2px;
+  transform: rotate(-45deg);
+  opacity: 0.65;
+}
+
+.market-filters {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.market-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.market-filter {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.market-filter.active {
+  background: linear-gradient(120deg, #2563eb, #7c3aed);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+}
+
+.markets-tabs {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 16px 0;
+  background-color: #FFF;
+}
+
+.markets-tab { background:none; border:0; outline:0; padding:12px 0; font-size:16px; color:#999; cursor:pointer; position:relative; transition:color .25s ease; }
+.markets-tab.active { color:#000; font-weight:600; }
+.markets-tab.active::after{ content:''; position:absolute; left:0; right:0; bottom:0; height:2px; background:#000; border-radius:2px; }
+
+
+.markets-main-swiper {
+  /* padding: 0 20px 24px; */
+  overflow: hidden;
+}
+
+.markets-main-swiper .swiper-wrapper {
+  display: flex;
+  transition: transform 0.4s cubic-bezier(.25,.8,.25,1);
+}
+
+.markets-main-swiper .swiper-slide {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.markets-swiper {
+  padding: 0 20px 24px;
+}
+
+.markets-swiper .swiper-wrapper {
+  display: flex;
+  transition: transform 0.4s cubic-bezier(.25,.8,.25,1);
+}
+
+.markets-slide {
+  flex: 0 0 100%;
+}
+
+.watchlist-panel {
+  background: #fff;
+  border-radius: 20px;
+  padding: 16px 12px;
+  margin: 10px;
+  /* border: 1px solid #e2e8f0;
+  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.08);
+  min-height: 320px; */
+}
+
+.watchlist-panel[data-state="empty"] .watchlist-list {
+  display: none;
+}
+
+.watchlist-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watchlist-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.watchlist-manage {
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(120deg, #2563eb, #7c3aed);
+  box-shadow: 0 10px 18px rgba(79, 70, 229, 0.25);
+}
+
+.watchlist-empty {
+  margin-top: 32px;
+  padding: 28px 18px;
+  border-radius: 20px;
+  border: 1px dashed #cbd5f5;
+  background: #f8fafc;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.watchlist-empty.visible {
+  display: flex;
+}
+
+.watchlist-empty-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(124, 58, 237, 0.08));
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.watchlist-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.watchlist-empty-desc {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+.watchlist-empty-btn {
+  margin-top: 6px;
+  padding: 12px 32px;
+  border-radius: 24px;
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(120deg, #2563eb, #7c3aed);
+  box-shadow: 0 12px 18px rgba(79, 70, 229, 0.25);
+  align-self: center;
+}
+
+.watchlist-list {
+  /* margin-top: 20px; */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.watchlist-list .active-row {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.watchlist-list .symbol-name,
+.watchlist-list .price-main {
+  color: #0f172a;
+}
+
+.watchlist-list .symbol-desc {
+  color: #94a3b8;
+}
+
+.watchlist-list .price-change {
+  color: #64748b;
+}
+.watchlist-list .price-change.up {
+  color: var(--color-bull);
+}
+.watchlist-list .price-change.down {
+  color: var(--color-bear);
+}
+
+.watchlist-list .percent-badge {
+  min-width: 64px;
+}
+
+.watchlist-empty-btn + .watchlist-list {
+  margin-top: 24px;
 }
 .tabbar{
   height:80px;
@@ -454,7 +818,7 @@ html, body {
 
 /* ========== Funds 页面样式 ========== */
 .page-funds {
-  background: #f5f5f5;
+  background: #f4f6fb;
   padding: 0;
 }
 
@@ -997,7 +1361,7 @@ html, body {
 
 
 /* ========== Trades 页面样式 ========== */
-.page-trades { background: #f5f5f5; padding: 0; }
+.page-trades { background: #f4f6fb; padding: 0; }
 
 .trade-page { padding-bottom: 16px; }
 
@@ -1036,8 +1400,8 @@ html, body {
 .trade-header .symbol { font-size:18px; font-weight:700; color:#111; letter-spacing:.5px; }
 .trade-header .symbol-icon{width:16px; height:16px; vertical-align:middle;}
 .trade-header .change { display:block; font-size:13px; }
-.trade-header .change.up{ color:#ff4d4f; }
-.trade-header .change.down{ color:#00a87e; }
+.trade-header .change.up{ color:var(--color-bull); }
+.trade-header .change.down{ color:var(--color-bear); }
 .trade-header .th-right { flex:1; display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:flex-end; gap:8px 24px; color:#b3b3b3; font-size:12px; text-align:right; }
 .trade-header .th-right .stat{white-space:nowrap; font-size:12px;}
 .trade-header .th-right b{ color:#000; font-weight:500; margin-left:4px; }
@@ -1053,7 +1417,7 @@ html, body {
 
 /* 下单类型 */
 .order-type{ background:#fff; border-radius:12px; padding:10px; }
-.type-btn{ width:100%; background:#f5f5f5; border:1px solid #eee; border-radius:6px; padding:12px; font-size:14px; color:#555; }
+.type-btn{ width:100%; background:#f4f6fb; border:1px solid #eee; border-radius:6px; padding:12px; font-size:14px; color:#555; }
 
 /* 表单区 */
 .order-form{ background:#fff; border-radius:12px; padding:12px; margin-bottom:6px; display:flex; flex-direction:column; gap:12px; }
@@ -1094,12 +1458,12 @@ html, body {
   background:rgba(255,255,255,0.9);
 }
 .sl-switch input[type="checkbox"]:focus-visible{ outline:2px solid rgba(241,212,139,0.8); outline-offset:2px; }
-.stepper{ display:flex; align-items:center; gap:8px; background:#f5f5f5; border:1px solid #eee; border-radius:10px; padding:6px; }
+.stepper{ display:flex; align-items:center; gap:8px; background:#f4f6fb; border:1px solid #eee; border-radius:10px; padding:6px; }
 .stepper .step{ width:32px; height:32px; display:flex; align-items:center; justify-content:center; border:0; border-radius:8px; background:#eaeaea; color:#333; font-size:18px; }
-.stepper .num{ width:90px; height:32px; border:0; outline:0; background:transparent; text-align:center; font-size:16px; color:#333; }
+.stepper .num{ width:140px; height:32px; border:0; outline:0; background:transparent; text-align:center; font-size:16px; color:#333; }
 .floating-field .stepper{
   flex:1;
-  background:#f5f5f5;
+  background:#f4f6fb;
   border:1px solid #eee;
   border-radius:6px;
   padding:10px 12px;
@@ -1322,9 +1686,11 @@ html, body {
 .pos-ccy{ font-size:12px; color:#999; }
 .pos-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; border-top:1px solid #f0f0f0; padding-top:12px; }
 .pos-row{ display:flex; justify-content:space-between; color:#666; font-size:13px; }
-.pos-row .pnl.up{ color:#e85a5a; font-weight:600; }
+.pos-row .pnl.up{ color:var(--color-bull); font-weight:600; }
+.pos-row .pnl.down{ color:var(--color-bear); font-weight:600; }
 .pos-actions{ display:flex; gap:12px; margin-top:14px; }
 .pos-btn{ flex:1; border:1px solid #e0e0e0; background:#f7f7f7; color:#555; border-radius:10px; padding:12px; font-weight:600; }
+.add-btn{ border:1px solid #e0e0e0; background:#f7f7f7; color:#000; border-radius:6px; padding:8px 18px; height: min-content; }
 
 /* ========== Trades 页面增强：两列布局 + 订单簿 + 梯形分段 ========== */
 .trade-layout{display:flex; gap:12px; align-items:stretch;}
@@ -1359,15 +1725,23 @@ html, body {
 .book-header .col-title .col-sub{font-size:11px; color:#999; font-weight: 400;}
 .book-header .align-right{text-align:right;}
 /* 订单簿不使用滚动条，显示所有条目 */
-.orderbook{overflow:auto; display:flex; flex-direction:column; flex:1; padding-right:4px;}
-.book-columns .orderbook::-webkit-scrollbar{width:4px;}
-.book-columns .orderbook::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1); border-radius:999px;}
-.book-columns .orderbook::-webkit-scrollbar-track{background:transparent;}
+.orderbook{overflow:hidden; display:flex; flex-direction:column; flex:1; padding-right:4px;}
 .orderbook.asks .ob-row .quote{color:#099268;}
 .orderbook.bids .ob-row .quote{color:#d9480f;}
 .ob-row{display:flex; justify-content:space-between; padding:4px 0; font-size:12px;}
 .ob-row .quote{font-weight:600;}
 .ob-row .volume{color:#555; min-width:52px; text-align:right;}
+.ob-row.best{
+  position:relative;
+  padding:4px 0;
+}
+.ob-row .best-tag{
+  font-size:11px;
+  font-weight:600;
+  margin-right:6px;
+  color:#666;
+  align-self:center;
+}
 
 /* 中间最新价块 */
 .book-last{padding:10px 4px 6px; text-align:center;}
@@ -1383,10 +1757,10 @@ html, body {
   font-weight:700;
 }
 .book-last .last-price-row.up .last-price{
-  color:#ff4d4f; /* 上涨红色 */
+  color:var(--color-bull);
 }
 .book-last .last-price-row.down .last-price{
-  color:#00a87e; /* 下跌绿色 */
+  color:var(--color-bear);
 }
 .book-last .price-arrow{
   width:16px;
@@ -1399,10 +1773,10 @@ html, body {
   margin-top:2px;
 }
 .book-last .last-change.up{
-  color:#ff4d4f; /* 上涨红色 */
+  color:var(--color-bull);
 }
 .book-last .last-change.down{
-  color:#00a87e; /* 下跌绿色 */
+  color:var(--color-bear);
 }
 
 /* Long / Short 箭头拼接按钮 */
@@ -1487,7 +1861,8 @@ html, body {
 /* 持仓卡片间距与字体细化 */
 .pos-row{font-size:12px;}
 .pos-row span:last-child{font-weight:600; color:#222;}
-.pos-row .pnl.up{color:#e53935; font-size:13px;}
+.pos-row .pnl.up{color:var(--color-bull); font-size:13px;}
+.pos-row .pnl.down{color:var(--color-bear); font-size:13px;}
 
 /* ========== Capital 专属：去除左右内卡片 + 紧凑字体 ========== */
 /* 1) 去卡片感：右侧操作区域的各分组不再使用白底卡片 */
@@ -1553,6 +1928,10 @@ html, body {
 }
 .line-box2{position:relative; padding:0 !important; margin:0 0 8px 0 !important;}
 
+/* 全局字体设置 */
+:root { --app-font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif; }
+body { font-family: var(--app-font-family); }
+
 /* ========== 通用弹窗（底部弹层组件） ========== */
 .action-sheet{
   position:fixed;
@@ -1563,7 +1942,7 @@ html, body {
   pointer-events:none;
   opacity:0;
   transition:opacity .25s ease;
-  z-index:4000;
+  z-index:10000;
   --sheet-panel-bg:#4c4e53;
   --sheet-text-color:#f8f8f8;
   --sheet-muted-color:rgba(255,255,255,0.7);
@@ -1587,7 +1966,7 @@ html, body {
   background:var(--sheet-panel-bg);
   color:var(--sheet-text-color);
   border-radius:18px 18px 0 0;
-  padding:16px 20px 24px;
+  padding:16px 20px calc(24px + env(safe-area-inset-bottom, 0px));
   box-shadow:0 -8px 34px rgba(0,0,0,0.38);
   transform:translateY(100%);
   transition:transform .32s cubic-bezier(0.2,0.7,0.3,1);
@@ -1601,8 +1980,75 @@ html, body {
 .sheet-title{font-size:18px; font-weight:700;}
 .sheet-subtitle{font-size:13px; color:var(--sheet-muted-color);}
 .sheet-section{display:none;}
-.action-sheet[data-mode="menu"] .sheet-menu{display:flex; flex-direction:column; gap:12px;}
+.action-sheet[data-mode="menu"] .sheet-menu{display:flex; flex-direction:column; gap:12px; padding-bottom:80px;}
 .action-sheet[data-mode="alert"] .sheet-alert{display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center;}
+.action-sheet[data-mode="checklist"] .sheet-menu{display:flex; flex-direction:column; gap:12px; padding-bottom:80px;}
+.sheet-check-option{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  border-radius:18px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+}
+.sheet-check-input{
+  position:absolute;
+  inset:0;
+  opacity:0;
+  pointer-events:none;
+}
+.sheet-check-mark{
+  width:22px;
+  height:22px;
+  border-radius:8px;
+  border:1px solid #cbd5f5;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#fff;
+}
+.sheet-check-mark::after{
+  content:'';
+  width:10px;
+  height:6px;
+  border-left:2px solid transparent;
+  border-bottom:2px solid transparent;
+  transform:rotate(-45deg);
+  opacity:0;
+}
+.sheet-check-input:checked + .sheet-check-mark{
+  background:linear-gradient(120deg,#2563eb,#7c3aed);
+  border-color:transparent;
+}
+.sheet-check-input:checked + .sheet-check-mark::after{
+  border-color:#fff;
+  opacity:1;
+}
+.sheet-check-body{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.sheet-check-title{
+  font-size:15px;
+  font-weight:600;
+  color:#0f172a;
+}
+.sheet-check-desc{
+  font-size:12px;
+  color:#94a3b8;
+}
+.sheet-check-badge{
+  font-size:12px;
+  font-weight:600;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#eef2ff;
+  color:#4338ca;
+}
 .sheet-option{
   width:100%;
   text-align:left;
@@ -1620,9 +2066,13 @@ html, body {
   cursor:pointer;
   transition:background .2s ease, border-color .2s ease;
 }
+.sheet-option.has-icon{padding-left:14px;}
+.sheet-option-icon-wrap{width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.sheet-option-icon{width:32px; height:32px; object-fit:contain;}
 .sheet-option .sheet-option-main{flex:1;}
 .sheet-option-title{display:block;}
 .sheet-option .sheet-option-desc{display:block; font-size:12px; font-weight:400; color:var(--sheet-muted-color); margin-top:4px;}
+.sheet-option-meta{font-size:12px; font-weight:600; color:var(--sheet-muted-color);}
 .sheet-option-badge{font-size:12px; color:var(--sheet-text-color); opacity:0.75;}
 .sheet-option.active{border-color:#fff; background:rgba(255,255,255,0.18);}
 .sheet-option:focus-visible{outline:2px solid #fff; outline-offset:2px;}
@@ -1650,6 +2100,7 @@ html, body {
   --sheet-ghost-border:rgba(0,0,0,0.18);
 }
 .action-sheet[data-theme="light"] .sheet-option{background:#f7f7f9; border-color:rgba(0,0,0,0.12);}
+.action-sheet[data-theme="light"] .sheet-option-icon-wrap{background:rgba(0,0,0,0.04);}
 .action-sheet[data-theme="danger"]{
   --sheet-panel-bg:#d64a4a;
   --sheet-text-color:#fff;
@@ -1667,4 +2118,359 @@ html, body {
   --sheet-primary-bg:#fff;
   --sheet-primary-color:#13744d;
   --sheet-ghost-border:rgba(255,255,255,0.45);
+}
+
+/* ============================================
+   充值页面样式（全屏覆盖）
+   ============================================ */
+.deposit-page-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: #ffffff;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.deposit-page-overlay[aria-hidden="false"] {
+  display: flex;
+  opacity: 1;
+}
+
+/* 充值页面安全区占位 */
+.deposit-safe-top {
+  height: constant(safe-area-inset-top, 0px);
+  height: env(safe-area-inset-top, 0px);
+  min-height: 40px;
+  background: #ffffff;
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+/* 顶部导航栏 */
+.deposit-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  /* 移除下边框 */
+}
+
+.deposit-back-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.back-arrow {
+  font-size: 28px;
+  font-weight: 400;
+  color: #000000;
+  line-height: 1;
+}
+
+.deposit-title {
+  font-size: 15px;
+  color: #000000;
+  letter-spacing: 0.3px;
+}
+
+.deposit-nav-placeholder {
+  width: 40px;
+}
+
+/* 充值内容区域 */
+.deposit-content-wrapper {
+  flex: 1;
+  padding: 40px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #ffffff;
+  /* overflow-y: auto; */
+}
+
+/* 金额显示区域 */
+.deposit-amount-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-self: flex-start;
+}
+
+.amount-large {
+  font-size: 72px;
+  font-weight: 500;
+  color: #cccccc; /* 零金额为浅灰 */
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: font-size 0.2s ease, color 0.2s ease;
+}
+
+/* 非零金额时数字改为深色 */
+.deposit-amount-display.nonzero .amount-large { color: #111111; }
+
+.amount-currency {
+  font-size: 18px;
+  /* font-weight: 600; */
+  color: #000000;
+  line-height: 1;
+  /* margin-bottom: 8px; */
+}
+
+.amount-approx {
+  font-size: 15px;
+  color: #999999;
+  margin-bottom: 40px;
+  align-self: flex-start;
+}
+
+/* 网络选择提示 */
+.network-hint {
+  font-size: 13px;
+  color: #cccccc;
+  margin-bottom: 8px;
+  margin-left: 4px;
+  align-self: flex-start;
+  width: 100%;
+  padding: 0;
+}
+
+/* 网络选择框 */
+.network-selector {
+  width: 100%;
+  height: 56px;
+  border: 1px solid #e5e5e5;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: border-color 0.2s ease;
+}
+
+.network-selector:hover {
+  border-color: #b8965f;
+}
+
+.network-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.network-icon {
+  width: 14px;
+  height: 14px;
+}
+.network-arrow
+.network-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #000000;
+}
+
+.network-arrow {
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
+}
+
+/* Deposit 按钮 */
+.deposit-submit-btn {
+  width: 60%;
+  padding: 12px;
+  border: none;
+  background: #928062;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.deposit-submit-btn:hover {
+ opacity: 0.6;
+}
+
+.deposit-submit-btn:active {
+  transform: translateY(0);
+}
+
+/* 数字键盘区域 */
+.deposit-numpad-section {
+  background: #ffffff;
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+  /* 移除上边框 */
+}
+
+/* 快捷金额按钮 */
+.deposit-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.deposit-shortcut-btn {
+  height: 48px;
+  border: 1px solid #e5e5e5;
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: all 0.15s ease;
+  padding: 6px;
+}
+
+.deposit-shortcut-btn:hover {
+  background: #f0f0f0;
+  border-color: #d0d0d0;
+}
+
+.deposit-shortcut-btn:active {
+  transform: scale(0.96);
+  background: #e8e8e8;
+}
+
+.shortcut-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000;
+  line-height: 1.2;
+}
+
+.shortcut-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: #999999;
+  line-height: 1;
+}
+
+/* 数字键盘 */
+.deposit-numpad-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.deposit-key {
+  height: 56px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  font-size: 26px;
+  font-weight: 400;
+  color: #000000;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deposit-key:hover {
+  background: transparent;
+}
+
+.deposit-key:active {
+  background: #f0f0f0;
+}
+
+.deposit-key-dot {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.deposit-key-delete {
+  background: transparent;
+}
+
+.deposit-key-delete:hover {
+  background: transparent;
+}
+
+.deposit-key-delete:active {
+  background: #f0f0f0;
+}
+
+.delete-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* 深色主题适配（如果需要） */
+[data-theme="dark"] .deposit-page-overlay {
+  background: #1a1a1a;
+}
+
+[data-theme="dark"] .deposit-nav {
+  background: #1a1a1a;
+  border-bottom-color: #2a2a2a;
+}
+
+[data-theme="dark"] .back-arrow,
+[data-theme="dark"] .deposit-title,
+[data-theme="dark"] .amount-currency,
+[data-theme="dark"] .network-name,
+[data-theme="dark"] .deposit-key {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .amount-large {
+  color: #666666;
+}
+
+[data-theme="dark"] .network-hint,
+[data-theme="dark"] .amount-approx {
+  color: #666666;
+}
+
+[data-theme="dark"] .deposit-content-wrapper,
+[data-theme="dark"] .deposit-numpad-section {
+  background: #1a1a1a;
+}
+
+[data-theme="dark"] .network-selector {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+
+[data-theme="dark"] .deposit-shortcut-btn {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+
+[data-theme="dark"] .deposit-key {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .deposit-key-delete {
+  background: #3a2020;
 }

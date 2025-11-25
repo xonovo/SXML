@@ -17,6 +17,59 @@ class SXMLCompiler {
     // 加载外部配置文件（支持环境变量）
     this.env = env || process.env.NODE_ENV || 'production';
     this.appConfig = this.loadAppConfig();
+    // 启用运行时指令：s:if/s:for 将在浏览器端解析，行为与 wx:if/wx:for 一致
+    this.enableRuntimeDirectives = true;
+  }
+
+  /**
+   * 根据输出路径计算到项目 dist 根目录的资源前缀
+   * @param {string} outputPath
+   * @returns {string} 如 ../../ 或 ./
+   */
+  computeAssetPrefix(outputPath) {
+    try {
+      if (!outputPath) return '../';
+      const distRoot = path.resolve(__dirname, '..', 'dist');
+      const outputDir = path.dirname(outputPath);
+      let relative = path.relative(distRoot, outputDir);
+      if (!relative || relative === '') {
+        return './';
+      }
+      if (relative.startsWith('..')) {
+        // 输出位置不在 dist 内，退回默认前缀
+        return '../';
+      }
+      const segments = relative.split(path.sep).filter(Boolean).length;
+      return segments <= 0 ? './' : '../'.repeat(segments);
+    } catch (_) {
+      return '../';
+    }
+  }
+
+  normalizePosixPath(p) {
+    return path.posix.normalize(p.replace(/\\/g, '/'));
+  }
+
+  assetFromRoot(relPath = '') {
+    const clean = String(relPath || '').replace(/^\/+/, '').replace(/\\/g, '/');
+    const prefix = this.assetPrefix || '../';
+    return this.normalizePosixPath(prefix + clean);
+  }
+
+  resolveAssetPath(inputPath) {
+    if (!inputPath) return inputPath;
+    const normalized = inputPath.replace(/\\/g, '/');
+    if (/^(https?:|\/\/|data:)/i.test(normalized)) {
+      return normalized;
+    }
+    if (normalized.startsWith('/')) {
+      return normalized;
+    }
+    if (normalized.startsWith('./')) {
+      return this.normalizePosixPath(normalized);
+    }
+    const cleaned = normalized.replace(/^(\.\.\/)+/, '').replace(/^\.\//, '');
+    return this.assetFromRoot(cleaned);
   }
 
   /**
@@ -112,6 +165,7 @@ class SXMLCompiler {
       }
     }
     this.pageConfig = pageConfig;
+  this.assetPrefix = this.computeAssetPrefix(outputPath);
     
     // 保存页面名称，用于引入同名CSS
     this.pageName = path.basename(sxmlPath, path.extname(sxmlPath));
@@ -190,6 +244,18 @@ class SXMLCompiler {
         /wsapi\.send\(/,
         /wsapi\.on\(/
       ],
+      'markets.ws.js': [
+        /MarketsSocket/,
+        /_marketsSocket/
+      ],
+      'markets.store.js': [
+        /MarketsStore/,                   // 全局行情缓存
+        /window\.MarketsStore/
+      ],
+      'infoway.http.js': [
+        /InfowayHttp/,
+        /_infowayHttp/
+      ],
       'fileapi.js': [
         /\bfileapi\b/,                    // 文件上传下载
         /fileapi\.upload\(/,
@@ -208,6 +274,11 @@ class SXMLCompiler {
         /\$reactive\(/,                   // 响应式系统
         /\.observe\(/,
         /\.computed\(/
+      ],
+      'sxml.parser.js': [
+        /s[:：](?:if|else-if|else|for|show)\s*=|s[:：]else\b/i,
+        /s-bind:/i,
+        /:\w+\s*=\s*["']\{\{/i
       ],
   /*
    * 运行时 SXML 解析器已弃用：所有指令均在编译阶段处理。
@@ -228,6 +299,7 @@ class SXMLCompiler {
       'rpx.js',           // rpx 自适应转换（SXML 模板可能含 rpx 单位）
       'i18n.js',          // 国际化系统
       'toast.js',         // Toast 组件（全局 ShowToast 等）
+      'router.js',        // 页面滑动路由与预加载
       'page.js',          // Page 函数（必需）
       'onload.js'         // 页面加载器（必需）
     ];
@@ -246,6 +318,8 @@ class SXMLCompiler {
     const dependencyChains = {
       'sapi.js': ['aes.js', 'md5.js', 'config.js'],       // sapi 依赖加密和配置
       'wsapi.js': ['config.js'],                           // wsapi 依赖配置
+      'markets.ws.js': ['md5.js'],                         // 行情 socket 依赖 MD5
+      'markets.store.js': ['markets.ws.js'],               // 行情缓存依赖 socket
       'fileapi.js': ['config.js'],                         // fileapi 依赖配置
       'i18n.js': ['config.js'],                            // i18n 依赖配置
       'config.js': ['api-sign-map.js']                     // config 依赖签名映射
@@ -270,6 +344,10 @@ class SXMLCompiler {
     // 添加核心依赖
     coreDeps.forEach(dep => deps.add(dep));
 
+    if (this.enableRuntimeDirectives) {
+      deps.add('sxml.parser.js');
+    }
+
     // 转换为有序数组（按加载顺序）
     const loadOrder = [
       'jQuery_v3.js',      // 基础库（很多模块依赖）
@@ -286,9 +364,14 @@ class SXMLCompiler {
       'i18n.js',           // 国际化
       'sapi.js',           // API 调用
       'wsapi.js',          // WebSocket
+    'markets.ws.js',     // 行情专用 WebSocket helper
+    'markets.store.js',  // 全局行情缓存（在 markets.ws 之后）
+    'infoway.http.js',   // Infoway HTTP helper
       'fileapi.js',        // 文件 API
-      'toast.js',          // Toast 组件（在 Page 之前，保证全局函数可用）
+  'toast.js',         // Toast 组件（在 Page 之前，保证全局函数可用）
+  'router.js',        // 轻量页面滑动路由（SPA式过渡）
       'page.js',           // Page 函数
+      'sxml.parser.js',    // 运行时指令解析器（s:if/s:for 等）
       'onload.js',         // 页面加载器
       'qrcode.js',         // 二维码
       'reactive.js'        // 响应式
@@ -310,23 +393,31 @@ class SXMLCompiler {
     const isDev = envRaw === 'dev' || envRaw === 'development';
     const cacheBust = isDev ? (`?v=${Date.now()}`) : '';
 
+    const asset = (rel) => this.assetFromRoot(rel);
+
     for (const module of deps) {
       let path = '';
       let comment = '';
 
       // 确定文件路径和注释
       if (module === 'api-sign-map.js') {
-        path = '../../config/api-sign-map.js' + cacheBust;
+        path = asset('config/api-sign-map.js') + cacheBust;
         comment = '<!-- API 签名映射配置（必须在 config.js 之前加载）-->';
       } else if (module === 'app.js') {
-        path = `../../app.js${cacheBust}`;
+        path = `${asset('app.js')}${cacheBust}`;
       } else if (module.match(/^(zh-CN|en-US)\.js$/)) {
         // 语言包文件放在 locales/ 目录
-        path = `../../locales/${module}${cacheBust}`;
+        path = `${asset('locales/' + module)}${cacheBust}`;
+      } else if (module === 'markets.ws.js') {
+        path = `${asset('utils/' + module)}${cacheBust}`;
+        comment = '<!-- Markets realtime socket helper -->';
+      } else if (module === 'infoway.http.js') {
+        path = `${asset('utils/' + module)}${cacheBust}`;
+        comment = '<!-- Infoway HTTP helper -->';
       } else if (module === 'bootstrap.js') {
-        path = `../../utils/${module}${cacheBust}`;
+        path = `${asset('utils/' + module)}${cacheBust}`;
       } else {
-        path = `../../utils/${module}${cacheBust}`;
+        path = `${asset('utils/' + module)}${cacheBust}`;
       }
 
       // 添加注释（仅对特殊模块）
@@ -339,15 +430,15 @@ class SXMLCompiler {
         const envRaw = String(this.env || 'production').toLowerCase();
         let configFileJs;
         if (envRaw === 'dev' || envRaw === 'development') {
-          configFileJs = '../../config/app.config.dev.js' + cacheBust;
+          configFileJs = asset('config/app.config.dev.js') + cacheBust;
         } else if (envRaw === 'test') {
-          configFileJs = '../../config/app.config.test.js';
+          configFileJs = asset('config/app.config.test.js');
         } else if (envRaw === 'prod' || envRaw === 'production') {
           // 生产环境统一注入 prod 配置
-          configFileJs = '../../config/app.config.prod.js';
+          configFileJs = asset('config/app.config.prod.js');
         } else {
           // 其他未知环境使用默认
-          configFileJs = '../../config/app.config.js';
+          configFileJs = asset('config/app.config.js');
         }
         // 直接加载 JS 配置以加速首屏，同时设置 APP_CONFIG_URL 供兜底逻辑使用
         scripts.push(`    <script type="text/javascript" src="${configFileJs}"></script>`);
@@ -358,12 +449,13 @@ class SXMLCompiler {
       
       // toast.js 加载后验证
       if (module === 'toast.js') {
+        const toastPath = asset('utils/toast.js') + cacheBust;
         scripts.push(`    <script>
       // 确保 Toast 可用（静默回退加载，不输出控制台日志）
       (function(){
         try {
           if (typeof window.ShowToast !== 'function') {
-            fetch('../../utils/toast.js${cacheBust}').then(function(r){return r.text();}).then(function(code){ try{ eval(code); }catch(_){ } }).catch(function(){ /* silent */ });
+            fetch('${toastPath}').then(function(r){return r.text();}).then(function(code){ try{ eval(code); }catch(_){ } }).catch(function(){ /* silent */ });
           }
         } catch(_) {}
       })();
@@ -514,20 +606,26 @@ class SXMLCompiler {
     compiled = this.convertSxmlToHtml(compiled);
   try { console.log('[pipeline] after convertSxmlToHtml s:show count =', (compiled.match(/s[:：]show=/g) || []).length); } catch (_) {}
 
-    // 1. 处理条件渲染 s:if（在数据绑定之前，以便求值原始表达式）
-    compiled = this.compileIf(compiled, data);
-  try { console.log('[pipeline] after compileIf s:show count =', (compiled.match(/s[:：]show=/g) || []).length); } catch (_) {}
+    if (this.enableRuntimeDirectives) {
+      console.log('[pipeline] runtime directives enabled -> skip compileIf/compileShow/compileFor (handled在浏览器端)');
+    } else {
+      // 1. 处理条件渲染 s:if（在数据绑定之前，以便求值原始表达式）
+      compiled = this.compileIf(compiled, data);
+    try { console.log('[pipeline] after compileIf s:show count =', (compiled.match(/s[:：]show=/g) || []).length); } catch (_) {}
 
-    // 2. 处理显示/隐藏 s:show（在数据绑定之前，以便求值原始表达式并保留属性）
-    compiled = this.compileShow(compiled, data);
-  try { console.log('[pipeline] after compileShow s:show count =', (compiled.match(/s[:：]show=/g) || []).length); } catch (_) {}
+      // 2. 处理显示/隐藏 s:show（在数据绑定之前，以便求值原始表达式并保留属性）
+      compiled = this.compileShow(compiled, data);
+    try { console.log('[pipeline] after compileShow s:show count =', (compiled.match(/s[:：]show=/g) || []).length); } catch (_) {}
+    }
 
     // 3. 替换数据绑定 {{ }}（在 s:if/s:show 之后，避免提前求值破坏指令）
     compiled = this.compileDataBinding(compiled, data);
   try { console.log('[pipeline] after compileDataBinding s:show count =', (compiled.match(/s[:：]show=/g) || []).length); } catch (_) {}
 
-    // 4. 处理列表渲染 s-for
-    compiled = this.compileFor(compiled, data);
+    // 4. 处理列表渲染 s-for（仅在关闭运行时指令时执行）
+    if (!this.enableRuntimeDirectives) {
+      compiled = this.compileFor(compiled, data);
+    }
 
     // 5. 添加 HTML 结构（如果是纯 SXML）
     compiled = this.wrapHtmlStructure(compiled, data);
@@ -683,37 +781,87 @@ class SXMLCompiler {
     const pageCssLink = this.hasPageCss 
       ? `  <link rel="preload" href="./${this.pageName}.css${cssCacheBust}" as="style" />\n  <link rel="stylesheet" type="text/css" href="./${this.pageName}.css${cssCacheBust}" />\n` 
       : '';
+    const elementCssPath = this.assetFromRoot('css/element.css');
 
     // 从外部配置读取安全策略和外部域
     const security = appConfig.security || {};
     const external = appConfig.external || {};
-    const connectSrcList = security.connectSrc || ["'self'"];
+    let connectSrcList = security.connectSrc || ["'self'"];
+    // 自动补齐行情 / 市场相关域名 (HTTP + WS) 避免忘记在 security.connectSrc 中手动添加
+    try {
+      const apiCfg = appConfig.api || {};
+      function ensure(list, v){ if (v && list.indexOf(v) === -1) list.push(v); }
+      // 行情 HTTP 域
+      ensure(connectSrcList, apiCfg.marketApiBaseUrl);
+      // 行情 WS 域：提取 origin (wss://host[:port])
+      if (apiCfg.marketWsUrl) {
+        try {
+          // 优先用 URL 解析，失败则用正则截取 host
+          let origin = '';
+          try { origin = new URL(apiCfg.marketWsUrl).origin; } catch(_) {
+            origin = apiCfg.marketWsUrl.replace(/^(wss?:\/\/[^/]+).*$/, '$1');
+          }
+          ensure(connectSrcList, origin);
+        } catch(_) {}
+      }
+    } catch(_) {}
+    // 移动端放宽：如果配置了 security.mobileOverrides.connectAppend 且 UA 为 iOS/Android，则追加域
+    try {
+      const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent.toLowerCase() : '';
+      const isMobile = /iphone|ipad|ipod|android/.test(ua);
+      if (isMobile && security.mobileOverrides && Array.isArray(security.mobileOverrides.connectAppend)) {
+        security.mobileOverrides.connectAppend.forEach(function(d){ if (connectSrcList.indexOf(d) === -1) connectSrcList.push(d); });
+      }
+    } catch(_) {}
     const connectSrc = connectSrcList.join(' ');
     
     const preconnectHosts = security.preconnectHosts || [];
+    // 与 connect-src 同步补齐必要的预连接域 (减少握手延迟)
+    try {
+      const apiCfg = appConfig.api || {};
+      function ensureHost(list, v){ if (v && list.indexOf(v) === -1) list.push(v); }
+      ensureHost(preconnectHosts, apiCfg.baseUrl);
+      ensureHost(preconnectHosts, apiCfg.marketApiBaseUrl);
+      if (apiCfg.marketWsUrl) {
+        try {
+          let origin = '';
+          try { origin = new URL(apiCfg.marketWsUrl).origin; } catch(_) {
+            origin = apiCfg.marketWsUrl.replace(/^(wss?:\/\/[^/]+).*$/, '$1');
+          }
+          ensureHost(preconnectHosts, origin.replace(/^wss:/, 'https:')); // 预连接用 https 协议以利用 TCP/TLS 复用
+        } catch(_) {}
+      }
+    } catch(_) {}
     const preconnectLinks = preconnectHosts.map(host => {
       const hostname = host.replace(/^https?:\/\//, '');
       return `  <link rel="dns-prefetch" href="//${hostname}" />\n  <link rel="preconnect" href="${host}" crossorigin />`;
     }).join('\n');
 
     // Favicon 路径
-    const faviconPath = (appConfig.branding && appConfig.branding.faviconPath) || '../../images/logo1.png';
+  const faviconPath = this.resolveAssetPath((appConfig.branding && appConfig.branding.faviconPath) || 'images/logo1.png');
 
     const envRaw = String(this.env || '').toLowerCase();
     const isProd = envRaw === 'prod' || envRaw === 'production';
 
+    const disableAntiBotForMobile = !!(security.mobileOverrides && security.mobileOverrides.disableAntiBot === true);
     const antiBotBlock = isProd ? `
     <script>
       (function(){
+        var disableForMobile = ${disableAntiBotForMobile ? 'true' : 'false'};
         function detectBot(){
+          const ua = navigator.userAgent ? navigator.userAgent.toLowerCase() : '';
+          const isIos = /iphone|ipad|ipod/.test(ua);
+          const isAndroid = /android/.test(ua);
+          const isMobile = isIos || isAndroid;
+          if (disableForMobile && isMobile) { return false; }
+          const isSafariUa = /safari/.test(ua) && !/chrome|crios|fxios|edge|edga|edgios/.test(ua);
           if (navigator.webdriver) return true;
-          if (window.navigator.plugins.length === 0) return true;
-          const ua = navigator.userAgent.toLowerCase();
+          if (!isMobile && window.navigator && window.navigator.plugins && window.navigator.plugins.length === 0) return true;
           const botPatterns = ['bot','crawl','spider','scrape','python','requests','urllib','scrapy','selenium','phantomjs'];
           if (botPatterns.some(function(p){return ua.indexOf(p) >= 0;})) return true;
           if (screen.width === 0 || screen.height === 0) return true;
-          if (!window.chrome && !window.safari && !window.opera && !/firefox/i.test(ua)) {
-            if (!/edge/i.test(ua) && !/msie|trident/i.test(ua)) return true;
+          if (!window.chrome && !window.opera && !/firefox|edge|msie|trident/i.test(ua) && !isSafariUa) {
+            return true;
           }
           return false;
         }
@@ -752,8 +900,8 @@ class SXMLCompiler {
 ${preconnectLinks}
   
   <!-- 预加载关键CSS，防止FOUC（无样式内容闪烁）-->
-  <link rel="preload" href="../../css/element.css" as="style" />
-  <link rel="stylesheet" type="text/css" href="../../css/element.css" />
+  <link rel="preload" href="${elementCssPath}" as="style" />
+  <link rel="stylesheet" type="text/css" href="${elementCssPath}" />
 ${pageCssLink}  <link rel="icon" href="${faviconPath}" type="image/x-icon" />
   
   <!-- 防止页面闪烁的内联关键CSS -->
@@ -790,7 +938,7 @@ ${content}
 ${this.generateScriptTags()}
   <!-- 页面加载器 -->
     <script>window.SXML_PRECOMPILED = true;</script>
-    <script type="text/javascript" src="../../utils/page.loader.js"></script>
+    <script type="text/javascript" src="${this.assetFromRoot('utils/page.loader.js')}"></script>
     
   <!-- 页面加载完成后显示内容：优先等待 i18n 就绪，最多延迟 800ms -->
     ${antiBotBlock}
@@ -1247,54 +1395,65 @@ ${this.generateScriptTags()}
   compilePages(pagesDir, outputDir) {
     console.log('🚀 开始批量编译 SXML 页面...\n');
 
-    // 确保输出目录存在
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // 扫描 pages 目录
-    const pageFolders = fs.readdirSync(pagesDir);
+    const skipTopLevel = new Set(['docs']);
 
-    pageFolders.forEach(folder => {
-      const folderPath = path.join(pagesDir, folder);
-      
-      if (!fs.statSync(folderPath).isDirectory()) {
-        return;
-      }
+    const processDir = (currentDir, relativeParts = []) => {
+      const entries = fs.readdirSync(currentDir);
 
-      // 优先查找 .sxml 文件，其次是 .html 文件
-      const sxmlPath = path.join(folderPath, `${folder}.sxml`);
-      const htmlPath = path.join(folderPath, `${folder}.html`);
-      const jsPath = path.join(folderPath, `${folder}.js`);
-  const jsonPath = path.join(folderPath, `${folder}.json`);
-      
-      // 确定使用哪个模板文件
-      let templatePath = null;
-      if (fs.existsSync(sxmlPath)) {
-        templatePath = sxmlPath;
-        console.log(`📄 使用 SXML 模板: ${folder}.sxml`);
-      } else if (fs.existsSync(htmlPath)) {
-        templatePath = htmlPath;
-        console.log(`📄 使用 HTML 模板: ${folder}.html`);
-      }
-      
-      if (templatePath && fs.existsSync(jsPath)) {
-        const outputPath = path.join(outputDir, folder, `${folder}.html`);
-        
-        // 确保输出子目录存在
-        const outputSubDir = path.join(outputDir, folder);
-        if (!fs.existsSync(outputSubDir)) {
-          fs.mkdirSync(outputSubDir, { recursive: true });
+      entries.forEach(entry => {
+        const entryPath = path.join(currentDir, entry);
+        if (!fs.statSync(entryPath).isDirectory()) {
+          return;
         }
 
-        // 编译
-  this.compile(templatePath, jsPath, outputPath, jsonPath);
-        
-        // 复制其他资源文件
-        this.copyResources(folderPath, outputSubDir, folder);
-      }
-    });
+        if (relativeParts.length === 0 && skipTopLevel.has(entry)) {
+          console.log(`⏭️  跳过目录: ${entry}`);
+          const skippedOutput = path.join(outputDir, entry);
+          if (fs.existsSync(skippedOutput)) {
+            try {
+              fs.rmSync(skippedOutput, { recursive: true, force: true });
+              console.log(`🧹 已清理旧输出: ${path.relative(outputDir, skippedOutput)}`);
+            } catch (cleanErr) {
+              console.warn(`⚠️  清理目录失败 ${skippedOutput}:`, cleanErr.message);
+            }
+          }
+          return;
+        }
 
+        const sxmlPath = path.join(entryPath, `${entry}.sxml`);
+        const htmlPath = path.join(entryPath, `${entry}.html`);
+        const jsPath = path.join(entryPath, `${entry}.js`);
+        const jsonPath = path.join(entryPath, `${entry}.json`);
+
+        let templatePath = null;
+        if (fs.existsSync(sxmlPath)) {
+          templatePath = sxmlPath;
+          console.log(`📄 使用 SXML 模板: ${path.relative(pagesDir, sxmlPath)}`);
+        } else if (fs.existsSync(htmlPath)) {
+          templatePath = htmlPath;
+          console.log(`📄 使用 HTML 模板: ${path.relative(pagesDir, htmlPath)}`);
+        }
+
+        if (templatePath && fs.existsSync(jsPath)) {
+          const outputSubDir = path.join(outputDir, ...relativeParts, entry);
+          if (!fs.existsSync(outputSubDir)) {
+            fs.mkdirSync(outputSubDir, { recursive: true });
+          }
+          const outputPath = path.join(outputSubDir, `${entry}.html`);
+          this.compile(templatePath, jsPath, outputPath, fs.existsSync(jsonPath) ? jsonPath : null);
+          this.copyResources(entryPath, outputSubDir, entry);
+        }
+
+        // 递归处理子目录（例如 webapp/regist 等二级/三级目录）
+        processDir(entryPath, [...relativeParts, entry]);
+      });
+    };
+
+    processDir(pagesDir);
     console.log('\n✅ 所有页面编译完成！');
   }
 

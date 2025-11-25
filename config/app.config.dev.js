@@ -20,11 +20,14 @@
         description: 'Modern Web 3.0 Management System powered by SXML'
       },
       api: {
-        baseUrl: 'https://api.example.com',
+        baseUrl: 'https://www.ice-markets-app.com',
         cspReportUrl: '/api/csp-report',
-        wsUrl: 'wss://api.example.com/ws',
-        uploadUrl: 'https://api.example.com/upload',
-        downloadUrl: 'https://api.example.com/download'
+  wsUrl: 'wss://www.ice-markets-app.com/ws',
+  marketWsUrl: 'wss://www.ice-markets-app.com/infoway-websocket',
+  marketApiBaseUrl: 'https://www.ice-markets-app.com/infoway-api',
+        // 开发环境：行情鉴权由服务器代理注入，前端不再持有 marketApiKey
+        uploadUrl: 'https://www.ice-markets-app.com/upload',
+        downloadUrl: 'https://www.ice-markets-app.com/download'
       },
       external: {
         ipGeoProvider: 'https://ipapi.co',
@@ -33,16 +36,29 @@
       security: {
         connectSrc: [
           '\'self\'',
-          'https://api.example.com',
-          'wss://api.example.com',
+          'https://www.ice-markets-app.com',
+          'wss://www.ice-markets-app.com',
           'https://ipapi.co',
-          'https://api.ipify.org'
+          'https://api.ipify.org',
+          // Infoway HTTP 行情接口域 (通过站点 Nginx 反向代理)
+          'https://www.ice-markets-app.com/infoway-api',
+          // Infoway 实时 WebSocket 行情，需要显式添加 wss scheme
+          'wss://data.infoway.io'
         ],
         preconnectHosts: [
-          'https://api.example.com',
+          'https://www.ice-markets-app.com',
           'https://ipapi.co',
-          'https://api.ipify.org'
-        ]
+          'https://api.ipify.org',
+          'https://www.ice-markets-app.com/infoway-api'
+        ],
+        // 移动端放宽策略：追加 connect-src 域 & 关闭反爬虫检测（仅开发环境，生产需谨慎）
+        mobileOverrides: {
+          connectAppend: [
+            'https://www.ice-markets-app.com/infoway-api',
+            'https://www.ice-markets-app.com'
+          ],
+          disableAntiBot: true
+        }
       },
       i18n: {
         defaultLocale: 'en-US',
@@ -73,7 +89,8 @@
   return Object.assign({}, base, {
     security: Object.assign({}, sec, {
       connectSrc: connect,
-      preconnectHosts: pre
+      preconnectHosts: pre,
+      mobileOverrides: sec.mobileOverrides
     })
   });
 });

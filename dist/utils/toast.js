@@ -24,7 +24,10 @@
         '<div class="nbaMask"></div>' +
         '<div class="nbaDialog" id="dialogsPanle">' +
           '<div class="nbaDialogHd"><strong class="nbaDialogTitle"></strong></div>' +
-          '<div class="nbaDialogBd" id="dialog_msg2"></div>' +
+          '<div class="nbaDialogBd" id="dialogBody">' +
+            '<img id="toastIcon" alt="" style="width:36px;height:36px;margin:0 auto 12px;display:none;" />' +
+            '<div id="dialog_msg2"></div>' +
+          '</div>' +
           '<div class="nbaDialogHd"><strong class="nbaDialogTitle"></strong></div>' +
           '<div class="nbaDialogFt" onclick="clickdialogs()"><div class="nbaDialogBtn" id="dialogbtnText"></div></div>' +
         '</div>' +
@@ -47,16 +50,40 @@
       }
     },
 
-    show(msg, btnText) {
+    show(msg, opts) {
       this.init();
       const elMsg = qs('dialog_msg2');
       const elBtn = qs('dialogbtnText');
       const elDlg = qs('dialogs2');
       const elPanel = qs('dialogsPanle');
+      const iconEl = qs('toastIcon');
       if (!elMsg || !elBtn || !elDlg || !elPanel) return;
+      const ICONS = {
+        success: '/images/app_success_day.png',
+        fail: '/images/app_fail_day.png'
+      };
+      let options = {};
+      if (opts && typeof opts === 'object') {
+        options = opts;
+      } else if (typeof opts !== 'undefined') {
+        options = { btnText: opts };
+      }
+      const btnText = options.btnText || options.buttonText || options.btn || options.enterText || '确定';
+      const iconType = (options.icon || '').toLowerCase();
+
       // 使用 textContent 防止 XSS 攻击
       elMsg.textContent = msg || '';
       elBtn.textContent = btnText || '确定';
+      if (iconEl) {
+        if (iconType && ICONS[iconType]) {
+          iconEl.src = ICONS[iconType];
+          iconEl.alt = iconType + ' icon';
+          iconEl.style.display = 'block';
+        } else {
+          iconEl.removeAttribute('src');
+          iconEl.style.display = 'none';
+        }
+      }
       elDlg.style.visibility = 'visible';
       elPanel.setAttribute('class', 'nbaDialog');
       requestAnimationFrame(() => {
@@ -121,7 +148,7 @@
 
   // 兼容旧的全局函数（保持现有页面不改即可工作）
   window.LoadShowToast = function () { Toast.init(); };
-  window.ShowToast = function (msg, btn) { Toast.show(msg, btn); };
+  window.ShowToast = function (msg, opts) { Toast.show(msg, opts); };
   window.ShowLoding = function (msg) { Toast.showLoading(msg); };
   window.CloseLoding = function () { Toast.hideLoading(); };
   window.clickdialogs = function () { Toast.hideDialog(); };

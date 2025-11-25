@@ -1,0 +1,137 @@
+<!-- 注册页面（SXML）- 自适应移动端 -->
+
+<!-- 语言切换按钮（右上角） -->
+<!-- <view class="lang-switcher">
+  <button class="lang-btn" bindtap="toggleLanguage">English</button>
+</view> -->
+
+<view class="container">
+  <view class="mobile-regist-container">
+    <!-- Logo 区域 -->
+    <view class="regist-header">
+      <view class="brand-line">
+        <image class="logo" src="/images/app_logo_day.png" mode="heightFix" />
+      </view>
+    </view>
+
+    <!-- 标题 -->
+    <view class="regist-title" data-i18n="regist.title">Sign up</view>
+
+    <!-- 注册表单 -->
+    <view class="regist-form">
+      <!-- E-mail -->
+      <view class="form-field">
+        <view class="field-label">
+          <text data-i18n="regist.label.email">E-mail</text>
+          <text class="required">*</text>
+        </view>
+        <input 
+          id="email" 
+          class="field-input" 
+          type="text" 
+          placeholder="Please enter E-mail"
+          data-i18n-placeholder="regist.placeholder.email"
+        />
+      </view>
+
+      <!-- Password -->
+      <view class="form-field">
+        <view class="field-label">
+          <text data-i18n="regist.label.password">Password</text>
+          <text class="required">*</text>
+        </view>
+        <input 
+          id="password" 
+          class="field-input" 
+          type="password" 
+          placeholder="Please enter the password"
+          data-i18n-placeholder="regist.placeholder.password"
+        />
+      </view>
+
+      <!-- Repeat Password -->
+      <view class="form-field">
+        <view class="field-label">
+          <text data-i18n="regist.label.repeatPassword">Repeat Password</text>
+          <text class="required">*</text>
+        </view>
+        <input 
+          id="confirmPassword" 
+          class="field-input" 
+          type="password" 
+          placeholder="Repeat enter the password"
+          data-i18n-placeholder="regist.placeholder.repeatPassword"
+        />
+      </view>
+
+      <!-- Real Name -->
+      <view class="form-field">
+        <view class="field-label">
+          <text data-i18n="regist.label.realName">Real Name</text>
+          <text class="required">*</text>
+        </view>
+        <input 
+          id="realName" 
+          class="field-input" 
+          type="text" 
+          placeholder="Please enter the Real Name"
+          data-i18n-placeholder="regist.placeholder.realName"
+        />
+      </view>
+
+      <!-- Inviter Account -->
+      <view class="form-field">
+        <view class="field-label">
+          <text data-i18n="regist.label.inviter">Inviter Account</text>
+          <text class="required">*</text>
+        </view>
+        <input 
+          id="inviter" 
+          class="field-input" 
+          type="text" 
+          placeholder="Please enter the Inviter Account"
+          data-i18n-placeholder="regist.placeholder.inviter"
+        />
+      </view>
+
+      <!-- ID Card -->
+      <view class="form-field">
+        <view class="field-label">
+          <text data-i18n="regist.label.idCard">ID Card</text>
+          <text class="required">*</text>
+        </view>
+        <view class="id-card-upload">
+          <view class="upload-box" bindtap="uploadIdFront">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="7" cy="10" r="1.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M13 9h6M13 12h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <text class="upload-text" data-i18n="regist.idCard.front">Front</text>
+          </view>
+          <view class="upload-box" bindtap="uploadIdBack">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M5 9h14M5 12h14M5 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <text class="upload-text" data-i18n="regist.idCard.back">Back side</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 注册按钮 -->
+      <button class="regist-btn" bindtap="registEvent" data-i18n="regist.button">sign up</button>
+
+      <!-- 返回登录 -->
+      <view class="regist-footer">
+        <text class="footer-text" data-i18n="regist.hasAccount">I already have an account</text>
+        <text class="footer-link" bindtap="goLogin" data-i18n="regist.goLogin">sign in</text>
+      </view>
+
+      <!-- 页脚版权 -->
+      <view class="regist-footnote">
+        <text>Copyright Reserved © IEC Markets 2026</text>
+      </view>
+    </view>
+  </view>
+</view>

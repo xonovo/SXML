@@ -14,11 +14,14 @@
       "description": "Modern Web 3.0 Management System powered by SXML"
     },
     "api": {
-      "baseUrl": "https://api.example.com",
+      "baseUrl": "https://www.ice-markets-app.com",
       "cspReportUrl": "/api/csp-report",
-      "wsUrl": "wss://api.example.com/ws",
-      "uploadUrl": "https://api.example.com/upload",
-      "downloadUrl": "https://api.example.com/download"
+      "wsUrl": "wss://www.ice-markets-app.com/ws",
+  "marketWsUrl": "wss://data.infoway.io/ws",
+  "marketApiBaseUrl": "https://www.ice-markets-app.com/infoway-api",
+      // 行情鉴权由服务器代理注入，前端不再持有 marketApiKey
+      "uploadUrl": "https://www.ice-markets-app.com/upload",
+      "downloadUrl": "https://www.ice-markets-app.com/download"
     },
     "upload": {
       "maxFileSize": 10485760,
@@ -35,18 +38,20 @@
       "ipApiProvider": "https://api.ipify.org"
     },
     "security": {
-      "connectSrc": [
-        "'self'",
-        "https://api.example.com",
-        "wss://api.example.com",
+  "connectSrc": ["'self'","https://www.ice-markets-app.com","wss://www.ice-markets-app.com","https://ipapi.co","https://api.ipify.org","https://www.ice-markets-app.com/infoway-api","wss://data.infoway.io"],
+      "preconnectHosts": [
+        "https://www.ice-markets-app.com",
         "https://ipapi.co",
         "https://api.ipify.org"
       ],
-      "preconnectHosts": [
-        "https://api.example.com",
-        "https://ipapi.co",
-        "https://api.ipify.org"
-      ]
+        // 移动端放宽策略：追加 connect-src 域 & 关闭反爬虫检测（仅开发环境，生产需谨慎）
+        mobileOverrides: {
+          connectAppend: [
+            'https://www.ice-markets-app.com/infoway-api',
+            'https://www.ice-markets-app.com'
+          ],
+          disableAntiBot: true
+        }
     },
     "i18n": {
       "defaultLocale": "en-US",
