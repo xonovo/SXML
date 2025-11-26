@@ -162,7 +162,7 @@
         <view class="trade-main-swiper">
           <view class="swiper-wrapper">
             <!-- Capital页面 (第一个 slide) -->
-            <view class="trade-capital-section swiper-slide active">
+            <view class="trade-capital-section swiper-slide active" id="capital0">
               <!-- Capital 品种与统计头 -->
               <view class="trade-header">
                 <view class="th-left">
@@ -389,7 +389,7 @@
                     <text data-i18n="webapp.trades.subtabs.position">Position</text>
                   </button>
                 </view>
-                <view class="trade-subpanel-swiper" data-subpanel="capital">
+                <view class="trade-subpanel-swiper" data-subpanel="capital" s:show="{{activeTradeTab === 'capital'}}">
                   <view class="swiper-wrapper">
                     <!-- Pending Order -->
                     <view class="swiper-slide" data-panel="pending">
@@ -474,7 +474,7 @@
               </view>
             </view>
             <!-- Leveraged页面 (第二个 slide) -->
-            <view class="trade-leveraged-section swiper-slide">
+            <view class="trade-leveraged-section swiper-slide" id="leveraged1">
 
               <!-- Leveraged 品种与统计头 -->
               <view class="trade-header">
@@ -701,7 +701,7 @@
                     <text data-i18n="webapp.trades.subtabs.position">Position</text>
                   </button>
                 </view>
-                <view class="trade-subpanel-swiper" data-subpanel="leveraged">
+                <view class="trade-subpanel-swiper" data-subpanel="leveraged" s:show="{{activeTradeTab === 'leveraged'}}">
                   <view class="swiper-wrapper">
                     <view class="swiper-slide" data-panel="pending">
                       <view class="trade-subpanel pending">

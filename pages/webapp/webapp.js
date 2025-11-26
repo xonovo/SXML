@@ -105,7 +105,9 @@ Page({
     fundsOverview: null,
     // 充值页面数据
     depositAmount: '0',
-    depositNetwork: 'ERC20'
+    depositNetwork: 'ERC20',
+    // Trades 页面当前激活的主面板（用于 s:if 条件渲染）
+    activeTradeTab: 'capital'
   },
 
   onLoad() {
@@ -3622,77 +3624,153 @@ Page({
       const tabs = document.querySelectorAll('.trade-tab');
       tabs.forEach(t => t.classList.toggle('active', t.dataset.type === type));
 
-      // 获取 swiper 容器和 slides
+      // 获取 swiper 容器和 slides，执行 transform 动画
       const mainSwiper = document.querySelector('.trade-main-swiper');
       const wrapper = mainSwiper && mainSwiper.querySelector('.swiper-wrapper');
       const slides = wrapper ? Array.from(wrapper.querySelectorAll('.swiper-slide')) : [];
-      if (!wrapper || !slides.length) return;
+      if (wrapper && slides.length) {
+        // 计算目标索引（capital = 0, leveraged = 1）
+        const targetIndex = type === 'leveraged' ? 1 : 0;
 
-      // 计算目标索引（capital = 0, leveraged = 1）
-      const targetIndex = type === 'leveraged' ? 1 : 0;
+        // 更新 active 类
+        slides.forEach((slide, idx) => {
+          slide.classList.toggle('active', idx === targetIndex);
+        });
 
-      // 更新 active 类
-      slides.forEach((slide, idx) => {
-        const isActive = idx === targetIndex;
-        slide.classList.toggle('active', isActive);
-      });
+        // 执行 transform 滑动动画
+        wrapper.style.transform = `translateX(${-(targetIndex * 50)}%)`;
 
-      // 触发滑动动画：从右到左（负向 translateX）
-      const translatePercent = -(targetIndex * 50); // 每个 slide 宽度 50%
-      wrapper.style.transform = `translateX(${translatePercent}%)`;
+        // 记录最新一次切换的目标类型，避免快速切换时状态错乱
+        this._tradeSwitchPendingType = type;
 
-      // 切换后重新计算订单簿行数（稍微延迟保证布局稳定）
-      setTimeout(() => this.updateOrderbookRows(), 120);
+        // 只绑定一次 transitionend 监听器
+        if (!this._tradeTransitionBound) {
+          this._tradeTransitionBound = true;
+          wrapper.addEventListener('transitionend', (ev) => {
+            try {
+              if (!ev || ev.propertyName !== 'transform') return;
+              const pending = this._tradeSwitchPendingType;
+              if (!pending) return;
+              // 清理 pending（防止重复提交）
+              this._tradeSwitchPendingType = null;
+              // 触发模板切换（改为 s:show 控制 display，不移除 DOM）
+              this.setData({ activeTradeTab: pending });
+              // 确保新 DOM 挂载后再刷新子面板布局/高度
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  try {
+                    if (typeof this.refreshTradeScopeSubpanel === 'function') {
+                      this.refreshTradeScopeSubpanel(pending);
+                    }
+                    if (typeof this.updateOrderbookRows === 'function') {
+                      this.updateOrderbookRows();
+                    }
+                  } catch (_) { }
+                });
+              });
+            } catch (err) {
+              console.warn('trade-main transitionend handler failed', err);
+            }
+          });
+        }
+
+        // Fallback：若 transitionend 未触发，定时器兜底（并做去抖处理）
+        if (this._tradeSwitchFallbackTimer) {
+          clearTimeout(this._tradeSwitchFallbackTimer);
+        }
+        this._tradeSwitchFallbackTimer = setTimeout(() => {
+          try {
+            if (!this._tradeSwitchPendingType) return; // 已由 transitionend 处理
+            const pending = this._tradeSwitchPendingType;
+            this._tradeSwitchPendingType = null;
+            this.setData({ activeTradeTab: pending });
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                try {
+                  if (typeof this.refreshTradeScopeSubpanel === 'function') {
+                    this.refreshTradeScopeSubpanel(pending);
+                  }
+                  if (typeof this.updateOrderbookRows === 'function') {
+                    this.updateOrderbookRows();
+                  }
+                } catch (_) { }
+              });
+            });
+          } catch (err) {
+            console.warn('trade-main fallback commit failed', err);
+          }
+        }, 300); // 略短兜底时长，提升响应速度
+      }
+
+      // 切换后轻微延迟刷新订单簿布局（与上面 rAF 刷新互补）
+      setTimeout(() => { try { this.updateOrderbookRows(); } catch (_) {} }, 120);
+
 
       // 主面板切换后刷新子面板高度（折叠非激活 + 只测量激活）
-      setTimeout(() => {
-        try {
-          // 清空所有子面板容器的缓存高度，避免旧高度占位
-          const allSubContainers = document.querySelectorAll('.trade-subpanel-swiper');
-          allSubContainers.forEach(c => {
-            delete c.dataset.positionHeight;
-          });
+      // setTimeout(() => {
+      //   try {
+      //     // 清空所有子面板容器的缓存高度，避免旧高度占位
+      //     const allSubContainers = document.querySelectorAll('.trade-subpanel-swiper');
+      //     allSubContainers.forEach(c => {
+      //       delete c.dataset.positionHeight;
+      //     });
 
-          // 折叠非激活主 slide 的子面板，避免占位造成空白，并加折叠锁标记
-          const otherIndex = targetIndex === 0 ? 1 : 0;
-          const otherSlide = slides[otherIndex];
-          if (otherSlide) {
-            const otherSubContainer = otherSlide.querySelector('.trade-subpanel-swiper');
-            if (otherSubContainer) {
-              otherSubContainer.style.transition = '';
-              otherSubContainer.style.height = '0px';
-              otherSubContainer.dataset.collapsed = '1';
-            }
-          }
+      //     // 折叠非激活主 slide 的子面板，避免占位造成空白，并加折叠锁标记
+      //     const otherIndex = targetIndex === 0 ? 1 : 0;
+      //     const otherSlide = slides[otherIndex];
+      //     if (otherSlide) {
+      //       const otherSubContainer = otherSlide.querySelector('.trade-subpanel-swiper');
+      //       if (otherSubContainer) {
+      //         otherSubContainer.style.transition = '';
+      //         otherSubContainer.style.height = '0px';
+      //         otherSubContainer.dataset.collapsed = '1';
+      //       }
+      //     }
 
-          // 仅为激活主 slide 测量并设置子面板高度
-          requestAnimationFrame(() => {
-            const targetSlide = slides[targetIndex];
-            if (!targetSlide) return;
+      //     // 仅为激活主 slide 测量并设置子面板高度
+      //     requestAnimationFrame(() => {
+      //       const targetSlide = slides[targetIndex];
+      //       if (!targetSlide) return;
 
-            const subContainer = targetSlide.querySelector('.trade-subpanel-swiper');
-            if (!subContainer) return;
-            // 解锁激活容器
-            delete subContainer.dataset.collapsed;
+      //       const subContainer = targetSlide.querySelector('.trade-subpanel-swiper');
+      //       if (!subContainer) return;
+      //       // 解锁激活容器
+      //       delete subContainer.dataset.collapsed;
 
-            const subSlides = subContainer.querySelectorAll('.swiper-slide');
-            const activeSubSlide = Array.from(subSlides).find(s => {
-              const btn = targetSlide.querySelector('.trade-subtabs .subtab.active');
-              return btn && s.dataset && s.dataset.panel === btn.dataset.panel;
-            });
+      //       const subSlides = subContainer.querySelectorAll('.swiper-slide');
+      //       const activeSubSlide = Array.from(subSlides).find(s => {
+      //         const btn = targetSlide.querySelector('.trade-subtabs .subtab.active');
+      //         return btn && s.dataset && s.dataset.panel === btn.dataset.panel;
+      //       });
 
-            if (activeSubSlide) {
-              const targetHeight = (this.measureSubpanelHeight && this.measureSubpanelHeight(activeSubSlide))
-                || activeSubSlide.scrollHeight || activeSubSlide.offsetHeight;
-              if (targetHeight) {
-                subContainer.style.transition = 'height 0.35s cubic-bezier(.25,.8,.25,1)';
-                subContainer.style.height = targetHeight + 'px';
-              }
-            }
-          });
-        } catch (err) { console.warn('refresh subpanel height after main tab switch failed', err); }
-      }, 200);
-      // Fetch available balances for current tab (Capital=0 / Leveraged=1)
+      //       if (activeSubSlide) {
+      //         const targetHeight = (this.measureSubpanelHeight && this.measureSubpanelHeight(activeSubSlide))
+      //           || activeSubSlide.scrollHeight || activeSubSlide.offsetHeight;
+      //         if (targetHeight) {
+      //           subContainer.style.transition = 'height 0.35s cubic-bezier(.25,.8,.25,1)';
+      //           subContainer.style.height = targetHeight + 'px';
+      //         }
+      //       }
+      //     });
+      //   } catch (err) { console.warn('refresh subpanel height after main tab switch failed', err); }
+      // }, 200);
+
+      
+      //获取当前容器
+      // const container = tradeContent.querySelector('#leveraged1');
+      // const type2 = type === 'leveraged' ? 'capital' : 'leveraged';
+      //获取另一个容器
+      // const container2 = tradeContent.querySelector('.trade-subpanel-swiper[data-subpanel="'+ type2 +'"]');
+
+      // 获取当前容器高度
+      // const currentHeight = container.offsetHeight;
+// if(targetIndex == 0){
+      // 锁定当前高度，准备过渡
+      // container.style.height = '60px';
+// }
+
+
+// 原始程序
       const symbol = this._activeSymbol || this._defaultSymbol;
       if (symbol) {
         if (type === 'leveraged') {
@@ -3705,7 +3783,7 @@ Page({
       console.warn('switchTradeTab slide failed', err);
     }
   },
-
+ 
   // 空函数，避免 HTML 中的 bindtap 调用报错
   switchTradePanel(e) {
     // 已禁用子面板切换功能
