@@ -45,6 +45,113 @@ button {
   cursor: pointer;
 }
 
+/* 按钮禁用态 */
+.button.btn-disabled,
+.btn.btn-disabled,
+.order-submit.btn-disabled,
+.buy-btn.btn-disabled {
+  opacity: 0.5;
+  filter: grayscale(40%);
+  cursor: not-allowed;
+}
+
+/* 挂单项：多空颜色标记 */
+.pending-side-badge {
+  display: inline-block;
+  min-width: 42px;
+  padding: 2px 8px;
+  margin-right: 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
+}
+.pending-side-badge.up { background: #e74c3c; }  /* 做多：红 */
+.pending-side-badge.down { background: #2ecc71; } /* 做空：绿 */
+
+/* 挂单项右侧信息布局 */
+.pending-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  align-items: center;
+}
+.pending-meta-row { display: contents; }
+.pending-meta-row .meta-label { color: #8f95a3; font-size: 12px; }
+.pending-meta-row .meta-value { color: #111; font-weight: 600; font-size: 12px; }
+.pending-status { justify-self: end; color: #8f95a3; font-size: 12px; }
+
+/* 持仓列表标题栏 */
+.position-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0px;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 12px;
+}
+.position-list-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111;
+}
+.position-close-all-btn {
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #495057;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.position-close-all-btn:hover {
+  background: #e74c3c;
+  border-color: #e74c3c;
+  color: #fff;
+}
+.position-close-all-btn:active {
+  opacity: 0.8;
+}
+
+/* 持仓卡片顶部栏 */
+.position-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px 8px 0 0;
+  margin: -12px -12px 12px -12px;
+}
+.position-card-symbol {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+.position-card-close-btn {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+.position-card-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.position-card-close-btn:active {
+  opacity: 0.7;
+}
+
 input {
   display: inline-block;
 }
@@ -211,6 +318,9 @@ swiper {
   display: -webkit-box;
   display: -webkit-flex;
   display: flex;
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  margin-bottom: env(safe-area-inset-bottom, 0px);
 }
 .nbaDialog .nbaDialogFt:hover {
   color: #004098;

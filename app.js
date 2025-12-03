@@ -163,6 +163,10 @@
      */
     setupGlobalErrorHandler() {
         window.onerror = function(msg, url, line, col, error) {
+            // 过滤掉良性的 ResizeObserver 错误
+            if (msg && msg.includes('ResizeObserver loop')) {
+                return true; // 返回 true 阻止默认错误处理
+            }
             console.error('全局错误:', msg, url, line, col, error);
         };
         window.onunhandledrejection = function(e) {

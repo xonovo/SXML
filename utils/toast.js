@@ -59,8 +59,8 @@
       const iconEl = qs('toastIcon');
       if (!elMsg || !elBtn || !elDlg || !elPanel) return;
       const ICONS = {
-        success: '/images/app_success_day.png',
-        fail: '/images/app_fail_day.png'
+        success: '/images/successfully.png',
+        fail: '/images/err.png'
       };
       let options = {};
       if (opts && typeof opts === 'object') {

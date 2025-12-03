@@ -9,6 +9,52 @@ const PRIME_CACHE_TTL = 5 * 60 * 1000; // 5 分钟以内的 Priming 数据视为
 const PRIME_CACHE_LIMIT = 20;
 const COLOR_SCHEME_STORAGE_KEY = 'webapp:color-scheme';
 const DEFAULT_COLOR_SCHEME = 'oriental';
+
+// 全局路由状态管理
+const ROUTE_STATE_KEY = 'webapp:route-state:v1';
+const ROUTE_STATE_TTL = 24 * 60 * 60 * 1000; // 24小时有效期
+
+// 路由状态工具函数
+function saveRouteState(state) {
+  try {
+    const data = {
+      ...state,
+      timestamp: Date.now()
+    };
+    sessionStorage.setItem(ROUTE_STATE_KEY, JSON.stringify(data));
+    console.log('[RouteState] 已保存路由状态:', data);
+  } catch (e) {
+    console.warn('[RouteState] 保存失败:', e);
+  }
+}
+
+function loadRouteState() {
+  try {
+    const raw = sessionStorage.getItem(ROUTE_STATE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // 检查有效期
+    if (Date.now() - (data.timestamp || 0) > ROUTE_STATE_TTL) {
+      sessionStorage.removeItem(ROUTE_STATE_KEY);
+      return null;
+    }
+    console.log('[RouteState] 已加载路由状态:', data);
+    return data;
+  } catch (e) {
+    console.warn('[RouteState] 加载失败:', e);
+    return null;
+  }
+}
+
+function clearRouteState() {
+  try {
+    sessionStorage.removeItem(ROUTE_STATE_KEY);
+    console.log('[RouteState] 已清除路由状态');
+  } catch (e) {
+    console.warn('[RouteState] 清除失败:', e);
+  }
+}
+
 const MARKET_CLOSED_STALE_MS = 2 * 60 * 1000; // 2 分钟无更新视为休市（仅在停牌且无会话信息时兜底）
 const MINUTES_IN_DAY = 24 * 60;
 const MIN_ORDERBOOK_ROWS = 4;
@@ -99,7 +145,15 @@ function resolveSessionBySymbol(symbol) {
 Page({
   data: {
     pageTitle: 'ICE Markets',
-    active: 'home',
+    // 优先从路由状态恢复页面，否则默认 home
+    active: (() => {
+      try {
+        const state = loadRouteState();
+        return (state && state.page) || 'home';
+      } catch (_) {
+        return 'home';
+      }
+    })(),
     currentLang: 'English',
     colorScheme: DEFAULT_COLOR_SCHEME,
     fundsOverview: null,
@@ -107,7 +161,449 @@ Page({
     depositAmount: '0',
     depositNetwork: 'ERC20',
     // Trades 页面当前激活的主面板（用于 s:if 条件渲染）
-    activeTradeTab: 'capital'
+    activeTradeTab: (() => {
+      try {
+        const state = loadRouteState();
+        return (state && state.tradesPanel) || 'capital';
+      } catch (_) {
+        return 'capital';
+      }
+    })(),
+    // Funds 页面当前激活的主面板
+    activeFundsTab: (() => {
+      try {
+        const state = loadRouteState();
+        return (state && state.fundsPanel) || 'capital';
+      } catch (_) {
+        return 'capital';
+      }
+    })()
+  },
+
+  // Tabbar 四个主按钮事件预留
+  handleTab1Click(e) {
+    // 首页 Home 按钮点击事件（后续可扩展）
+  },
+  handleTab2Click(e) {
+    // Markets 按钮点击事件（后续可扩展）
+  },
+  handleTab3Click(e) {
+    // Trades 按钮点击事件
+    // 参数说明：type 可为 'capital' | 'leveraged' 或期货产品代码
+    // 用于 Trades 主按钮、面板切换、期货产品切换
+    try {
+      // 仅当当前激活页面为 Trades 时才允许触发 I00009
+      const activePage = (this.data && this.data.active) || 'home';
+      if (activePage !== 'trades') {
+        console.warn('[handleTab3Click] 当前不是 Trades 页面，跳过 I00009 调用，active=', activePage);
+        return;
+      }
+      console.log('[handleTab3Click] Trades 事件触发:', e);
+      
+      // 解析参数：type、symbol、detailsWalletType
+      const type = (e && e.type) || (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.type) || 'capital';
+      const symbol = (e && e.symbol) || this._activeSymbol || this._defaultSymbol;
+      let detailsWalletType = 0;
+      
+      // 根据 type 判断 detailsWalletType
+      if (type === 'leveraged') {
+        detailsWalletType = 1;
+      } else if (type === 'capital') {
+        detailsWalletType = 0;
+      } else {
+        // 期货产品切换时，type 可能为产品代码，需外部传递 detailsWalletType
+        detailsWalletType = (e && e.detailsWalletType != null) ? Number(e.detailsWalletType) : 0;
+      }
+      
+      const userAccount = this.resolveUserAccount();
+      console.log('[handleTab3Click] 参数:', { type, symbol, detailsWalletType, userAccount });
+      
+      // 严格校验 userAccount - 必须是非空字符串
+      if (!userAccount || userAccount.trim() === '') {
+        console.warn('[handleTab3Click] userAccount 为空，跳过 I00009 请求');
+        return;
+      }
+      if (!symbol || symbol.trim() === '') {
+        console.warn('[handleTab3Click] symbol 为空，跳过 I00009 请求');
+        return;
+      }
+      
+      if (!window.superAPI) {
+        try { window.superAPI = createSuperAPI && createSuperAPI(); } catch (_) { }
+      }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[handleTab3Click] superAPI unavailable');
+        return;
+      }
+      
+      // 调用 I00009 接口
+      console.log('[handleTab3Click] 发起 I00009 请求:', { userAccount, detailsWalletType, itemId: symbol });
+      window.superAPI.request('I00009', { userAccount, detailsWalletType, itemId: symbol })
+        .then(resp => {
+          console.log('[handleTab3Click] I00009 response:', resp);
+          
+          // 处理可用余额
+          const scopeKey = detailsWalletType === 1 ? 'leveraged' : 'capital';
+          const availableVal = resp && resp.available != null ? Number(resp.available) : NaN;
+          if (Number.isFinite(availableVal)) {
+            if (detailsWalletType === 0) this._availableCapital = availableVal;
+            else if (detailsWalletType === 1) this._availableLeveraged = availableVal;
+          }
+          
+          // 处理持仓数据
+          if (!this._positions) {
+            this._positions = { capital: [], leveraged: [] };
+          }
+          const rawPositions = resp && Array.isArray(resp.position) ? resp.position : [];
+          const normalizedPositions = rawPositions.map(item => (typeof this.normalizePositionEntry === 'function')
+            ? this.normalizePositionEntry(item, symbol)
+            : item);
+          const aggregatedPositions = (typeof this.aggregatePositions === 'function')
+            ? this.aggregatePositions(normalizedPositions)
+            : normalizedPositions;
+          this._positions[scopeKey] = aggregatedPositions;
+          if (typeof this.renderTradePositions === 'function') {
+            this.renderTradePositions(scopeKey);
+          }
+
+          // 处理未成交（Pending）数据
+          if (!this._pending) {
+            this._pending = { capital: [], leveraged: [] };
+          }
+          const rawPending = resp && Array.isArray(resp.nowCommission) ? resp.nowCommission : [];
+          const normalizedPending = rawPending.map(item => (typeof this.normalizePendingEntry === 'function')
+            ? this.normalizePendingEntry(item, symbol)
+            : (item && !item.itemId && symbol ? Object.assign({}, item, { itemId: symbol }) : item)
+          );
+          this._pending[scopeKey] = normalizedPending;
+          if (typeof this.renderPendingList === 'function') {
+            this.renderPendingList(scopeKey);
+          }
+          
+          // 处理杠杆倍数
+          if (detailsWalletType === 1 && resp && resp.maxLever != null) {
+            const leverInt = parseInt(resp.maxLever, 10);
+            if (Number.isFinite(leverInt) && leverInt > 0) {
+              this._maxLeverMultiplier = leverInt;
+              this.updateLeveragedMaxLever && this.updateLeveragedMaxLever(leverInt);
+            }
+          }
+          
+          // 处理订单统计
+          if (!this._tradeCounts) {
+            this._tradeCounts = {
+              capital: { pending: 0, position: 0 },
+              leveraged: { pending: 0, position: 0 }
+            };
+          }
+          const pendingCount = resp && Array.isArray(resp.nowCommission) ? resp.nowCommission.length : 0;
+          const positionCount = resp && Array.isArray(resp.position) ? resp.position.length : 0;
+          this._tradeCounts[scopeKey] = {
+            pending: pendingCount,
+            position: positionCount
+          };
+          this.updateTradeSubtabCounts && this.updateTradeSubtabCounts(scopeKey);
+          
+          // 更新 UI
+          this.updateTradeMetricsUI && this.updateTradeMetricsUI(scopeKey);
+        })
+        .catch(err => {
+          console.warn('[handleTab3Click] I00009 failed', err);
+        });
+    } catch (err) {
+      console.warn('[handleTab3Click] outer error', err);
+    }
+  },
+
+  // 基于 I00009 的局部刷新：可只更新 pending 或 positions，避免互相清空
+  refreshTradesScopePartial({ scope = 'capital', symbol = '', updatePending = true, updatePositions = true, updateCounts = true } = {}) {
+    try {
+      const userAccount = this.resolveUserAccount();
+      if (!userAccount || !symbol) return Promise.resolve(null);
+      const detailsWalletType = scope === 'leveraged' ? 1 : 0;
+      if (!window.superAPI) { try { window.superAPI = createSuperAPI && createSuperAPI(); } catch (_) { } }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') return Promise.resolve(null);
+      return window.superAPI.request('I00009', { userAccount, detailsWalletType, itemId: symbol })
+        .then(resp => {
+          const scopeKey = detailsWalletType === 1 ? 'leveraged' : 'capital';
+
+          // 可用余额：不区分，直接更新
+          const availableVal = resp && resp.available != null ? Number(resp.available) : NaN;
+          if (Number.isFinite(availableVal)) {
+            if (detailsWalletType === 0) this._availableCapital = availableVal;
+            else if (detailsWalletType === 1) this._availableLeveraged = availableVal;
+          }
+
+          // positions 局部更新
+          if (updatePositions) {
+            if (!this._positions) this._positions = { capital: [], leveraged: [] };
+            const rawPositions = resp && Array.isArray(resp.position) ? resp.position : [];
+            const normalizedPositions = rawPositions.map(item => (typeof this.normalizePositionEntry === 'function')
+              ? this.normalizePositionEntry(item, symbol)
+              : item);
+            const aggregatedPositions = (typeof this.aggregatePositions === 'function')
+              ? this.aggregatePositions(normalizedPositions)
+              : normalizedPositions;
+            this._positions[scopeKey] = aggregatedPositions;
+            if (typeof this.renderTradePositions === 'function') this.renderTradePositions(scopeKey);
+          }
+
+          // pending 局部更新
+          if (updatePending) {
+            if (!this._pending) this._pending = { capital: [], leveraged: [] };
+            const rawPending = resp && Array.isArray(resp.nowCommission) ? resp.nowCommission : [];
+            const normalizedPending = rawPending.map(item => (typeof this.normalizePendingEntry === 'function')
+              ? this.normalizePendingEntry(item, symbol)
+              : (item && !item.itemId && symbol ? Object.assign({}, item, { itemId: symbol }) : item)
+            );
+            this._pending[scopeKey] = normalizedPending;
+            if (typeof this.renderPendingList === 'function') this.renderPendingList(scopeKey);
+          }
+
+          // counts 局部更新
+          if (updateCounts) {
+            if (!this._tradeCounts) {
+              this._tradeCounts = { capital: { pending: 0, position: 0 }, leveraged: { pending: 0, position: 0 } };
+            }
+            const prev = this._tradeCounts[scopeKey] || { pending: 0, position: 0 };
+            const pendingCount = resp && Array.isArray(resp.nowCommission) ? resp.nowCommission.length : prev.pending;
+            const positionCount = resp && Array.isArray(resp.position) ? resp.position.length : prev.position;
+            this._tradeCounts[scopeKey] = {
+              pending: updatePending ? pendingCount : prev.pending,
+              position: updatePositions ? positionCount : prev.position
+            };
+            this.updateTradeSubtabCounts && this.updateTradeSubtabCounts(scopeKey);
+          }
+
+          this.updateTradeMetricsUI && this.updateTradeMetricsUI(scopeKey);
+          return resp;
+        })
+        .catch(err => { console.warn('refreshTradesScopePartial failed', err); return null; });
+    } catch (err) {
+      console.warn('refreshTradesScopePartial outer failed', err);
+      return Promise.resolve(null);
+    }
+  },
+  normalizePendingEntry(entry, fallbackSymbol) {
+    if (!entry || typeof entry !== 'object') return entry;
+    const hasSymbol = entry.symbol || entry.s || entry.itemId || entry.code;
+    if (hasSymbol || !fallbackSymbol) return entry;
+    return Object.assign({}, entry, { symbol: fallbackSymbol });
+  },
+
+  renderPendingList(scopeType) {
+    try {
+      if (!this._pending) return;
+      const scopes = scopeType ? [scopeType] : ['capital', 'leveraged'];
+      scopes.forEach(scope => {
+        const container = document.querySelector(`.trade-subpanel-swiper[data-subpanel="${scope}"] .pending-list`);
+        if (!container) return;
+        const entries = Array.isArray(this._pending[scope]) ? this._pending[scope] : [];
+        // 清空旧项
+        container.querySelectorAll('.pending-item').forEach(node => node.remove());
+        if (!entries.length) {
+          // 刷新高度以收缩容器
+          requestAnimationFrame(() => this.refreshTradeScopeSubpanel && this.refreshTradeScopeSubpanel(scope));
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        entries.forEach(entry => {
+          const item = this.buildPendingItem ? this.buildPendingItem(entry, scope) : null;
+          if (item) frag.appendChild(item);
+        });
+        container.appendChild(frag);
+        // 删除按钮事件已在 buildPendingItem 中直接绑定，不需要额外初始化
+        requestAnimationFrame(() => this.refreshTradeScopeSubpanel && this.refreshTradeScopeSubpanel(scope));
+      });
+    } catch (err) {
+      console.warn('renderPendingList failed', err);
+    }
+  },
+
+  buildPendingItem(entry, scope) {
+    try {
+      if (!entry) return null;
+      const t = (key, fallback) => (window.i18n && typeof window.i18n.t === 'function') ? window.i18n.t(key, fallback) : fallback;
+      // 品种名兜底：后端缺失字段时回退到当前激活品种，避免显示 "--"
+      const symbol = (entry.symbol || entry.s || entry.itemId || entry.code || this._activeSymbol || this._defaultSymbol || '').toUpperCase();
+      const outTradeNo = entry.outTradeNo || entry.tradeId || entry.id || '';
+      const direction = String(entry.direction || entry.side || '').toLowerCase();
+
+      // 订单类型映射：0=Market,1=Limit,2=Stop（与后端 tradeType 对齐）
+      const tradeTypeVal = (entry.tradeType != null && entry.tradeType !== '') ? Number(entry.tradeType) : null;
+      const typeBase = tradeTypeVal === 0 ? 'Market' : (tradeTypeVal === 1 ? 'Limit' : (tradeTypeVal === 2 ? 'Stop' : 'Limit'));
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const typeText = (function(){
+        if (tradeTypeVal === 0) return lang === 'zh-CN' ? '市价单' : 'Market';
+        if (tradeTypeVal === 1) return lang === 'zh-CN' ? '限价单' : 'Limit';
+        if (tradeTypeVal === 2) return lang === 'zh-CN' ? '止损单' : 'Stop';
+        return lang === 'zh-CN' ? '限价单' : 'Limit';
+      })();
+      const buySell = (direction === 'sell' || direction === 'short' || direction === 'bear')
+        ? (lang === 'zh-CN' ? '做空' : 'Sell')
+        : (lang === 'zh-CN' ? '做多' : 'Buy');
+      const typeLabel = `${typeText} · ${buySell}`;
+      const price = entry.openPrice ?? entry.price ?? 0;
+      const priceText = this.formatPrice ? this.formatPrice(symbol, price) : String(price);
+
+      const root = document.createElement('div');
+      root.className = 'pending-item';
+      if (outTradeNo) root.dataset.orderId = String(outTradeNo);
+      if (outTradeNo) root.dataset.outTradeNo = String(outTradeNo);
+      if (scope) root.dataset.scope = String(scope);
+      if (symbol) root.dataset.symbol = String(symbol);
+
+      // 新布局：顶部头部 + 四行指标采用与持仓卡片类似的网格样式
+      const header = document.createElement('div');
+      header.className = 'pending-header';
+      const isShort = (direction === 'sell' || direction === 'short' || direction === 'bear');
+      const dot = document.createElement('span');
+      dot.className = `dot ${isShort ? 'short' : 'long'}`;
+      header.appendChild(dot);
+      const sym = document.createElement('span');
+      sym.className = 'pending-symbol';
+      sym.textContent = symbol || '--';
+      header.appendChild(sym);
+      const typ = document.createElement('span');
+      typ.className = 'pending-type';
+      typ.textContent = typeLabel;
+      header.appendChild(typ);
+      root.appendChild(header);
+
+      // 价格/数量/总金额/点差费用
+      const volume = (entry.volume != null) ? Number(entry.volume) : ((entry.tradeVolume != null) ? Number(entry.tradeVolume) : 0);
+      const amount = (Number(price) > 0 && Number(volume) > 0) ? (Number(price) * Number(volume)) : 0;
+      const spreadVal = (entry.takeSpread != null) ? Number(entry.takeSpread) : ((entry.spread != null) ? Number(entry.spread) : 0);
+      const spreadFee = null; // 按需求显示“待定”，不计算数值
+      const grid = document.createElement('div');
+      grid.className = 'pos-grid pending-grid';
+      const rows = [
+        { key: 'webapp.trades.pending.price', fallback: '价格', value: priceText },
+        { key: 'webapp.trades.pending.volume', fallback: '数量', value: (Number(volume) || 0).toFixed(6) },
+        { key: 'webapp.trades.pending.amount', fallback: '总金额', value: (Number(amount) || 0).toFixed(2) },
+        { key: 'webapp.trades.pending.spread', fallback: '点差费用', value: (lang === 'zh-CN' ? '待定' : 'Pending') }
+      ];
+      rows.forEach(r => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'pos-row';
+        const labelEl = document.createElement('span');
+        labelEl.dataset.i18n = r.key;
+        labelEl.textContent = t(r.key, r.fallback);
+        const valueEl = document.createElement('span');
+        valueEl.textContent = r.value;
+        rowEl.appendChild(labelEl);
+        rowEl.appendChild(valueEl);
+        grid.appendChild(rowEl);
+      });
+      root.appendChild(grid);
+
+      // 删除按钮（右上角）
+      const del = document.createElement('button');
+      del.className = 'pending-delete-btn';
+      del.textContent = (lang === 'zh-CN' ? '撤销' : 'Cancel');
+      del.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        // 二次确认后再真正撤销
+        this.confirmCancelPending && this.confirmCancelPending(root);
+      });
+      header.appendChild(del);
+
+      return root;
+    } catch (err) {
+      console.warn('buildPendingItem failed', err);
+      return null;
+    }
+  },
+  // 撤单二次确认：使用通用 Action Sheet（浅色主题）
+  confirmCancelPending(holder){
+    try{
+      if(!holder) return;
+      const symbol = holder.dataset.symbol || this._activeSymbol || this._defaultSymbol || '';
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const msg = lang === 'zh-CN' ? `确认撤销该 ${symbol} 挂单？` : `Confirm cancel this ${symbol} pending order?`;
+      this.openActionSheet && this.openActionSheet({
+        mode:'alert',
+        theme:'light',
+        status:'',
+        message: msg,
+        hideActions:false,
+        confirmText: lang === 'zh-CN' ? '撤销' : 'Cancel Order',
+        cancelText: lang === 'zh-CN' ? '返回' : 'Back',
+        onConfirm: ()=>{ this.deletePendingOrder && this.deletePendingOrder({ currentTarget: holder }); },
+        onCancel: ()=>{ this.hideActionSheet && this.hideActionSheet('cancel'); }
+      });
+    }catch(err){ console.warn('confirmCancelPending failed', err); }
+  },
+  handleTab4Click(e) {
+    // Funds 按钮点击事件
+    // 参数说明：type 可为 'capital' | 'leveraged'
+    // 用于 Funds 主按钮、面板切换
+    try {
+      console.log('[handleTab4Click] Funds 事件触发:', e);
+      
+      // 解析参数：type、detailsWalletType
+      const type = (e && e.type) || (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.type) || 'capital';
+      let detailsWalletType = 0;
+      
+      // 根据 type 判断 detailsWalletType
+      if (type === 'leveraged') {
+        detailsWalletType = 1;
+      } else if (type === 'capital') {
+        detailsWalletType = 0;
+      } else {
+        // 其他情况，外部传递
+        detailsWalletType = (e && e.detailsWalletType != null) ? Number(e.detailsWalletType) : 0;
+      }
+      
+      const userAccount = this.resolveUserAccount();
+      console.log('[handleTab4Click] 参数:', { type, detailsWalletType, userAccount });
+      
+      // 严格校验 userAccount - 必须是非空字符串
+      if (!userAccount || userAccount.trim() === '') {
+        console.warn('[handleTab4Click] userAccount 为空，跳过 I00003 请求');
+        return;
+      }
+      
+      if (!window.superAPI) {
+        try { window.superAPI = typeof createSuperAPI === 'function' ? createSuperAPI() : window.superAPI; } catch (_) { }
+      }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[handleTab4Click] superAPI unavailable');
+        return;
+      }
+      
+      // 调用 I00003 接口
+      console.log('[handleTab4Click] 发起 I00003 请求:', { userAccount, detailsWalletType });
+      window.superAPI.request('I00003', { userAccount, detailsWalletType })
+        .then(resp => {
+          console.log('[handleTab4Click] I00003 response:', resp);
+          
+          // 保存响应数据
+          if (resp) {
+            this._fundsOverview = resp;
+            this._lastFundsPanelType = detailsWalletType;
+            try { this.setData({ fundsOverview: resp }); } catch (_) { }
+            
+            // 更新 UI
+            this.updateFundsOverviewUI(resp);
+            
+            // 🔥 启用 MarketsStore 的 Funds 实时计算
+            if (window.MarketsStore && typeof window.MarketsStore.enableFundsCalculation === 'function') {
+              window.MarketsStore.enableFundsCalculation(resp, (metrics) => {
+                // 行情变化时自动触发此回调
+                console.log('[Funds] MarketsStore 实时计算:', metrics);
+                this.applyFundsMetricsToUI(metrics);
+              });
+            }
+          }
+        })
+        .catch(err => {
+          console.warn('[handleTab4Click] I00003 failed', err);
+        });
+    } catch (err) {
+      console.warn('[handleTab4Click] outer error', err);
+    }
   },
 
   onLoad() {
@@ -196,12 +692,11 @@ Page({
     // 初始化子面板高度（避免第一次点击出现瞬跳）
     setTimeout(() => {
       try { this.initSubpanelHeights(); } catch (e) { console.warn('init subpanel heights failed', e); }
+
+              // 成功后重置当前面板：进度条归零、数量与总金额清零
+              try { this.resetOrderPanel && this.resetOrderPanel(panel); } catch (eReset) { console.warn('resetOrderPanel failed', eReset); }
     }, 50);
 
-    // 初始化滑动删除功能
-    setTimeout(() => {
-      try { this.initSwipeToDelete(); } catch (e) { console.warn('init swipe to delete failed', e); }
-    }, 100);
     // 初始化 Markets 自选列表
     setTimeout(() => { try { this.initMarketsFavorites(); this.initMarketsQuotes(); } catch (e) { console.warn('init markets favorites/quotes failed', e); } }, 0);
 
@@ -359,6 +854,151 @@ Page({
       this._boundFocusHandler = handleFocus;
     } catch (evtErr) {
       console.warn('[onLoad] 注册前后台监听失败', evtErr);
+    }
+    
+    // 恢复路由状态（刷新后恢复到上次位置）
+    // 延迟 300ms 确保 DOM 完全渲染
+    setTimeout(() => {
+      try {
+        this.restoreRouteState();
+      } catch (e) {
+        console.warn('[onLoad] 路由状态恢复失败', e);
+      }
+    }, 300);
+  },
+
+  // 下单成功后重置：滑条百分比=0、数量=0、总金额=0.00（报价保留当前）
+  resetOrderPanel(panel) {
+    try {
+      if (!panel) return;
+      // 数量
+      const volumeInput = panel.querySelector('.floating-field[data-field^="volume"] input.num');
+      if (volumeInput) { volumeInput.value = '0'; }
+      // 总金额
+      const lastPriceInput = panel.querySelector('.floating-field[data-field^="lastPrice"] input.num');
+      if (lastPriceInput) { lastPriceInput.value = '0.00'; }
+      // 归零滑条
+      const picker = panel.querySelector('.allocation-picker');
+      if (picker && typeof this.applyRangePercent === 'function') {
+        this.applyRangePercent(picker, 0);
+      }
+      // 刷新浮动标签与指标
+      this.refreshFloatingFields && this.refreshFloatingFields();
+      this.refreshSpreadMetrics && this.refreshSpreadMetrics(panel);
+      this.refreshAvailableAndLimits && this.refreshAvailableAndLimits(panel);
+    } catch (err) {
+      console.warn('resetOrderPanel failed', err);
+    }
+  },
+  
+  // 恢复路由状态
+  restoreRouteState() {
+    try {
+      const state = loadRouteState();
+      if (!state) {
+        console.log('[restoreRouteState] 无保存的路由状态，使用默认');
+        return;
+      }
+      
+      console.log('[restoreRouteState] 恢复路由状态:', state);
+      
+      // data 中已经恢复了页面和面板状态，这里只需要更新 UI 和调用接口
+      
+      // 强制更新页面 UI（确保 DOM 已渲染）
+      if (state.page) {
+        console.log('[restoreRouteState] 恢复页面 UI:', state.page);
+        try {
+          // 更新 Tabbar 激活状态
+          const tabs = document.querySelectorAll('.tab');
+          tabs.forEach(t => t.classList.toggle('tab-active', t.dataset.tab === state.page));
+          
+          // 更新页面切换动画
+          const wrapper = document.querySelector('.pages-wrapper');
+          if (wrapper) {
+            const map = { home: 0, markets: 1, trades: 2, funds: 3 };
+            const idx = map[state.page] || 0;
+            wrapper.style.transform = `translateX(-${idx * 25}%)`;
+          }
+          
+          // 更新 Trades/Funds 切换按钮状态
+          this.updateTradeFundsToggle && this.updateTradeFundsToggle(state.page);
+        } catch (e) {
+          console.warn('[restoreRouteState] UI 更新失败:', e);
+        }
+      }
+      
+      // 恢复 Trades 面板 UI
+      if (state.tradesPanel) {
+        try {
+          const tabs = document.querySelectorAll('.trade-tab');
+          tabs.forEach(t => t.classList.toggle('active', t.dataset.type === state.tradesPanel));
+
+          // 同步主滑动容器的 active 与位移，避免 Capital 头部叠在 Leveraged 上
+          const mainSwiper = document.querySelector('.trade-main-swiper');
+          const wrapper = mainSwiper && mainSwiper.querySelector('.swiper-wrapper');
+          const slides = wrapper ? Array.from(wrapper.querySelectorAll('.swiper-slide')) : [];
+          if (wrapper && slides.length) {
+            const targetIndex = state.tradesPanel === 'leveraged' ? 1 : 0;
+            slides.forEach((slide, idx) => {
+              slide.classList.toggle('active', idx === targetIndex);
+            });
+            // Capital 与 Leveraged 两个 slide 各占 50%
+            wrapper.style.transform = `translateX(${-(targetIndex * 50)}%)`;
+          }
+
+          // 延迟一帧刷新当前面板的子面板高度，确保“挂单/持仓”正确呈现
+          requestAnimationFrame(() => {
+            try { this.refreshTradeScopeSubpanel && this.refreshTradeScopeSubpanel(state.tradesPanel); } catch (_) {}
+          });
+        } catch (_) { }
+      }
+      
+      // 恢复 Funds 面板 UI
+      if (state.fundsPanel) {
+        try {
+          const tabs = document.querySelectorAll('.funds-tab');
+          tabs.forEach(t => t.classList.toggle('active', t.dataset.type === state.fundsPanel));
+          // 同步 Funds 视图容器的 active 与位移，确保资本/杠杆内容正确呈现
+          const fundsViewport = document.querySelector('.funds-viewport');
+          const fundViews = document.querySelectorAll('.funds-content');
+          if (fundViews && fundViews.length) {
+            const targetIndex = state.fundsPanel === 'leveraged' ? 1 : 0;
+            fundViews.forEach((view, idx) => {
+              // 仅通过 active 类控制显示，不再强制 display:none，避免刷新后空白
+              view.classList.toggle('active', idx === targetIndex);
+              try { view.style.removeProperty('display'); } catch (_) {}
+            });
+            // 两个 funds 视图并排，按 100% 计算位移，统一右入左
+            // 资金页采用 active/absolute 布局，不对视口做 translateX，避免整体偏移导致空白
+          }
+        } catch (_) { }
+      }
+      
+      // 如果当前在 Trades 或 Funds 页面，需要调用相应接口
+      if (state.page === 'trades' && state.tradesPanel) {
+        console.log('[restoreRouteState] 恢复 Trades 页面，调用接口:', state.tradesPanel);
+        // 确保 DOM 完全渲染后再调用接口
+        setTimeout(() => {
+          // 先初始化 UI（清空占位符）
+          try {
+            if (typeof this.initTradeSubpanels === 'function') {
+              this.initTradeSubpanels();
+            }
+          } catch (_) { }
+          
+          // 调用接口获取数据
+          this.handleTab3Click({ type: state.tradesPanel });
+        }, 500);
+      }
+      if (state.page === 'funds' && state.fundsPanel) {
+        console.log('[restoreRouteState] 恢复 Funds 页面，调用接口:', state.fundsPanel);
+        setTimeout(() => {
+          this.handleTab4Click({ type: state.fundsPanel });
+        }, 500);
+      }
+      
+    } catch (e) {
+      console.warn('[restoreRouteState] 执行失败', e);
     }
   },
 
@@ -614,6 +1254,17 @@ Page({
       contents.forEach(c => vp.appendChild(c));
       // 移除所有 inline display:none，交由 CSS/JS 控制
       vp.querySelectorAll('.funds-content').forEach(c => { try { c.style.removeProperty('display'); } catch (_) { } });
+      // 统一布局：双视图并排，使用 50% 宽度；视口占 200%
+      try {
+        vp.style.display = 'flex';
+        vp.style.width = '200%';
+        vp.style.willChange = 'transform,height';
+        vp.style.transition = 'transform 280ms ease, height 280ms ease';
+        vp.querySelectorAll('.funds-content').forEach(c => {
+          c.style.flex = '0 0 50%';
+          c.style.width = '50%';
+        });
+      } catch (_) {}
       // 设定初始高度
       const active = vp.querySelector('.funds-content.active') || vp.querySelector('.funds-content');
       if (active) vp.style.height = active.offsetHeight + 'px';
@@ -671,11 +1322,22 @@ Page({
 
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
-    this.activateTab(tab);
+    console.log('[switchTab] 用户点击 Tabbar 按钮:', tab);
+    this.activateTab(tab, { fromUserAction: true });
   },
 
-  activateTab(tab) {
+  activateTab(tab, options = {}) {
     if (!tab) return;
+    const fromUserAction = options.fromUserAction || false;
+    console.log(`[activateTab] 切换到页面: ${tab}, 用户操作: ${fromUserAction}`);
+    
+    // 🔥 切换页面时禁用 MarketsStore 的 Funds 计算
+    if (this.data.active === 'funds' && tab !== 'funds') {
+      if (window.MarketsStore && typeof window.MarketsStore.disableFundsCalculation === 'function') {
+        window.MarketsStore.disableFundsCalculation();
+      }
+    }
+    
     this.setData({ active: tab });
     try {
       const tabs = document.querySelectorAll('.tab');
@@ -690,24 +1352,35 @@ Page({
       }
     } catch (_) { }
     this.updateTradeFundsToggle(tab);
-    // 进入 Trades 页面时并行获取 Capital / Leveraged 可用余额
-    if (tab === 'trades') {
-      const symbol = this._activeSymbol || this._defaultSymbol;
-      if (symbol) {
-        Promise.all([
-          this.fetchTradeAvailable && this.fetchTradeAvailable(0, symbol),
-          this.fetchTradeAvailable && this.fetchTradeAvailable(1, symbol)
-        ]).then(() => {
-          try { this.updateTradeMetricsUI(); this.refreshAvailableLimitsForAll(); } catch (e) { console.warn('update trade metrics after fetch failed', e); }
-        });
+    
+    // 保存当前页面到路由状态
+    const currentState = loadRouteState() || {};
+    saveRouteState({
+      ...currentState,
+      page: tab
+    });
+    
+    // 只有用户主动切换时才调用接口，避免初始化时不必要的请求
+    if (fromUserAction) {
+      if (tab === 'trades') {
+        // 获取当前激活的面板类型
+        const currentTab = this.data.activeTradeTab || 'capital';
+        console.log(`[activateTab] 用户切换到 Trades 页面，刷新当前面板: ${currentTab}`);
+        this.handleTab3Click({ type: currentTab });
+        
+        // 兜底：若500ms内 HTTP candle 未返回，用全局缓存构造快照
+        setTimeout(() => {
+          try { this.ensureTradeSnapshotFromStore && this.ensureTradeSnapshotFromStore(); } catch (e) { console.warn('ensureTradeSnapshotFromStore trigger failed', e); }
+        }, 500);
       }
-      // 兜底：若500ms内 HTTP candle 未返回，用全局缓存构造快照
-      setTimeout(() => {
-        try { this.ensureTradeSnapshotFromStore && this.ensureTradeSnapshotFromStore(); } catch (e) { console.warn('ensureTradeSnapshotFromStore trigger failed', e); }
-      }, 500);
-    }
-    if (tab === 'funds') {
-      try { this.fetchFundsOverview && this.fetchFundsOverview(); } catch (err) { console.warn('fetchFundsOverview failed to start', err); }
+      if (tab === 'funds') {
+        // 获取当前激活的面板类型（从路由状态或默认 capital）
+        const currentTab = this.data.activeFundsTab || (currentState && currentState.fundsPanel) || 'capital';
+        console.log(`[activateTab] 用户切换到 Funds 页面，刷新当前面板: ${currentTab}`);
+        this.handleTab4Click({ type: currentTab });
+      }
+    } else {
+      console.log(`[activateTab] 非用户操作，跳过接口调用`);
     }
   },
 
@@ -734,6 +1407,23 @@ Page({
 
   switchFundsTab(e) {
     const type = e.currentTarget.dataset.type;
+    console.log('[switchFundsTab] 用户切换 Funds 面板:', type);
+    
+    // 保存当前面板到全局状态
+    this.setData({ activeFundsTab: type });
+    
+    // 保存到路由状态
+    const currentState = loadRouteState() || {};
+    saveRouteState({
+      ...currentState,
+      page: 'funds',
+      fundsPanel: type
+    });
+    
+    // 调用统一入口 handleTab4Click，传递 type 而不是原始事件对象
+    this.handleTab4Click({ type: type });
+    
+    // 原有 UI 切换逻辑保留（仅处理面板动画）
     const tabs = document.querySelectorAll('.funds-tab');
     tabs.forEach(t => t.classList.toggle('active', t.dataset.type === type));
     this.ensureFundsViewport();
@@ -768,7 +1458,7 @@ Page({
       try { next.style.removeProperty('display'); } catch (_) { }
     }
 
-    // 下一帧测量目标高度并过渡
+    // 下一帧测量目标高度并过渡（不对视口做 transform，仅调整高度）
     requestAnimationFrame(() => {
       try {
         if (!vp || !next) return;
@@ -782,6 +1472,9 @@ Page({
         vp.addEventListener('transitionend', done);
       } catch (_) { }
     });
+    
+    // 【已废弃】原有接口调用逻辑已迁移到 handleTab4Click
+    // 测试通过后可删除以下注释代码
   },
 
 
@@ -790,12 +1483,34 @@ Page({
     this._fundsRequest = (async () => {
       try {
         const userAccount = this.resolveUserAccount();
-        if (!userAccount) return null;
+        console.log('[Funds] resolveUserAccount:', userAccount);
+        // 解析当前资金面板类型: 0=Capital,1=Leveraged
+        let panelType = 0;
+        try {
+          if (options.detailsWalletType != null) {
+            panelType = Number(options.detailsWalletType) === 1 ? 1 : 0;
+          } else if (this._lastFundsPanelType != null) {
+            panelType = this._lastFundsPanelType === 1 ? 1 : 0;
+          } else {
+            const activeTab = this.activeTradeTab || this._activeTradeTab || (this.getData && this.getData('activeTradeTab'));
+            panelType = activeTab === 'leveraged' ? 1 : 0;
+          }
+        } catch (_) { panelType = 0; }
+        this._lastFundsPanelType = panelType;
+        console.log('[Funds] using detailsWalletType:', panelType);
+        if (!userAccount) {
+          console.warn('[Funds] no userAccount, skip real request');
+          return null;
+        }
         if (!window.superAPI) {
           try { window.superAPI = typeof createSuperAPI === 'function' ? createSuperAPI() : window.superAPI; } catch (_) { }
         }
-        if (!window.superAPI || typeof window.superAPI.request !== 'function') return null;
-        const resp = await window.superAPI.request('I00003', { userAccount });
+        if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+          console.warn('[Funds] superAPI unavailable');
+          return null;
+        }
+        const resp = await window.superAPI.request('I00003', { userAccount, detailsWalletType: panelType });
+        console.log('[Funds] I00003 response:', resp);
         if (resp) {
           this._fundsOverview = resp;
           try { this.setData({ fundsOverview: resp }); } catch (_) { }
@@ -803,7 +1518,7 @@ Page({
         }
         return resp;
       } catch (err) {
-        console.warn('fetchFundsOverview failed', err);
+        console.warn('[Funds] fetchFundsOverview failed', err);
         return null;
       } finally {
         this._fundsRequest = null;
@@ -814,8 +1529,85 @@ Page({
 
   updateFundsOverviewUI(data) {
     try {
+      // I00003 返回扁平结构，不在 data.data 里
       const payload = data || this._fundsOverview;
-      if (!payload) return;
+      if (!payload) {
+        console.warn('[updateFundsOverviewUI] No payload data');
+        return;
+      }
+      
+      console.log('[updateFundsOverviewUI] Raw data:', data);
+      console.log('[updateFundsOverviewUI] Payload:', payload);
+      console.log('[updateFundsOverviewUI] Key fields:', {
+        cashBalance: payload.cashBalance,
+        leverBalance: payload.leverBalance,
+        collateral: payload.collateral,
+        borrowed: payload.borrowed,
+        maxLeverageRatio: payload.maxLeverageRatio,
+        positions: Array.isArray(payload.positions) ? payload.positions.length : 'NOT_ARRAY'
+      });
+      
+      // 格式化函数
+      const formatAmount = (val, digits = 2) => {
+        const num = Number(val);
+        if (!Number.isFinite(num)) return '--';
+        return num.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      };
+      
+      // 🔥 仅更新静态字段（不依赖行情的字段）
+      const staticValues = {
+        accountNumber: payload.userAccount || this.resolveUserAccount() || '--',
+        capitalBalance: formatAmount(payload.cashBalance || 0),  // 🔥 现金账户余额
+        accountBalance: formatAmount(payload.cashBalance || 0),
+        credit: formatAmount(payload.collateral || 0),
+        collateral: formatAmount(payload.collateral || 0),
+        leverageRatio: `${formatAmount(payload.maxLeverageRatio || 20, 0)}x`,
+        totalLiabilities: formatAmount(payload.totalLiabilities || 0),
+        totalLiabilitiesApprox: formatAmount(payload.totalLiabilities || 0)
+      };
+      
+      // 🔥 杠杆账户卡片顶部静态字段（基于接口返回）
+      const leverageCardValues = {
+        levTotalAsset: formatAmount(payload.leverBalance || 0),
+        levTotalAssetApprox: formatAmount(payload.leverBalance || 0),
+        leverageRatioStat: formatAmount(payload.maxLeverageRatio || 20, 0)
+      };
+      
+      // 更新静态字段
+      Object.keys(staticValues).forEach(field => {
+        const nodes = document.querySelectorAll(`[data-funds-field="${field}"]`);
+        nodes.forEach(node => {
+          node.textContent = staticValues[field];
+        });
+      });
+      
+      // 更新杠杆账户卡片字段
+      Object.keys(leverageCardValues).forEach(field => {
+        const nodes = document.querySelectorAll(`[data-funds-field="${field}"]`);
+        console.log(`[updateFundsOverviewUI] 更新杠杆卡片字段 ${field}:`, leverageCardValues[field], '找到节点:', nodes.length);
+        nodes.forEach(node => {
+          node.textContent = leverageCardValues[field];
+        });
+      });
+      
+      // 🔥 动态字段由 MarketsStore 实时计算后通过 applyFundsMetricsToUI 更新
+      console.log('[updateFundsOverviewUI] 静态字段已更新:', staticValues);
+      console.log('[updateFundsOverviewUI] 杠杆卡片字段已更新:', leverageCardValues);
+      console.log('[updateFundsOverviewUI] 动态字段等待 MarketsStore 计算');
+      
+      // 保存原始数据
+      this._lastFundsPayload = payload;
+      
+    } catch (err) {
+      console.warn('updateFundsOverviewUI failed', err);
+    }
+  },
+  
+  // 🔥 应用 MarketsStore 计算的动态指标到 UI
+  applyFundsMetricsToUI(metrics) {
+    try {
+      if (!metrics) return;
+      
       const formatAmount = (val, digits = 2) => {
         const num = Number(val);
         if (!Number.isFinite(num)) return '--';
@@ -833,39 +1625,112 @@ Page({
         if (!Number.isFinite(num)) return '--';
         return `${num.toFixed(2)}%`;
       };
-      const marginPercent = formatPercent(payload.marginLevel);
-      const signedProfit = formatSigned(payload.openPositionPL);
-      const profitDisplay = signedProfit === '--' ? '--' : `${signedProfit} USDT`;
-      const values = {
-        totalAsset: formatAmount(payload.totalAsset),
-        totalAssetApprox: formatAmount(payload.totalAsset),
-        capitalBalance: formatAmount(payload.accountBalance),
-        accountNumber: payload.userAccount || this.resolveUserAccount() || '--',
-        walletBalance: formatAmount(payload.walletBalance),
-        profitLoss: formatSigned(payload.openPositionPL),
-        netWorth: formatAmount(payload.equity),
-        marginLevel: marginPercent,
-        credit: formatAmount(payload.credit),
-        availableMargin: formatAmount(payload.freeMargin),
-        levTotalAsset: formatAmount(payload.totalAsset),
-        levTotalAssetApprox: formatAmount(payload.totalAsset),
-        profitValue: profitDisplay,
-        collateral: formatAmount(payload.credit),
-        leverageRatio: marginPercent,
-        leverageRatioStat: marginPercent,
-        totalLiabilities: formatAmount(payload.borrowed),
-        totalLiabilitiesApprox: formatAmount(payload.borrowed),
-        accountEquity: formatAmount(payload.equity),
-        accountEquityApprox: formatAmount(payload.equity)
+      
+      // 🔥 动态字段（随行情变化）
+      const dynamicValues = {
+        // 原卡片总资产（可保留）
+        totalAsset: formatAmount(metrics.totalAsset),
+        totalAssetApprox: formatAmount(metrics.totalAsset),
+        // 红框新定义：
+        balance: formatAmount(metrics.cashBalance),
+        collateral: formatAmount(metrics.cashCollateral),
+        holding: formatAmount(metrics.cashHolding),
+        profitLoss: formatSigned(metrics.cashProfitLoss),
+        netWorth: formatAmount(metrics.cashNetWorth),
+        pending: formatAmount(metrics.cashPending),
+        // 其他展示项
+        marginLevel: formatPercent(metrics.marginLevel),
+        availableMargin: formatAmount(metrics.freeMargin),
+        accountEquity: formatAmount(metrics.equity),
+        accountEquityApprox: formatAmount(metrics.equity)
       };
-      const nodes = document.querySelectorAll('[data-funds-field]');
-      nodes.forEach(node => {
-        const field = node.dataset && node.dataset.fundsField;
-        if (!field || !(field in values)) return;
-        node.textContent = values[field];
+      
+      // 更新 DOM，数值变化时做一次轻微高亮，增强“实时跳动”感
+      const flashUpdate = (selector, text) => {
+        const nodes = document.querySelectorAll(selector);
+        nodes.forEach(node => {
+          const prev = node.textContent;
+          const next = String(text);
+          if (prev !== next) {
+            node.textContent = next;
+            try {
+              node.style.transition = 'background-color 200ms ease, color 200ms ease';
+              node.style.backgroundColor = 'rgba(255, 235, 59, 0.35)';
+              node.style.borderRadius = '4px';
+              setTimeout(() => { node.style.backgroundColor = ''; }, 180);
+            } catch (_) {}
+          } else {
+            node.textContent = next;
+          }
+        });
+      };
+
+      Object.keys(dynamicValues).forEach(field => {
+        flashUpdate(`[data-funds-field="${field}"]`, dynamicValues[field]);
       });
+      
+      // 🔥 更新杠杆账户红框区域（data-leverage-field）
+      const leverageValues = {
+        displayBalance: formatAmount(metrics.leverageDisplayBalance || 0),
+        base: formatAmount(metrics.leverageBase || 0),
+        ratio: String(Math.round(metrics.leverageRatio || 0)),
+        availableTotal: formatAmount(metrics.leverageAvailableTotal || 0),
+        maxBorrowable: formatAmount(metrics.leverageMaxBorrowable || 0),
+        borrowed: formatAmount(metrics.leverageBorrowed || 0),
+        remaining: formatAmount(metrics.leverageBorrowableRemaining || 0),
+        interest: formatAmount(metrics.leverageInterest || 0)
+      };
+      
+      Object.keys(leverageValues).forEach(key => {
+        flashUpdate(`[data-leverage-field="${key}"]`, leverageValues[key]);
+      });
+      
+      console.log('[applyFundsMetricsToUI] 动态字段已更新:', dynamicValues);
+      console.log('[applyFundsMetricsToUI] 杠杆字段已更新:', leverageValues);
+      
+      // 🔥 保存杠杆指标供按钮逻辑使用
+      this._currentLeverageMetrics = {
+        displayBalance: metrics.leverageDisplayBalance || 0,
+        base: metrics.leverageBase || 0,
+        ratio: metrics.leverageRatio || 0,
+        availableTotal: metrics.leverageAvailableTotal || 0,
+        maxBorrowable: metrics.leverageMaxBorrowable || 0,
+        borrowed: metrics.leverageBorrowed || 0,
+        remaining: metrics.leverageBorrowableRemaining || 0,
+        interest: metrics.leverageInterest || 0,
+        cashBalance: metrics.cashBalance || 0
+      };
+      // 记录最近刷新时间（可用于在卡片上展示）
+      this._lastFundsRefreshAt = Date.now();
+      
+      // 🔥 更新按钮状态
+      this.updateLeverageButtonStates();
+      
     } catch (err) {
-      console.warn('updateFundsOverviewUI failed', err);
+      console.warn('[applyFundsMetricsToUI] Failed:', err);
+    }
+  },
+  
+  // 🔥 获取实时市场价格（降级方案，优先使用 MarketsStore）
+  getCurrentMarketPrice(itemId) {
+    try {
+      // 优先从 MarketsStore 获取
+      if (window.MarketsStore && typeof window.MarketsStore.getPrice === 'function') {
+        const price = window.MarketsStore.getPrice(itemId);
+        if (price && price > 0) return price;
+      }
+      
+      // 降级：从缓存获取
+      if (this._primeResult && this._primeResult.list) {
+        const item = this._primeResult.list.find(m => m.itemId === itemId);
+        if (item && item.price) return Number(item.price);
+      }
+      
+      console.warn(`[getCurrentMarketPrice] No price found for ${itemId}`);
+      return 0;
+    } catch (err) {
+      console.warn('[getCurrentMarketPrice] Error:', err);
+      return 0;
     }
   },
   openDepositSheet() {
@@ -1013,10 +1878,279 @@ Page({
   },
   onDetails() { try { (window.ShowToast || console.log)('Details'); } catch (_) { } },
   onSettings() { try { (window.ShowToast || console.log)('Settings'); } catch (_) { } },
-  onLoan() { try { (window.ShowToast || console.log)('Loan'); } catch (_) { } },
-  onRepayment() { try { (window.ShowToast || console.log)('Repayment'); } catch (_) { } },
-  onTransfer() { try { (window.ShowToast || console.log)('Transfer'); } catch (_) { } },
+  
+  // 🔥 借币按钮处理（上限=剩余可借额度）
+  onLoan() {
+    try {
+      const metrics = this._currentLeverageMetrics;
+      if (!metrics) {
+        (window.ShowToast || console.log)('请先加载杠杆账户数据');
+        return;
+      }
+      
+      const remaining = Number(metrics.remaining || 0);
+      
+      if (remaining <= 0) {
+        (window.ShowToast || console.log)('剩余可借额度不足，请先划转资金或还款');
+        return;
+      }
+      
+      // 打开借币弹窗，传入最大可借额度
+      this.openLoanSheet(remaining);
+      
+    } catch (err) {
+      console.warn('onLoan failed', err);
+    }
+  },
+  
+  // 🔥 还款按钮处理（上限=已借本金+利息）
+  onRepayment() {
+    try {
+      const metrics = this._currentLeverageMetrics;
+      if (!metrics) {
+        (window.ShowToast || console.log)('请先加载杠杆账户数据');
+        return;
+      }
+      
+      const borrowed = Number(metrics.borrowed || 0);
+      const interest = Number(metrics.interest || 0);
+      const totalDebt = borrowed + interest;
+      
+      if (totalDebt <= 0) {
+        (window.ShowToast || console.log)('当前无需还款');
+        return;
+      }
+      
+      // 打开还款弹窗，传入总负债
+      this.openRepaymentSheet(totalDebt, borrowed, interest);
+      
+    } catch (err) {
+      console.warn('onRepayment failed', err);
+    }
+  },
+  
+  // 🔥 划转按钮处理（现金账户→杠杆账户，上限=现金余额）
+  onTransfer() {
+    try {
+      const metrics = this._currentLeverageMetrics;
+      if (!metrics) {
+        (window.ShowToast || console.log)('请先加载账户数据');
+        return;
+      }
+      
+      const cashBalance = Number(metrics.cashBalance || 0);
+      
+      if (cashBalance <= 0) {
+        (window.ShowToast || console.log)('现金账户余额不足');
+        return;
+      }
+      
+      // 打开划转弹窗，传入现金余额上限
+      this.openTransferSheet(cashBalance);
+      
+    } catch (err) {
+      console.warn('onTransfer failed', err);
+    }
+  },
+  
   onLearnLeveraged() { try { (window.ShowToast || console.log)('Learn leveraged'); } catch (_) { } },
+  
+  // 🔥 更新杠杆按钮状态（disabled 判断）
+  updateLeverageButtonStates() {
+    try {
+      const metrics = this._currentLeverageMetrics;
+      if (!metrics) return;
+      
+      // 借币按钮：剩余额度 <= 0 时禁用
+      const loanBtn = document.querySelector('.lev-action-btn.primary');
+      if (loanBtn) {
+        const remaining = Number(metrics.remaining || 0);
+        if (remaining <= 0) {
+          loanBtn.classList.add('disabled');
+          loanBtn.setAttribute('disabled', 'disabled');
+        } else {
+          loanBtn.classList.remove('disabled');
+          loanBtn.removeAttribute('disabled');
+        }
+      }
+      
+      // 还款按钮：无负债时禁用
+      const repaymentBtns = document.querySelectorAll('.lev-action-btn');
+      if (repaymentBtns && repaymentBtns[1]) {
+        const borrowed = Number(metrics.borrowed || 0);
+        const interest = Number(metrics.interest || 0);
+        const totalDebt = borrowed + interest;
+        if (totalDebt <= 0) {
+          repaymentBtns[1].classList.add('disabled');
+          repaymentBtns[1].setAttribute('disabled', 'disabled');
+        } else {
+          repaymentBtns[1].classList.remove('disabled');
+          repaymentBtns[1].removeAttribute('disabled');
+        }
+      }
+      
+      // 划转按钮：现金余额 <= 0 时禁用
+      if (repaymentBtns && repaymentBtns[2]) {
+        const cashBalance = Number(metrics.cashBalance || 0);
+        if (cashBalance <= 0) {
+          repaymentBtns[2].classList.add('disabled');
+          repaymentBtns[2].setAttribute('disabled', 'disabled');
+        } else {
+          repaymentBtns[2].classList.remove('disabled');
+          repaymentBtns[2].removeAttribute('disabled');
+        }
+      }
+      
+      console.log('[updateLeverageButtonStates] 按钮状态已更新:', {
+        loanDisabled: metrics.remaining <= 0,
+        repaymentDisabled: (metrics.borrowed + metrics.interest) <= 0,
+        transferDisabled: metrics.cashBalance <= 0
+      });
+      
+    } catch (err) {
+      console.warn('[updateLeverageButtonStates] Failed:', err);
+    }
+  },
+  
+  // 🔥 借币弹窗（带额度验证）
+  openLoanSheet(maxAmount) {
+    try {
+      if (typeof this.openActionSheet !== 'function') {
+        console.warn('openLoanSheet: openActionSheet unavailable');
+        return;
+      }
+      
+      const t = (key, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(key, fallback) : fallback;
+      const title = t('webapp.funds.leverage.loan.title', '借币');
+      const subtitle = t('webapp.funds.leverage.loan.subtitle', `最大可借: ${maxAmount.toFixed(2)} USDT`);
+      
+      const options = [
+        {
+          value: 'loan-confirm',
+          labelKey: 'webapp.funds.leverage.loan.confirm',
+          label: '确认借币',
+          descKey: 'webapp.funds.leverage.loan.desc',
+          desc: `输入借币金额（最大 ${maxAmount.toFixed(2)} USDT）`,
+          icon: '../../images/app_funds_1_day.png',
+          iconAltKey: 'webapp.funds.leverage.loan.iconAlt',
+          iconAlt: 'Loan'
+        }
+      ];
+      
+      this.openActionSheet({
+        title: title,
+        subtitle: subtitle,
+        options: options,
+        callback: (selected) => {
+          if (selected === 'loan-confirm') {
+            // TODO: 实际借币逻辑，需要输入框获取金额
+            console.log('[Loan] 用户确认借币，最大额度:', maxAmount);
+            (window.ShowToast || console.log)(`借币功能开发中，最大额度: ${maxAmount.toFixed(2)} USDT`);
+          }
+        }
+      });
+      
+    } catch (err) {
+      console.warn('[openLoanSheet] Failed:', err);
+    }
+  },
+  
+  // 🔥 还款弹窗
+  openRepaymentSheet(totalDebt, borrowed, interest) {
+    try {
+      if (typeof this.openActionSheet !== 'function') {
+        console.warn('openRepaymentSheet: openActionSheet unavailable');
+        return;
+      }
+      
+      const t = (key, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(key, fallback) : fallback;
+      const title = t('webapp.funds.leverage.repayment.title', '还款');
+      const subtitle = t('webapp.funds.leverage.repayment.subtitle', `总负债: ${totalDebt.toFixed(2)} USDT（本金 ${borrowed.toFixed(2)} + 利息 ${interest.toFixed(2)}）`);
+      
+      const options = [
+        {
+          value: 'repay-all',
+          labelKey: 'webapp.funds.leverage.repayment.all',
+          label: '全额还款',
+          descKey: 'webapp.funds.leverage.repayment.allDesc',
+          desc: `还清全部负债 ${totalDebt.toFixed(2)} USDT`,
+          icon: '../../images/app_funds_1_day.png',
+          iconAltKey: 'webapp.funds.leverage.repayment.iconAlt',
+          iconAlt: 'Repay All'
+        },
+        {
+          value: 'repay-partial',
+          labelKey: 'webapp.funds.leverage.repayment.partial',
+          label: '部分还款',
+          descKey: 'webapp.funds.leverage.repayment.partialDesc',
+          desc: '输入还款金额',
+          icon: '../../images/app_funds_1_day.png',
+          iconAltKey: 'webapp.funds.leverage.repayment.iconAlt',
+          iconAlt: 'Repay Partial'
+        }
+      ];
+      
+      this.openActionSheet({
+        title: title,
+        subtitle: subtitle,
+        options: options,
+        callback: (selected) => {
+          if (selected === 'repay-all') {
+            console.log('[Repayment] 全额还款:', totalDebt);
+            (window.ShowToast || console.log)(`还款功能开发中，全额还款: ${totalDebt.toFixed(2)} USDT`);
+          } else if (selected === 'repay-partial') {
+            console.log('[Repayment] 部分还款');
+            (window.ShowToast || console.log)('部分还款功能开发中');
+          }
+        }
+      });
+      
+    } catch (err) {
+      console.warn('[openRepaymentSheet] Failed:', err);
+    }
+  },
+  
+  // 🔥 划转弹窗（现金→杠杆）
+  openTransferSheet(maxAmount) {
+    try {
+      if (typeof this.openActionSheet !== 'function') {
+        console.warn('openTransferSheet: openActionSheet unavailable');
+        return;
+      }
+      
+      const t = (key, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(key, fallback) : fallback;
+      const title = t('webapp.funds.leverage.transfer.title', '划转');
+      const subtitle = t('webapp.funds.leverage.transfer.subtitle', `现金账户余额: ${maxAmount.toFixed(2)} USDT`);
+      
+      const options = [
+        {
+          value: 'transfer-to-leverage',
+          labelKey: 'webapp.funds.leverage.transfer.toLeverage',
+          label: '现金账户 → 杠杆账户',
+          descKey: 'webapp.funds.leverage.transfer.toLeverageDesc',
+          desc: `输入划转金额（最大 ${maxAmount.toFixed(2)} USDT）`,
+          icon: '../../images/app_funds_1_day.png',
+          iconAltKey: 'webapp.funds.leverage.transfer.iconAlt',
+          iconAlt: 'Transfer'
+        }
+      ];
+      
+      this.openActionSheet({
+        title: title,
+        subtitle: subtitle,
+        options: options,
+        callback: (selected) => {
+          if (selected === 'transfer-to-leverage') {
+            console.log('[Transfer] 现金→杠杆，最大金额:', maxAmount);
+            (window.ShowToast || console.log)(`划转功能开发中，最大金额: ${maxAmount.toFixed(2)} USDT`);
+          }
+        }
+      });
+      
+    } catch (err) {
+      console.warn('[openTransferSheet] Failed:', err);
+    }
+  },
 
   /* ========== Markets 页面逻辑 ========== */
 
@@ -1338,7 +2472,8 @@ Page({
         }
       } catch (_) { }
       this._activeSymbol = saved || this._activeSymbol || this._defaultSymbol;
-      this.refreshTradeSymbol(this._activeSymbol);
+      // 初始化时也使用 silent: true，避免自动触发 I00009 接口
+      this.refreshTradeSymbol(this._activeSymbol, { silent: true, skipSymbolSave: true });
       this.refreshHomeMostActive();
       if (!this._symbolRefreshTimer && typeof setInterval !== 'undefined') {
         this._symbolRefreshTimer = setInterval(() => {
@@ -1417,6 +2552,20 @@ Page({
 
   async refreshHomeMostActive(silent) {
     try {
+      // 【防御性检查】：避免频繁调用触发 429 限流
+      const now = Date.now();
+      if (!this._lastRefreshHomeMostActiveAt) this._lastRefreshHomeMostActiveAt = 0;
+      const timeSinceLastRefresh = now - this._lastRefreshHomeMostActiveAt;
+      const minInterval = 10000; // 最小间隔 10 秒
+      
+      if (timeSinceLastRefresh < minInterval) {
+        if (!silent) {
+          console.log(`[refreshHomeMostActive] 跳过（距上次 ${Math.round(timeSinceLastRefresh/1000)}s < ${minInterval/1000}s）`);
+        }
+        return;
+      }
+      this._lastRefreshHomeMostActiveAt = now;
+      
       const client = await this.ensureInfowayHttpClient();
       if (!client) {
         console.warn('[refreshHomeMostActive] InfowayHttp 客户端未初始化');
@@ -1863,17 +3012,21 @@ Page({
   isSymbolClosed(symbol) {
     if (!symbol) return false;
     const normalized = String(symbol).toUpperCase();
-    if (ALWAYS_OPEN_SYMBOLS.has(normalized)) return false;
     const session = resolveSessionBySymbol(symbol);
     const withinSession = isWithinSession(session);
     const info = (this._marketsLiveQuotes || {})[symbol];
     const hasFreshQuote = info && info.updatedAt && ((Date.now() - info.updatedAt) <= MARKET_CLOSED_STALE_MS);
-    if (withinSession) {
-      // 正常交易时段：只要最近有报价就视为开市
-      return !hasFreshQuote;
+    
+    // 所有品种(包括 EURUSD/XAUUSD/USOIL/EURGBP)统一判定逻辑:
+    // 必须同时满足 "非交易时段" 和 "超过2分钟无报价" 才显示休市
+    if (!withinSession && !hasFreshQuote) {
+      return true; // 非交易时段 + 无新鲜报价 = 休市
     }
-    // 非交易时段：直接视为休市
-    return true;
+    
+    // 其他情况视为开市:
+    // - 在交易时段内(不论是否有报价)
+    // - 非交易时段但仍有新鲜报价(如盘前/盘后有报价)
+    return false;
   },
 
   updateRowClosedTag(row, symbol) {
@@ -2122,14 +3275,18 @@ Page({
         try { this.ensureTradeSnapshotFromStore && this.ensureTradeSnapshotFromStore(); } catch (e) { console.warn('post-refresh ensureTradeSnapshotFromStore failed', e); }
       }, 300);
       this.syncMarketsSubscriptions();
-      // 切换品种时刷新持仓数据（I00009）
-      try {
-        await Promise.all([
-          this.fetchTradeAvailable && this.fetchTradeAvailable(0, target),
-          this.fetchTradeAvailable && this.fetchTradeAvailable(1, target)
-        ]);
-      } catch (e) {
-        console.warn('refreshTradeSymbol: fetchTradeAvailable failed', e);
+      
+      // 【优化】只在用户主动切换品种时刷新持仓数据，定时刷新不触发接口
+      // 定时器通过 opts.silent 标记，避免频繁请求 I00009 接口
+      if (!opts.silent && !opts.skipPositionRefresh) {
+        try {
+          const currentTab = this.data.activeTradeTab || 'capital';
+          const panelType = currentTab === 'leveraged' ? 'leveraged' : 'capital';
+          console.log(`[refreshTradeSymbol] 用户主动切换品种，刷新持仓: ${panelType}, symbol: ${target}`);
+          this.handleTab3Click && this.handleTab3Click({ type: panelType, symbol: target });
+        } catch (e) {
+          console.warn('refreshTradeSymbol: handleTab3Click failed', e);
+        }
       }
     } catch (err) {
       if (!opts.silent) console.warn('refreshTradeSymbol failed', err);
@@ -2428,7 +3585,10 @@ Page({
           const normalizedPositions = rawPositions.map(item => (typeof this.normalizePositionEntry === 'function')
             ? this.normalizePositionEntry(item, symbol)
             : item);
-          this._positions[scopeKey] = normalizedPositions;
+          const aggregatedPositions = (typeof this.aggregatePositions === 'function')
+            ? this.aggregatePositions(normalizedPositions)
+            : normalizedPositions;
+          this._positions[scopeKey] = aggregatedPositions;
           if (typeof this.renderTradePositions === 'function') {
             this.renderTradePositions(scopeKey);
           }
@@ -2476,8 +3636,16 @@ Page({
             badge.className = 'count';
             tab.appendChild(badge);
           }
-          const countVal = counts[panelKey];
-          badge.textContent = `(${Number.isFinite(countVal) ? countVal : 0})`;
+          // 与实际渲染的数据源对齐，防止接口另一路刷新把计数重置为 0
+          let derived = 0;
+          if (panelKey === 'pending') {
+            derived = (this._pending && Array.isArray(this._pending[scope])) ? this._pending[scope].length : 0;
+          } else if (panelKey === 'position') {
+            derived = (this._positions && Array.isArray(this._positions[scope])) ? this._positions[scope].length : 0;
+          }
+          const countVal = Number.isFinite(counts[panelKey]) ? counts[panelKey] : 0;
+          const displayVal = Math.max(countVal, derived);
+          badge.textContent = `(${displayVal})`;
         });
       });
     } catch (err) {
@@ -2494,20 +3662,73 @@ Page({
 
   renderTradePositions(scopeType) {
     try {
+      console.log(`[renderTradePositions] Called for scope: ${scopeType}, positions:`, this._positions);
       if (!this._positions) return;
       const scopes = scopeType ? [scopeType] : ['capital', 'leveraged'];
       scopes.forEach(scope => {
         const list = document.querySelector(`.position-list[data-position-scope="${scope}"]`);
         if (!list) return;
-        const entries = Array.isArray(this._positions[scope]) ? this._positions[scope] : [];
+        let entries = Array.isArray(this._positions[scope]) ? this._positions[scope] : [];
+        // 统一做一次本地聚合，避免同方向同品种的多条持仓未合并
+        if (this.aggregatePositions && Array.isArray(entries) && entries.length) {
+          const aggregated = this.aggregatePositions(entries);
+          if (Array.isArray(aggregated) && aggregated.length) {
+            entries = aggregated;
+            // 与内存态保持一致，计数徽标也以聚合后的长度为准
+            this._positions[scope] = aggregated;
+          }
+        }
+        // 渲染前尝试补全缺失的字段（开仓价/方向/数量等）
+        entries = this.enrichPositionEntries ? this.enrichPositionEntries(entries, scope) : entries;
+        console.log(`[renderTradePositions] Rendering ${entries.length} positions for ${scope}`);
         const emptyNode = list.querySelector('.position-empty');
         list.querySelectorAll('.position-card').forEach(node => node.remove());
         if (!entries.length) {
           if (emptyNode) emptyNode.style.display = '';
+          // 持仓为0时，隐藏标题栏（全仓模式 + 全部平仓按钮）
+          const existingHeader = list.querySelector('.position-list-header');
+          if (existingHeader) existingHeader.style.display = 'none';
           requestAnimationFrame(() => this.refreshPositionPanelHeight && this.refreshPositionPanelHeight(list));
           return;
         }
         if (emptyNode) emptyNode.style.display = 'none';
+        // 插入标题栏：Full Position + Close All 按钮（支持中英文）
+        const existingHeader = list.querySelector('.position-list-header');
+        if (existingHeader) {
+          existingHeader.remove();
+        }
+        const header = document.createElement('div');
+        header.className = 'position-list-header';
+        header.style.display = '';  // 确保有持仓时显示
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'position-list-title';
+        // 标题文案：根据当前语言设置
+        try {
+          const lang = (window.i18n && window.i18n.lang) || 'en-US';
+          titleSpan.setAttribute('data-i18n', 'webapp.trades.position.header.fullPosition');
+          titleSpan.textContent = lang === 'zh-CN' ? '全仓模式' : 'Full Position';
+        } catch (_) {
+          titleSpan.textContent = 'Full Position';
+        }
+        titleSpan.setAttribute('data-i18n', 'webapp.trades.position.fullPosition');
+        const closeAllBtn = document.createElement('button');
+        closeAllBtn.className = 'position-close-all-btn';
+        // Close All 按钮文案：根据当前语言设置
+        try {
+          const lang = (window.i18n && window.i18n.lang) || 'en-US';
+          closeAllBtn.setAttribute('data-i18n', 'webapp.trades.buttons.closeAll');
+          closeAllBtn.textContent = lang === 'zh-CN' ? '全部平仓' : 'Close All';
+        } catch (_) {
+          closeAllBtn.textContent = 'Close All';
+        }
+        closeAllBtn.setAttribute('data-i18n', 'webapp.trades.position.closeAll');
+        closeAllBtn.dataset.scope = scope;
+        closeAllBtn.addEventListener('click', () => {
+          this.closeAllPositions && this.closeAllPositions(scope);
+        });
+        header.appendChild(titleSpan);
+        header.appendChild(closeAllBtn);
+        list.appendChild(header);
         const fragment = document.createDocumentFragment();
         entries.forEach(entry => {
           const card = this.buildPositionCard ? this.buildPositionCard(entry, scope) : null;
@@ -2536,7 +3757,7 @@ Page({
         container.dataset.positionHeight = String(newHeight);
         return;
       }
-      container.style.height = newHeight + 'px';
+      container.style.height = (newHeight + 15) + 'px';
       container.dataset.positionHeight = String(newHeight);
     } catch (err) {
       console.warn('refreshPositionPanelHeight failed', err);
@@ -2592,7 +3813,7 @@ Page({
         || targetSlide.scrollHeight
         || targetSlide.offsetHeight;
       if (!targetHeight) return;
-      container.style.height = targetHeight + 'px';
+      container.style.height = (targetHeight + 15) + 'px';
     } catch (err) {
       console.warn('refreshTradeScopeSubpanel failed', err);
     }
@@ -2704,6 +3925,10 @@ Page({
       const openPriceVal = this.formatPriceWithUnit(priceSymbol, openPrice, quoteCcy);
       const liquidationVal = this.formatPriceWithUnit(priceSymbol, entry.liquidation ?? entry.liquidationPrice ?? entry.liqPrice, quoteCcy);
       
+      // Spread Fee 点差费（点差 × 数量）
+      const takeSpread = entry.takeSpread ?? entry.avgTakeSpread ?? entry.spread ?? 0;
+      const spreadFeeVal = this.formatPositionFigure(Number.isFinite(takeSpread) && Number.isFinite(tradeVolume) ? takeSpread * tradeVolume : takeSpread, quoteCcy);
+      
       // Hourly Interest 直接显示原值加%
       let hourlyInterest = '--';
       const rawInterest = entry.hourlyInterest ?? entry.interestRate ?? entry.rate;
@@ -2716,34 +3941,45 @@ Page({
         }
       }
       
-      // Profit and Loss = (Open Price × Balance) - (Index Price × Balance)
+      // Profit and Loss
+      // 多单：PnL = (Current - Open) * Volume；空单：PnL = (Open - Current) * Volume
       let pnlInfo = { value: '--', className: 'pnl up' };
       if (Number.isFinite(openPrice) && Number.isFinite(currentPrice) && Number.isFinite(tradeVolume) && tradeVolume !== 0) {
         const openScaled = this.multiplyScaled(openPrice, tradeVolume);
         const curScaled = this.multiplyScaled(currentPrice, tradeVolume);
-        const pnlScaled = this.subtractScaled(openScaled, curScaled);
+        const isShort = (direction === 'sell' || direction === 'short' || direction === 'bear');
+        const pnlScaled = isShort ? this.subtractScaled(openScaled, curScaled) : this.subtractScaled(curScaled, openScaled);
         if (pnlScaled != null) {
+          const formatted = this.formatScaledValue(pnlScaled, quoteCcy);
           pnlInfo = {
-            value: this.formatScaledValue(pnlScaled, quoteCcy),
-            className: `pnl ${pnlScaled < 0n ? 'down' : 'up'}`
+            value: formatted,
+            // 东方习惯：红色=盈利(up)，绿色=亏损(down)
+            className: `pnl ${pnlScaled >= 0n ? 'up' : 'down'}`
           };
         }
       }
 
+      // 根据账户类型决定显示字段：capital（现货）不显示负债和利率，leveraged（杠杆）显示全部
       const rows = [
         { key: 'webapp.trades.position.balance', fallback: 'Balance', value: balanceVal },
         { key: 'webapp.trades.position.surplus', fallback: 'Surplus Value', value: surplusVal },
-        { key: 'webapp.trades.position.liability', fallback: 'Liability', value: liabilityVal },
+        ...(scope === 'leveraged' ? [{ key: 'webapp.trades.position.liability', fallback: 'Liability', value: liabilityVal }] : []),
         { key: 'webapp.trades.position.openPrice', fallback: 'Open Price', value: openPriceVal },
         { key: 'webapp.trades.position.indexPrice', fallback: 'Index Price', value: indexPriceVal },
-        { key: 'webapp.trades.position.liquidation', fallback: 'Liquidation', value: liquidationVal },
-        { key: 'webapp.trades.position.hourlyInterest', fallback: 'Hourly Interest', value: hourlyInterest },
+        // capital 显示点差费，leveraged 显示强平价
+        ...(scope === 'leveraged' 
+          ? [{ key: 'webapp.trades.position.liquidation', fallback: 'Liquidation', value: liquidationVal }]
+          : [{ key: 'webapp.trades.position.spreadFee', fallback: 'Spread Fee', value: spreadFeeVal }]
+        ),
+        ...(scope === 'leveraged' ? [{ key: 'webapp.trades.position.hourlyInterest', fallback: 'Hourly Interest', value: hourlyInterest }] : []),
         { key: 'webapp.trades.position.pnl', fallback: 'Profit and Loss', value: pnlInfo.value, className: pnlInfo.className }
       ];
 
       const card = document.createElement('div');
       card.className = 'position-card';
       card.dataset.scope = scope;
+      if (symbol) card.dataset.symbol = symbol;
+      if (direction) card.dataset.direction = direction;
       if (outTradeNo) card.dataset.tradeNo = outTradeNo;
       if (quoteCcy) card.dataset.quoteCcy = quoteCcy;
 
@@ -2805,6 +4041,21 @@ Page({
       closeBtn.dataset.scope = scope;
       if (symbol) closeBtn.dataset.symbol = symbol;
       if (outTradeNo) closeBtn.dataset.outTradeNo = outTradeNo;
+      if (direction) closeBtn.dataset.direction = direction;  // 传递方向信息
+      // 兼容批量平仓逻辑使用 .position-card-close-btn 查询
+      closeBtn.classList.add('position-card-close-btn');
+      closeBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        this.closePosition && this.closePosition({ currentTarget: closeBtn });
+      });
+      // 休市时禁用平仓按钮
+      try {
+        const symForCheck = (symbol || this._activeSymbol || this._defaultSymbol || '').toUpperCase();
+        if (symForCheck && typeof isSymbolClosed === 'function' && isSymbolClosed(symForCheck)) {
+          closeBtn.classList.add('btn-disabled');
+          closeBtn.disabled = true;
+        }
+      } catch (_) {}
       const sltpBtn = document.createElement('button');
       sltpBtn.className = 'pos-btn';
       sltpBtn.textContent = t('webapp.trades.buttons.sltp', 'S/L and T/P');
@@ -2812,14 +4063,279 @@ Page({
       sltpBtn.dataset.scope = scope;
       if (symbol) sltpBtn.dataset.symbol = symbol;
       if (outTradeNo) sltpBtn.dataset.outTradeNo = outTradeNo;
+      if (direction) sltpBtn.dataset.direction = direction;
+      // 休市时禁用止损止盈编辑
+      try {
+        const symForCheck2 = (symbol || this._activeSymbol || this._defaultSymbol || '').toUpperCase();
+        if (symForCheck2 && typeof isSymbolClosed === 'function' && isSymbolClosed(symForCheck2)) {
+          sltpBtn.classList.add('btn-disabled');
+          sltpBtn.disabled = true;
+        }
+      } catch (_) {}
       actions.appendChild(closeBtn);
       actions.appendChild(sltpBtn);
+      // 绑定止盈止损编辑事件：打开通用弹窗并提交 I00015
+      sltpBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        try {
+          this.openEditSLTP && this.openEditSLTP({
+            scope,
+            symbol,
+            outTradeNo,
+            direction
+          });
+        } catch (e) { console.warn('openEditSLTP failed', e); }
+      });
       card.appendChild(actions);
 
       return card;
     } catch (err) {
       console.warn('buildPositionCard failed', err);
       return null;
+    }
+  },
+
+  // 打开通用弹窗，编辑当前持仓的止盈/止损
+  openEditSLTP({ scope = 'capital', symbol = '', outTradeNo = '', direction = '' } = {}) {
+    try {
+      const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+      const titleText = lang === 'zh-CN' ? '止盈止损修改' : 'Edit Take Profit / Stop Loss';
+      const confirmText = lang === 'zh-CN' ? '修改' : 'Modify';
+      const cancelText = lang === 'zh-CN' ? '取消' : 'Cancel';
+      // 使用 sheet-menu 容器承载两个输入框
+      const formHtml = `
+        <div class="sheet-form">
+          <div class="sheet-input-row">
+            <label class="sheet-label">${lang === 'zh-CN' ? '止盈 (Take Profit)' : 'Take Profit'}：</label>
+            <input id="sheet-tp-input" type="number" step="0.0001" placeholder="0.00" class="sheet-input" />
+          </div>
+          <div class="sheet-input-row">
+            <label class="sheet-label">${lang === 'zh-CN' ? '止损 (Stop Loss)' : 'Stop Loss'}：</label>
+            <input id="sheet-sl-input" type="number" step="0.0001" placeholder="0.00" class="sheet-input" />
+          </div>
+        </div>`;
+
+      this.openActionSheet({
+        mode: 'menu',
+        theme: 'light',
+        title: titleText,
+        hideActions: false,
+        confirmText,
+        cancelText,
+        onConfirm: async () => {
+          try {
+            const layer = this._sheetLayer || document.getElementById('action-sheet');
+            const tpEl = layer && layer.querySelector('#sheet-tp-input');
+            const slEl = layer && layer.querySelector('#sheet-sl-input');
+            const takeProfit = tpEl ? String(tpEl.value || '').trim() : '';
+            const stopLoss = slEl ? String(slEl.value || '').trim() : '';
+            const userAccount = this.resolveUserAccount();
+            if (!userAccount || !outTradeNo) {
+              console.warn('[I00015] 缺少 userAccount 或 outTradeNo');
+              this.hideActionSheet('confirm');
+              return;
+            }
+            // 调用 I00015 接口：止盈止损的修改
+            const params = { userAccount, outTradeNo, stopLoss, takeProfit };
+            const resp = await window.superAPI.request('I00015', params);
+            if (resp && resp.code === 0) {
+              // 成功后刷新当前品种的持仓列表
+              try { this.handleTab3Click && this.handleTab3Click({ type: scope, symbol }); } catch (_) {}
+            }
+          } catch (err) {
+            console.warn('[I00015] 修改止盈止损失败', err);
+          } finally {
+            this.hideActionSheet('confirm');
+          }
+        },
+        onCancel: () => { this.hideActionSheet('cancel'); }
+      });
+      // 将自定义表单写入 sheet-menu
+      try {
+        const layer = this._sheetLayer || document.getElementById('action-sheet');
+        const menu = layer && layer.querySelector('.sheet-menu');
+        if (menu) menu.innerHTML = formHtml;
+      } catch (e2) {
+        console.warn('inject sheet form failed', e2);
+      }
+
+      // 打开后回填：严格以服务端返回为准（先内存持仓 -> 不足则 I00009 请求）
+      try {
+        this.prefillSLTPFromServer && this.prefillSLTPFromServer({ scope, symbol, outTradeNo, direction });
+      } catch (e3) { console.warn('prefillSLTPFromServer failed', e3); }
+    } catch (e) {
+      console.warn('openEditSLTP failed', e);
+    }
+  },
+
+  async prefillSLTPFromServer({ scope = 'capital', symbol = '', outTradeNo = '', direction = '' } = {}) {
+    try {
+      const layer = this._sheetLayer || document.getElementById('action-sheet');
+      if (!layer) return;
+      const tpEl = layer.querySelector('#sheet-tp-input');
+      const slEl = layer.querySelector('#sheet-sl-input');
+      if (!tpEl || !slEl) return;
+
+      // 1) 尝试从当前内存持仓（来自服务端 I00009 / I00007）匹配
+      const list = (this._positions && Array.isArray(this._positions[scope])) ? this._positions[scope] : [];
+      let hit = null;
+      if (list && list.length) {
+        if (outTradeNo) {
+          hit = list.find(p => String(p.outTradeNo || p.tradeId || p.id || '') === String(outTradeNo));
+        }
+        if (!hit) {
+          const sym = (symbol || '').toUpperCase();
+          const dir = (direction || '').toLowerCase();
+          hit = list.find(p => (String(p.itemId || p.symbol || '').toUpperCase() === sym) && (!dir || String(p.direction || p.aggDirection || '').toLowerCase() === dir));
+        }
+      }
+      if (hit) {
+        if (hit.takeProfit != null) tpEl.value = hit.takeProfit;
+        if (hit.stopLoss != null) slEl.value = hit.stopLoss;
+        return;
+      }
+
+      // 2) 回退到服务端拉取 I00009
+      const userAccount = this.resolveUserAccount();
+      if (!userAccount || !symbol) return;
+      const detailsWalletType = scope === 'leveraged' ? 1 : 0;
+      const resp = await window.superAPI.request('I00009', { userAccount, detailsWalletType, itemId: symbol });
+      const pos = (resp && Array.isArray(resp.position)) ? resp.position : [];
+      if (!pos || !pos.length) return;
+      let srv = null;
+      if (outTradeNo) srv = pos.find(p => String(p.outTradeNo || p.tradeId || p.id || '') === String(outTradeNo));
+      if (!srv) {
+        const symU = (symbol || '').toUpperCase();
+        const dirL = (direction || '').toLowerCase();
+        srv = pos.find(p => (String(p.itemId || p.symbol || '').toUpperCase() === symU) && (!dirL || String(p.direction || p.aggDirection || '').toLowerCase() === dirL));
+      }
+      if (srv) {
+        if (srv.takeProfit != null) tpEl.value = srv.takeProfit;
+        if (srv.stopLoss != null) slEl.value = srv.stopLoss;
+      }
+    } catch (e) {
+      console.warn('prefillSLTPFromServer outer failed', e);
+    }
+  },
+
+  enrichPositionEntries(entries, scope) {
+    try {
+      if (!Array.isArray(entries) || !entries.length) return entries;
+      if (!this._recentOpenOrders) this._recentOpenOrders = {};
+      const nowTs = Date.now();
+      return entries.map(orig => {
+        if (!orig || typeof orig !== 'object') return orig;
+        const outTradeNo = orig.outTradeNo || orig.tradeId || orig.positionId || orig.id;
+        const cached = outTradeNo ? this._recentOpenOrders[outTradeNo] : null;
+        // 如果根据 outTradeNo 缓存未命中，再尝试 symbol+方向+最近5分钟内的开仓缓存匹配（解决后端聚合卡片丢失单号的情况）
+        let altCache = null;
+        if (!cached) {
+          const symbolKey = (orig.itemId || orig.symbol || this._activeSymbol || this._defaultSymbol || '').toUpperCase();
+          const directionKey = (orig.direction || orig.aggDirection || '').toLowerCase();
+          Object.keys(this._recentOpenOrders).forEach(k => {
+            const c = this._recentOpenOrders[k];
+            if (!c || !c.itemId || !c.directionTemp) return;
+            if ((nowTs - (c.cachedAt || 0)) > 5 * 60 * 1000) return; // 超过5分钟忽略
+            if (c.itemId.toUpperCase() === symbolKey && c.directionTemp.toLowerCase() === directionKey) {
+              altCache = c;
+            }
+          });
+        }
+        const useCache = cached || altCache;
+        if (!useCache) return orig;
+        // 仅在缺失字段时补齐，避免覆盖后端已填充数值
+        const enriched = { ...orig };
+        if (enriched.symbol == null && useCache.itemId) enriched.symbol = useCache.itemId;
+        if (enriched.itemId == null && useCache.itemId) enriched.itemId = useCache.itemId;
+        if (enriched.direction == null && useCache.directionTemp) enriched.direction = useCache.directionTemp;
+        if (enriched.tradeVolume == null && useCache.tradeVolume != null) {
+          enriched.tradeVolume = useCache.tradeVolume;
+          // position 聚合返回 totalVolume 字段，统一保持一个别名
+          if (enriched.totalVolume == null) enriched.totalVolume = useCache.tradeVolume;
+        }
+        if (enriched.openPrice == null && useCache.openPrice != null) {
+          enriched.openPrice = useCache.openPrice;
+          if (enriched.avgOpenPrice == null) enriched.avgOpenPrice = useCache.openPrice;
+          if (enriched.avgPrice == null) enriched.avgPrice = useCache.openPrice;
+        }
+        if (enriched.takeSpread == null && useCache.takeSpread != null) enriched.takeSpread = useCache.takeSpread;
+        // 若只有 openPrice 但缺少 avgPrice/price，补充别名
+        if (enriched.openPrice != null) {
+          if (enriched.avgPrice == null) enriched.avgPrice = enriched.openPrice;
+          if (enriched.price == null) enriched.price = enriched.openPrice;
+        }
+        if (window.POS_DEBUG) {
+          console.log('[enrichPositionEntries] before=', orig, 'cacheUsed=', useCache, 'after=', enriched);
+        }
+        return enriched;
+      });
+    } catch (e) {
+      console.warn('enrichPositionEntries failed', e);
+      return entries;
+    }
+  },
+
+  // 将同品种、同方向的多条持仓在前端即时聚合：
+  // - 体积：按 tradeVolume 求和
+  // - 价格：按成交量加权的平均开仓价（avgPrice/openPrice）
+  // - 点差：按成交量加权平均 takeSpread（若无则保留原值或0）
+  // 注意：服务端刷新(I00009)返回已聚合的数据时，此函数不会改变结果
+  aggregatePositions(entries) {
+    try {
+      if (!Array.isArray(entries) || entries.length <= 1) return entries || [];
+      const groups = new Map();
+      entries.forEach(item => {
+        if (!item || typeof item !== 'object') return;
+        const sym = String(item.symbol || item.s || item.itemId || item.code || '').toUpperCase();
+        const dir = String(item.direction || item.side || item.tradeSide || '').toLowerCase();
+        const key = sym + '|' + (dir || 'buy');
+        const vol = Number(item.tradeVolume ?? item.volume ?? item.balance ?? item.positionBalance ?? item.nowBalance ?? 0) || 0;
+        const price = Number(item.openPrice ?? item.avgPrice ?? item.price ?? 0) || 0;
+        const spread = Number(item.takeSpread ?? item.avgTakeSpread ?? item.spread ?? 0) || 0;
+        const openedAt = item.openedAt || item.createdAt || item.createTime || item.openTime || 0;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            symbol: sym,
+            direction: dir || 'buy',
+            // 聚合累加器
+            __sumVol: 0,
+            __sumPriceVol: 0,
+            __sumSpreadVol: 0,
+            __lastOpenedAt: openedAt || 0,
+            __lastOutTradeNo: item.outTradeNo || item.tradeId || item.positionId || item.id || ''
+          });
+        }
+        const g = groups.get(key);
+        g.__sumVol += vol;
+        g.__sumPriceVol += price * vol;
+        g.__sumSpreadVol += spread * Math.max(vol, 0);
+        if ((openedAt || 0) > g.__lastOpenedAt) g.__lastOpenedAt = openedAt || 0;
+        if (item.outTradeNo) g.__lastOutTradeNo = item.outTradeNo;
+      });
+      const result = [];
+      groups.forEach(g => {
+        const totalVol = g.__sumVol;
+        if (totalVol <= 0) return; // 忽略异常体积
+        const avgPrice = g.__sumPriceVol / totalVol;
+        const avgSpread = g.__sumSpreadVol / totalVol;
+        result.push({
+          symbol: g.symbol,
+          itemId: g.symbol,
+          direction: g.direction,
+          tradeVolume: Number(totalVol),
+          totalVolume: Number(totalVol),
+          openPrice: Number.isFinite(avgPrice) ? Number(avgPrice) : undefined,
+          avgPrice: Number.isFinite(avgPrice) ? Number(avgPrice) : undefined,
+          takeSpread: Number.isFinite(avgSpread) ? Number(avgSpread) : undefined,
+          openedAt: g.__lastOpenedAt || undefined,
+          outTradeNo: g.__lastOutTradeNo || undefined
+        });
+      });
+      // 若无法有效聚合，则返回原数据
+      return result.length ? result : entries;
+    } catch (err) {
+      console.warn('aggregatePositions failed', err);
+      return entries;
     }
   },
 
@@ -2965,9 +4481,12 @@ Page({
               if (Number.isFinite(balance) && Number.isFinite(openPrice) && balance !== 0) {
                 const openScaled = this.multiplyScaled(openPrice, balance);
                 const curScaled = this.multiplyScaled(currentPrice, balance);
-                const pnlScaled = this.subtractScaled(openScaled, curScaled);
+                const dir = (card.dataset && card.dataset.direction) || 'buy';
+                const isShort = (dir === 'sell' || dir === 'short' || dir === 'bear');
+                const pnlScaled = isShort ? this.subtractScaled(openScaled, curScaled) : this.subtractScaled(curScaled, openScaled);
                 if (pnlScaled != null) {
-                  valueNode.className = `pnl ${pnlScaled < 0n ? 'down' : 'up'}`;
+                  // 东方习惯：红色=盈利(up)，绿色=亏损(down)
+                  valueNode.className = `pnl ${pnlScaled >= 0n ? 'up' : 'down'}`;
                   valueNode.innerHTML = this.formatScaledValue(pnlScaled, quoteCcy);
                 }
               }
@@ -3006,6 +4525,33 @@ Page({
     const typeBtn = panel.querySelector('.order-type .type-btn');
     const form = typeBtn && typeBtn.dataset.form === 'leveraged' ? 'leveraged' : 'capital';
     return form === 'leveraged' ? (this._availableLeveraged || 0) : (this._availableCapital || 0);
+  },
+
+  getPanelSpread(panel) {
+    // 返回点差总费用（baseSpread × volume）= takeSpread（佣金）
+    try {
+      if (!panel) return 0;
+      
+      const symbol = this._activeSymbol || this._defaultSymbol;
+      const best = this._orderbookBest;
+      const sameSymbol = best && best.symbol === symbol;
+      const baseSpread = (sameSymbol && Number.isFinite(best.spread)) ? best.spread : 0;
+      
+      // 获取当前面板的数量
+      const volumeInput = this.findVolumeInputForPanel ? this.findVolumeInputForPanel(panel) : null;
+      let volume = 0;
+      if (volumeInput) {
+        const raw = parseFloat(volumeInput.value || '0');
+        volume = Number.isFinite(raw) ? Math.max(0, raw) : 0;
+      }
+      
+      // 点差总费用 = 单位点差 × 数量
+      const spreadTotal = baseSpread * volume;
+      return spreadTotal;
+    } catch (err) {
+      console.warn('getPanelSpread failed', err);
+      return 0;
+    }
   },
 
   refreshAvailableLimitsForAll() {
@@ -3138,6 +4684,17 @@ Page({
         quoteInput.value = formatted;
         quoteInput.dataset.value = formatted;
       }
+      // 根据休市状态禁用交易相关按钮
+      try {
+        const isClosed = typeof isSymbolClosed === 'function' ? isSymbolClosed((symbol || '').toUpperCase()) : false;
+        const buyBtn = panel.querySelector('.buy-btn');
+        const submitBtn = panel.querySelector('.order-submit');
+        [buyBtn, submitBtn].forEach(btn => {
+          if (!btn) return;
+          btn.disabled = !!isClosed;
+          btn.classList.toggle('btn-disabled', !!isClosed);
+        });
+      } catch (_) {}
       this.syncVolumeWithAvailable(panel, {
         leaveReserve: true,
         fromQuoteChange: true
@@ -3203,8 +4760,50 @@ Page({
     const sortFn = isAsk ? ((a, b) => a.price - b.price) : ((a, b) => b.price - a.price);
     const sorted = list.slice().sort(sortFn);
     const hydrated = this.ensureDepthSideRows(sorted, type, symbol, desired);
-    const trimmed = hydrated.slice(0, desired);
+    // 卖盘需要靠近中间的是更便宜（更接近卖一），因此从源数据中取“最高的 N 档”并反转，使列表自上而下递减
+    // 买盘保持原逻辑，取最前面的 N 档（已按降序）
+    const trimmed = isAsk ? hydrated.slice(-desired) : hydrated.slice(0, desired);
     const oriented = isAsk ? trimmed.slice().reverse() : trimmed;
+    // 参考真正的卖一/买一：从源数据 rows 计算，而不是从 oriented（避免由于切片导致误判）
+    const bestAsk = isAsk ? this.extractBestPrice(list, 'ask') : null;
+    const bestBid = !isAsk ? this.extractBestPrice(list, 'bid') : null;
+    for (let i = 0; i < oriented.length; i += 1) {
+      const row = oriented[i];
+      if (!row || !isFinite(row.price)) continue;
+      const prec = this.resolveQuotePrecision(symbol, row.price);
+      // 微精度噪声：对步长较大的品种增加更细粒度随机，减少重复价格
+      try {
+        const localStep = this.resolveSyntheticDepthStep(symbol, row.price);
+        if (localStep >= 0.02) {
+          const microSeed = this.depthTemporalSeed(symbol, i * (type === 'ask' ? 7 : 11));
+          const micro = (microSeed - 0.5) * localStep * 0.06; // 不超过步长 6%
+          row.price = Number((row.price + micro).toFixed(prec));
+        }
+      } catch(_) {}
+      if (isAsk) {
+        // 卖盘（列表在上方）：从上到下应递减，且必须高于卖一
+        const prev = oriented[i - 1];
+        if (prev && isFinite(prev.price) && row.price >= prev.price) {
+          const tick = Math.pow(10, -this.resolveQuotePrecision(symbol, prev.price));
+          row.price = Number((prev.price - tick).toFixed(prec));
+        }
+        if (isFinite(bestAsk) && row.price <= bestAsk) {
+          const tick = Math.pow(10, -this.resolveQuotePrecision(symbol, row.price));
+          row.price = Number((bestAsk + tick).toFixed(prec));
+        }
+      } else {
+        // 买盘：从上到下递减（上面价格高=买一最优，下面价格低），确保单调递减
+        const prev = oriented[i - 1];
+        if (prev && isFinite(prev.price) && row.price >= prev.price) {
+          const tick = Math.pow(10, -this.resolveQuotePrecision(symbol, prev.price));
+          row.price = Number((prev.price - tick).toFixed(prec));
+        }
+        if (isFinite(bestBid) && row.price >= bestBid) {
+          const tick = Math.pow(10, -this.resolveQuotePrecision(symbol, row.price));
+          row.price = Number((bestBid - tick).toFixed(prec));
+        }
+      }
+    }
     const bestCandidate = isAsk ? oriented.length - 1 : 0;
     let bestIndex = bestCandidate;
     if (oriented[bestIndex] && oriented[bestIndex].synthetic) {
@@ -3249,16 +4848,31 @@ Page({
       const timeSeed = this.depthTemporalSeed(symbol, idx + (type === 'ask' ? 1 : -1));
       const dynamicJitter = (timeSeed - 0.5) * step * 0.8;
       const wobble = (this.depthTemporalSeed(symbol, idx * 2 + (isAsk ? 7 : -7)) - 0.5) * step * 0.4;
+      // 价格步进：根据产品精度，控制价差主要落在小数点后 2-5 位
       const delta = step * ratioNoise + jitterSeed + dynamicJitter + wobble;
       const depthFactor = 1 - Math.min(idx / Math.max(1, desired * 1.25), 0.85);
       const macroTilt = step * trendBias * (isAsk ? 0.55 : 0.45) * depthFactor;
       const pressureTilt = step * flowPressure * (isAsk ? 0.45 : 0.35) * depthFactor;
       currentPrice = currentPrice + direction * Math.abs(delta) + macroTilt + pressureTilt;
+      // 微精度噪声：针对较大步长(>=0.02)增加更细波动，提升深度层次
+      if (step >= 0.02) {
+        const microSeed = this.depthRandom(symbol, idx, type + '-micro');
+        const micro = (microSeed - 0.5) * step * 0.06; // 最大约 step 的 6%
+        currentPrice += micro;
+      }
+      // 精度控制：根据符号推断报价精度（外汇 4-5 位，金属/能源 4位，其它自适应）
+      const precision = this.resolveQuotePrecision(symbol, currentPrice);
+      currentPrice = Number(currentPrice.toFixed(precision));
       if (!isFinite(currentPrice) || currentPrice <= 0) break;
       const syntheticVolume = this.computeSyntheticDepthVolume(anchorVolume, idx, symbol, type);
-      list.push({ price: Number(currentPrice.toFixed(6)), volume: syntheticVolume, synthetic: true });
+      list.push({ price: currentPrice, volume: syntheticVolume, synthetic: true });
     }
     return list;
+  },
+
+  // 报价精度：与 getPricePrecision 对齐
+  resolveQuotePrecision(symbol, price) {
+    try { return this.getPricePrecision(symbol); } catch (_) { return 4; }
   },
 
   buildSyntheticDepthAnchor(symbol, type) {
@@ -3270,18 +4884,10 @@ Page({
   },
 
   resolveSyntheticDepthStep(symbol, price) {
-    const absPrice = Math.abs(price || 0) || 1;
-    if (symbol && /^[A-Z]{6}$/.test(symbol)) {
-      return absPrice >= 1 ? 0.0002 : 0.00002;
-    }
-    if (/XAU|XAG|XPT|XPD/i.test(symbol || '')) return 0.05;
-    if (/USOIL|UKOIL|XTI|XBR/i.test(symbol || '')) return 0.05;
-    if (absPrice >= 1000) return 0.5;
-    if (absPrice >= 100) return 0.1;
-    if (absPrice >= 10) return 0.01;
-    if (absPrice >= 1) return 0.001;
-    if (absPrice >= 0.1) return 0.0001;
-    return 0.00001;
+    // 使用最小跳动单位（tick）作为基础步长：金属/能源 0.01；欧系外汇 0.00001；JPY 报价 0.001
+    const digits = this.getPricePrecision(symbol);
+    const tick = Math.pow(10, -Math.max(0, digits));
+    return tick;
   },
 
   getSyntheticTrendBias(symbol) {
@@ -3368,8 +4974,19 @@ Page({
     const bulge = 1 + profile.bulgeStrength * Math.exp(-Math.pow((index - profile.bulgeCenter) / profile.bulgeWidth, 2));
     const taper = 1 + index * profile.taper;
     const breathing = 0.9 + (this.depthTemporalSeed(symbol, index * 11 + (side === 'ask' ? 5 : -5)) - 0.5) * 0.6;
-    const volume = base * decay * noise * wave * burst * bulge * taper * breathing * profile.sidePressure;
-    return Number(Math.max(volume, base * 0.12).toFixed(4));
+    let volume = base * decay * noise * wave * burst * bulge * taper * breathing * profile.sidePressure;
+    // 趋势偏置：上涨时买盘手数更大，下跌时卖盘手数更大
+    const trend = this.getSyntheticTrendBias(symbol);
+    if (trend > 0 && side === 'bid') volume *= (1.2 + Math.min(0.8, trend));
+    if (trend < 0 && side === 'ask') volume *= (1.2 + Math.min(0.8, -trend));
+    // 随机整数手数：FX 控制在 10~1000，其它品种按基线放大
+    const sym = String(symbol || '').toUpperCase();
+    const isFx = /^[A-Z]{6}$/.test(sym) && !/(XAU|XAG|XPT|XPD|USOIL|UKOIL|XTI|XBR)/.test(sym);
+    const minLots = isFx ? 10 : 1;
+    const maxLots = isFx ? 1000 : Math.max(50, Math.round(base * 3));
+    const seed = this.depthRandom(symbol, index, `${side}-lots`);
+    const lots = Math.max(minLots, Math.min(maxLots, Math.round(volume * (0.6 + seed))));
+    return lots;
   },
 
   depthTemporalSeed(symbol, index) {
@@ -3385,9 +5002,11 @@ Page({
 
   estimateSyntheticVolumeBaseline(symbol) {
     if (!symbol) return 10;
-    if (/^[A-Z]{6}$/.test(symbol)) return 100000;
-    if (/XAU|XAG/i.test(symbol)) return 100;
-    if (/USOIL|UKOIL|XTI|XBR/i.test(symbol)) return 1000;
+    const sym = String(symbol || '').toUpperCase();
+    if (/^(EURUSD|EURGBP)$/.test(sym)) return 220;
+    if (/^[A-Z]{6}$/.test(sym) && !/(XAU|XAG|XPT|XPD|USOIL|UKOIL|XTI|XBR)/.test(sym)) return 150;
+    if (/XAU|XAG/i.test(sym)) return 100;
+    if (/USOIL|UKOIL|XTI|XBR/i.test(sym)) return 1000;
     return 50;
   },
 
@@ -3619,7 +5238,24 @@ Page({
     try {
       const type = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.type;
       if (!type) return;
+      
+      console.log('[switchTradeTab] 用户切换 Trades 面板:', type);
+      
+      // 保存当前面板到全局状态
+      this.setData({ activeTradeTab: type });
+      
+      // 保存到路由状态
+      const currentState = loadRouteState() || {};
+      saveRouteState({
+        ...currentState,
+        page: 'trades',
+        tradesPanel: type
+      });
+      
+      // 调用统一入口 handleTab3Click，传递 type 而不是原始事件对象
+      this.handleTab3Click({ type: type });
 
+      // 原有 UI 切换逻辑保留（仅处理面板动画）
       // 更新 Tab 激活状态
       const tabs = document.querySelectorAll('.trade-tab');
       tabs.forEach(t => t.classList.toggle('active', t.dataset.type === type));
@@ -3705,80 +5341,22 @@ Page({
       // 切换后轻微延迟刷新订单簿布局（与上面 rAF 刷新互补）
       setTimeout(() => { try { this.updateOrderbookRows(); } catch (_) {} }, 120);
 
-
-      // 主面板切换后刷新子面板高度（折叠非激活 + 只测量激活）
-      // setTimeout(() => {
-      //   try {
-      //     // 清空所有子面板容器的缓存高度，避免旧高度占位
-      //     const allSubContainers = document.querySelectorAll('.trade-subpanel-swiper');
-      //     allSubContainers.forEach(c => {
-      //       delete c.dataset.positionHeight;
-      //     });
-
-      //     // 折叠非激活主 slide 的子面板，避免占位造成空白，并加折叠锁标记
-      //     const otherIndex = targetIndex === 0 ? 1 : 0;
-      //     const otherSlide = slides[otherIndex];
-      //     if (otherSlide) {
-      //       const otherSubContainer = otherSlide.querySelector('.trade-subpanel-swiper');
-      //       if (otherSubContainer) {
-      //         otherSubContainer.style.transition = '';
-      //         otherSubContainer.style.height = '0px';
-      //         otherSubContainer.dataset.collapsed = '1';
-      //       }
-      //     }
-
-      //     // 仅为激活主 slide 测量并设置子面板高度
-      //     requestAnimationFrame(() => {
-      //       const targetSlide = slides[targetIndex];
-      //       if (!targetSlide) return;
-
-      //       const subContainer = targetSlide.querySelector('.trade-subpanel-swiper');
-      //       if (!subContainer) return;
-      //       // 解锁激活容器
-      //       delete subContainer.dataset.collapsed;
-
-      //       const subSlides = subContainer.querySelectorAll('.swiper-slide');
-      //       const activeSubSlide = Array.from(subSlides).find(s => {
-      //         const btn = targetSlide.querySelector('.trade-subtabs .subtab.active');
-      //         return btn && s.dataset && s.dataset.panel === btn.dataset.panel;
-      //       });
-
-      //       if (activeSubSlide) {
-      //         const targetHeight = (this.measureSubpanelHeight && this.measureSubpanelHeight(activeSubSlide))
-      //           || activeSubSlide.scrollHeight || activeSubSlide.offsetHeight;
-      //         if (targetHeight) {
-      //           subContainer.style.transition = 'height 0.35s cubic-bezier(.25,.8,.25,1)';
-      //           subContainer.style.height = targetHeight + 'px';
-      //         }
-      //       }
-      //     });
-      //   } catch (err) { console.warn('refresh subpanel height after main tab switch failed', err); }
-      // }, 200);
-
-      
-      //获取当前容器
-      // const container = tradeContent.querySelector('#leveraged1');
-      // const type2 = type === 'leveraged' ? 'capital' : 'leveraged';
-      //获取另一个容器
-      // const container2 = tradeContent.querySelector('.trade-subpanel-swiper[data-subpanel="'+ type2 +'"]');
-
-      // 获取当前容器高度
-      // const currentHeight = container.offsetHeight;
-// if(targetIndex == 0){
-      // 锁定当前高度，准备过渡
-      // container.style.height = '60px';
-// }
-
-
-// 原始程序
+      // 【已废弃】原有接口调用逻辑已迁移到 handleTab3Click
+      // 测试通过后可删除以下注释代码
+      /*
       const symbol = this._activeSymbol || this._defaultSymbol;
       if (symbol) {
         if (type === 'leveraged') {
           this.fetchTradeAvailable && this.fetchTradeAvailable(1, symbol).then(() => { this.updateTradeMetricsUI && this.updateTradeMetricsUI('leveraged'); this.refreshAvailableLimitsForAll && this.refreshAvailableLimitsForAll(); });
+          // 切换到 leveraged 后刷新资金信息（detailsWalletType=1）
+          try { this.fetchFundsOverview && this.fetchFundsOverview({ force: true, detailsWalletType: 1 }); } catch (_) {}
         } else {
           this.fetchTradeAvailable && this.fetchTradeAvailable(0, symbol).then(() => { this.updateTradeMetricsUI && this.updateTradeMetricsUI('capital'); this.refreshAvailableLimitsForAll && this.refreshAvailableLimitsForAll(); });
+          // 切换到 capital 后刷新资金信息（detailsWalletType=0）
+          try { this.fetchFundsOverview && this.fetchFundsOverview({ force: true, detailsWalletType: 0 }); } catch (_) {}
         }
       }
+      */
     } catch (err) {
       console.warn('switchTradeTab slide failed', err);
     }
@@ -3837,7 +5415,7 @@ Page({
       }
 
       // 锁定当前高度，准备过渡
-      container.style.height = currentHeight + 'px';
+      container.style.height = (currentHeight + 15) + 'px';
 
       requestAnimationFrame(() => {
         const translate = -(idx * perSlidePercent);
@@ -3850,7 +5428,7 @@ Page({
           if (targetSlide) {
             const targetHeight = (this.measureSubpanelHeight && this.measureSubpanelHeight(targetSlide)) || targetSlide.scrollHeight || targetSlide.offsetHeight;
             if (targetHeight) {
-              container.style.height = targetHeight + 'px';
+              container.style.height = (targetHeight + 15) + 'px';
             }
           }
         });
@@ -3894,7 +5472,7 @@ Page({
         // 设置初始高度
         const h = (this.measureSubpanelHeight && this.measureSubpanelHeight(activeSlide)) || activeSlide.scrollHeight || activeSlide.offsetHeight;
         if (!h) return;
-        container.style.height = h + 'px';
+        container.style.height = (h + 15) + 'px';
         // 同步指示器初始状态
         const tradeContent = container.closest('.trade-content');
         const idx = Array.from(slides).indexOf(activeSlide);
@@ -4024,8 +5602,8 @@ Page({
       if (/^volume/i.test(targetKey) && quoteVal > 0) {
         const maxVol = available / quoteVal; // Buyable = Available / Quote
         if (next > maxVol) {
+          // 静默限制：达到最大可买数量时不弹窗，仅截断
           next = maxVol;
-          try { (window.ShowToast || console.log)('已达到最大可买数量'); } catch (_) {}
         }
       }
       
@@ -4101,7 +5679,373 @@ Page({
     if (panel && this.refreshAvailableAndLimits) this.refreshAvailableAndLimits(panel);
   },
 
-  onBuy() { try { (window.ShowToast || console.log)('Order submitted (mock)'); } catch (_) { } },
+  onBuy(e) {
+    try {
+      console.info('[onBuy] click received');
+      // 防重复提交：如果正在提交中，直接返回
+      if (this._submittingOrder) {
+        console.warn('[onBuy] Already submitting, ignore duplicate click');
+        return;
+      }
+
+      // 1. 获取点击的按钮元素及其所在面板
+      const btn = e && e.currentTarget;
+      if (!btn) return;
+      const panel = btn.closest('.order-panel');
+      if (!panel) return;
+
+      // 2. 判断当前是 Capital 还是 Leveraged
+      const tradeContent = panel.closest('.trade-content');
+      const isLeveraged = tradeContent && tradeContent.classList.contains('trade-leveraged');
+      const detailsWalletType = isLeveraged ? 1 : 0;
+
+      // 3. 获取多空方向
+      const segBtn = panel.querySelector('.order-segment .seg-btn.active');
+      const side = segBtn && segBtn.dataset && segBtn.dataset.side;
+      const directionTemp = side === 'short' ? 'sell' : 'buy';
+
+      // 4. 获取订单类型（Market/Limit/Stop）
+      const typeBtn = panel.querySelector('.order-type .type-btn');
+      const orderTypeValue = typeBtn && typeBtn.dataset && typeBtn.dataset.value;
+      let tradeType = 0; // 默认市价单
+      if (orderTypeValue === 'limit') tradeType = 1;
+      else if (orderTypeValue === 'stop') tradeType = 2;
+
+      // 5. 获取品种 itemId
+      const itemId = this._activeSymbol || this._defaultSymbol || 'EURUSD';
+
+      // 6. 获取开仓价格（Quote）
+      const quoteField = isLeveraged 
+        ? panel.querySelector('.floating-field[data-field="quoteL"] input.num')
+        : panel.querySelector('.floating-field[data-field="quote"] input.num');
+      const openPrice = quoteField ? parseFloat(quoteField.value || '0') || 0 : 0;
+
+      // 7. 获取数量（Volume）
+      const volumeField = isLeveraged
+        ? panel.querySelector('.floating-field[data-field="volumeL"] input.num')
+        : panel.querySelector('.floating-field[data-field="volume"] input.num');
+      const tradeVolume = volumeField ? parseFloat(volumeField.value || '0') || 0 : 0;
+
+      // 8. 获取止盈止损（TP/SL）
+      const tpField = isLeveraged
+        ? panel.querySelector('.floating-field[data-field="tpL"] input.num')
+        : panel.querySelector('.floating-field[data-field="tp"] input.num');
+      const slField = isLeveraged
+        ? panel.querySelector('.floating-field[data-field="slL"] input.num')
+        : panel.querySelector('.floating-field[data-field="sl"] input.num');
+      const takeProfit = tpField ? parseFloat(tpField.value || '0') || 0 : 0;
+      const stopLoss = slField ? parseFloat(slField.value || '0') || 0 : 0;
+
+      // 9. 获取点差（Spread - 总点差费用）
+      // takeSpread = 单位点差 × 数量，这是本次交易的佣金/手续费
+      // 后端存储到 i_trade_order.takeSpread，聚合到 i_positions.takeSpread
+      const spreadVal = this.getPanelSpread ? this.getPanelSpread(panel) : 0;
+      const takeSpread = Number.isFinite(spreadVal) && spreadVal > 0 ? spreadVal : 0;
+      
+      console.info('[onBuy] 点差计算:', {
+        baseSpread: this._orderbookBest && this._orderbookBest.spread,
+        volume: tradeVolume,
+        spreadTotal: spreadVal,
+        takeSpread
+      });
+
+      // 10. 获取交易倍率（仅 Leveraged 需要）
+      let tradeRate = 0;
+      if (isLeveraged) {
+        const modeGroup = document.querySelector('.leveraged-mode-tabs[data-mode-group="leveraged"]');
+        const activeMode = modeGroup && modeGroup.querySelector('.lev-mode-tab.active');
+        const modeValue = activeMode && activeMode.dataset && activeMode.dataset.mode;
+        if (modeValue === 'multiplier') {
+          const modeText = activeMode.textContent.trim();
+          const match = modeText.match(/(\d+)/);
+          tradeRate = match ? parseFloat(match[1]) : 20;
+        } else {
+          tradeRate = 1; // Full Position 或 Loan/Repay 模式默认 1
+        }
+
+        // 兜底：当“模式按钮仅展示不可点”时，仍然按倍率下单
+        // 如果当前为 full/loan 或未能解析到倍率，则尝试读取 multiplier 按钮上的数值
+        if (!Number.isFinite(tradeRate) || tradeRate <= 1) {
+          const leverBtn = modeGroup && modeGroup.querySelector('.lev-mode-tab[data-mode="multiplier"]');
+          const fromDataset = leverBtn && leverBtn.dataset && parseFloat(leverBtn.dataset.value || '0');
+          const fromText = (() => {
+            if (!leverBtn) return 0;
+            const t = leverBtn.textContent ? leverBtn.textContent.trim() : '';
+            const m = t.match(/(\d+)/);
+            return m ? parseFloat(m[1]) : 0;
+          })();
+          const fallback = Number.isFinite(fromDataset) && fromDataset > 1 ? fromDataset
+                           : (Number.isFinite(fromText) && fromText > 1 ? fromText : 0);
+          if (fallback > 1) {
+            tradeRate = fallback;
+            console.info('[onBuy] leverage fallback applied (display-only tabs):', tradeRate);
+          }
+        }
+      }
+
+      // 11. 订单状态：市价单直接进入持仓(1)，限价单/止损单先进等待(0)
+      const tradeStatus = tradeType === 0 ? 1 : 0;
+
+      // 12. 参数校验
+      if (!itemId || openPrice <= 0 || tradeVolume <= 0) {
+        const lang = (window.i18n && window.i18n.lang) || 'en-US';
+        const msg = lang === 'zh-CN' 
+          ? '请填写有效的价格和数量' 
+          : 'Please enter valid price and volume';
+        if (typeof window.ShowToast === 'function') {
+          window.ShowToast(msg, { icon: 'error' });
+        }
+        return;
+      }
+
+      // 13. 获取用户账号
+      const userAccount = this.resolveUserAccount();
+      if (!userAccount) {
+        const lang = (window.i18n && window.i18n.lang) || 'en-US';
+        const msg = lang === 'zh-CN' ? '请先登录' : 'Please login first';
+        if (typeof window.ShowToast === 'function') {
+          window.ShowToast(msg, { icon: 'error' });
+        }
+        return;
+      }
+
+      // 14. 构建请求参数
+      const params = {
+        userAccount,
+        itemId,
+        detailsWalletType,
+        directionTemp,
+        tradeType,
+        openPrice: openPrice.toFixed(8),
+        stopLoss: stopLoss.toFixed(8),
+        takeProfit: takeProfit.toFixed(8),
+        takeSpread: takeSpread.toFixed(8),
+        tradeVolume: tradeVolume.toFixed(8),
+        tradeRate: tradeRate.toFixed(2),
+        tradeStatus
+      };
+
+      // 15. 调用开仓接口 I00007
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      
+      // 设置提交锁，禁用按钮
+      this._submittingOrder = true;
+      console.info('[onBuy] start submitting params:', params);
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.pointerEvents = 'none';
+      }
+      
+      // 移除“提交订单中…”提示框：仅保留按钮禁用与结果底部弹窗
+
+      // 确保 superAPI 实例存在
+      if (!window.superAPI) {
+        try { 
+          window.superAPI = typeof window.createSuperAPI === 'function' ? window.createSuperAPI() : null; 
+        } catch (_) { }
+      }
+
+      console.info('[onBuy] superAPI available?', !!window.superAPI, typeof window.superAPI?.request);
+      if (window.superAPI && typeof window.superAPI.request === 'function') {
+        window.superAPI.request('I00007', params)
+          .then(resp => {
+            console.info('[onBuy] response:', resp);
+            // 解除提交锁，恢复按钮
+            this._submittingOrder = false;
+            if (btn) {
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              btn.style.pointerEvents = 'auto';
+            }
+            
+            // 无需隐藏 loading（已移除提交提示框）
+            
+            const ok = resp && (resp.code === 200 || resp.code === 2000 || resp.status === 1);
+            if (ok) {
+              const successMsg = lang === 'zh-CN' ? '开仓成功' : 'Position Opened Successfully';
+              if (typeof this.showOrderAlert === 'function') {
+                this.showOrderAlert('success', successMsg);
+              }
+
+              // 缓存本次开仓关键信息，用于后续补全 position 卡片缺失字段
+              try {
+                const retOutTradeNo = (resp && resp.outTradeNo) || (resp && resp.data && resp.data.outTradeNo) || '';
+                if (retOutTradeNo) {
+                  if (!this._recentOpenOrders) this._recentOpenOrders = {};
+                  this._recentOpenOrders[retOutTradeNo] = {
+                    outTradeNo: retOutTradeNo,
+                    itemId,
+                    directionTemp,
+                    tradeVolume,
+                    openPrice,
+                    takeSpread,
+                    tradeType,
+                    detailsWalletType,
+                    cachedAt: Date.now()
+                  };
+                }
+              } catch (eCache) { console.warn('cache recent open order failed', eCache); }
+              
+              // 直接使用 I00007 返回的最新数据更新 UI
+              const scopeKey = isLeveraged ? 'leveraged' : 'capital';
+              try {
+                // 兼容后端返回结构：既支持 resp.data，也支持扁平 resp
+                const data = (resp && (resp.data || resp)) || {};
+                if (data.nowCommission || data.position) {
+                  console.log('[onBuy] Using I00007 response data directly:', data);
+                  
+                  // 更新内部状态
+                  if (!this._pending) this._pending = {};
+                  if (!this._positions) this._positions = {};
+                  
+                  this._pending[scopeKey] = Array.isArray(data.nowCommission) ? data.nowCommission : [];
+                  // 先保存，再做本地聚合，确保 UI 立刻合并
+                  const rawPos = Array.isArray(data.position) ? data.position : [];
+                  this._positions[scopeKey] = (typeof this.aggregatePositions === 'function') ? this.aggregatePositions(rawPos) : rawPos;
+                  
+                  // 更新可用余额（按账户作用域写入，供 metrics 组件读取）
+                  if (typeof data.available === 'number') {
+                    if (isLeveraged) this._availableLeveraged = Number(data.available);
+                    else this._availableCapital = Number(data.available);
+                    this.updateTradeMetricsUI && this.updateTradeMetricsUI(scopeKey);
+                  }
+                  
+                  // 更新子标签计数（以聚合后数据为准）
+                  try {
+                    if (!this._tradeCounts) {
+                      this._tradeCounts = { capital: { pending: 0, position: 0 }, leveraged: { pending: 0, position: 0 } };
+                    }
+                    this._tradeCounts[scopeKey] = {
+                      pending: Array.isArray(this._pending[scopeKey]) ? this._pending[scopeKey].length : 0,
+                      position: Array.isArray(this._positions[scopeKey]) ? this._positions[scopeKey].length : 0
+                    };
+                    this.updateTradeSubtabCounts && this.updateTradeSubtabCounts(scopeKey);
+                  } catch (_) {}
+                  
+                  // 立即渲染列表
+                  this.renderPendingList && this.renderPendingList(scopeKey);
+                  this.renderTradePositions && this.renderTradePositions(scopeKey);
+                  
+                  // 兜底：短延迟后做一次全量刷新，确保余额与聚合与服务端最终状态一致
+                  setTimeout(() => {
+                    try {
+                      this.fetchTradeAvailable && this.fetchTradeAvailable(detailsWalletType, itemId);
+                      this.handleTab3Click && this.handleTab3Click({ type: scopeKey, symbol: itemId, detailsWalletType });
+                    } catch (e2) { console.warn('post-buy refresh(I00009) failed', e2); }
+                  }, 500);
+                  
+                  // 市价单切换到 Position 子标签
+                  if (tradeType === 0) {
+                    const tradeSection = document.querySelector(isLeveraged ? '.trade-leveraged-section' : '.trade-capital-section');
+                    if (tradeSection) {
+                      const positionBtn = tradeSection.querySelector('.trade-subtabs .subtab[data-panel="position"]');
+                      if (positionBtn && typeof this.switchTradePanel === 'function') {
+                        this.switchTradePanel({ currentTarget: positionBtn });
+                      }
+                    }
+                  }
+                } else {
+                  // 降级：I00007 未返回列表数据，手动刷新 I00009（记录为 info，避免误报告警）
+                  console.info('[onBuy] I00007 response missing nowCommission/position, fallback to I00009');
+                  setTimeout(() => {
+                    try {
+                      if (tradeType === 0) {
+                        const tradeSection = document.querySelector(isLeveraged ? '.trade-leveraged-section' : '.trade-capital-section');
+                        if (tradeSection) {
+                          const positionBtn = tradeSection.querySelector('.trade-subtabs .subtab[data-panel="position"]');
+                          if (positionBtn && typeof this.switchTradePanel === 'function') {
+                            this.switchTradePanel({ currentTarget: positionBtn });
+                          }
+                        }
+                      }
+                      this.fetchTradeAvailable && this.fetchTradeAvailable(detailsWalletType, itemId);
+                      this.updateTradeMetricsUI && this.updateTradeMetricsUI(scopeKey);
+                      this.handleTab3Click({ type: scopeKey, symbol: itemId });
+                    } catch (e2) { 
+                      console.warn('refresh I00009 after buy failed', e2); 
+                    }
+                  }, 800);
+                }
+              } catch (e1) {
+                console.warn('[onBuy] Failed to process I00007 response:', e1);
+              }
+              // 成功后重置当前表单（数量/总金额/进度条归位）
+              try { this.resetOrderPanel && this.resetOrderPanel(panel); } catch (_) {}
+            } else {
+              const errMsg = (resp && resp.message) || (lang === 'zh-CN' ? '余额不足' : 'Insufficient balance');
+              if (typeof this.showOrderAlert === 'function') {
+                this.showOrderAlert('error', errMsg);
+              }
+            }
+          })
+          .catch(err => {
+            console.warn('onBuy API call failed', err);
+            console.warn('onBuy params on failure:', params);
+            
+            // 解除提交锁，恢复按钮
+            this._submittingOrder = false;
+            if (btn) {
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              btn.style.pointerEvents = 'auto';
+            }
+            
+            // 无需隐藏 loading（已移除提交提示框）
+            
+            // 根据错误类型显示不同提示
+            let errMsg = lang === 'zh-CN' ? '网络错误，请重试' : 'Network error, please retry';
+            if (err && err.message) {
+              if (err.message.includes('429') || err.message.includes('Too Many Requests')) {
+                errMsg = lang === 'zh-CN' ? '请求过于频繁，请稍后再试' : 'Too many requests, please try again later';
+              } else if (err.message.includes('4001') || err.message.includes('Insufficient balance')) {
+                errMsg = lang === 'zh-CN' ? '余额不足' : 'Insufficient balance';
+              }
+            }
+            
+            if (typeof this.showOrderAlert === 'function') {
+              this.showOrderAlert('error', errMsg);
+            }
+          });
+      } else {
+        console.warn('superAPI not available, cannot submit order');
+        console.warn('createSuperAPI exists?', typeof window.createSuperAPI);
+        console.warn('current params:', params);
+        
+        // 解除提交锁，恢复按钮
+        this._submittingOrder = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
+        }
+        
+        // 无需隐藏 loading（已移除提交提示框）
+        const errMsg = lang === 'zh-CN' ? 'API 未就绪，请刷新页面' : 'API not ready, please refresh';
+        if (typeof this.showOrderAlert === 'function') {
+          this.showOrderAlert('error', errMsg);
+        }
+      }
+    } catch (err) {
+      console.warn('onBuy failed', err);
+      try { console.warn('onBuy error params:', params); } catch (_) {}
+      
+      // 确保异常时也解除提交锁
+      this._submittingOrder = false;
+      const btn = e && e.currentTarget;
+      if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+      }
+      
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const errMsg = lang === 'zh-CN' ? '订单提交异常' : 'Order submission error';
+      if (typeof this.showOrderAlert === 'function') {
+        this.showOrderAlert('error', errMsg);
+      }
+    }
+  },
 
   onSymbolSwitch() {
     try {
@@ -4112,35 +6056,56 @@ Page({
   },
 
   onOrderTypeSelect(e) {
-    this._sheetTrigger = e && e.currentTarget;
-    // 使用 i18n 文案构建选项
+    // 使用通用弹窗组件（Action Sheet）提供 市价/限价/止损 的选择
+    const trigger = e && e.currentTarget;
+    if (!trigger) return;
+    if (typeof this.openActionSheet !== 'function') {
+      // 兜底：在极端情况下保留原按钮循环切换，避免功能不可用
+      const t = (key, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(key, fallback) : fallback;
+      const orderLabels = {
+        market: t('webapp.trades.orderType.market', 'Market Order'),
+        limit: t('webapp.trades.orderType.limit', 'Limit Order'),
+        stop: t('webapp.trades.orderType.stop', 'Stop Order')
+      };
+      const seq = ['market', 'limit', 'stop'];
+      const cur = trigger.dataset && trigger.dataset.value ? trigger.dataset.value : 'market';
+      const next = seq[(seq.indexOf(cur) + 1) % seq.length];
+      trigger.dataset.value = next;
+      trigger.textContent = orderLabels[next] + ' ▾';
+      this.handleOrderTypeApplied(trigger, { value: next, label: orderLabels[next] });
+      return;
+    }
+
     const t = (key, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(key, fallback) : fallback;
+    const labels = {
+      market: t('webapp.trades.orderType.market', 'Market Order'),
+      limit: t('webapp.trades.orderType.limit', 'Limit Order'),
+      stop: t('webapp.trades.orderType.stop', 'Stop Order')
+    };
+    const cur = trigger.dataset && trigger.dataset.value ? trigger.dataset.value : 'market';
     const options = [
-      { value: 'market', label: t('webapp.trades.orderType.market', 'Market Order'), desc: t('webapp.trades.orderType.market.desc', 'Execute immediately at current market price') },
-      { value: 'limit', label: t('webapp.trades.orderType.limit', 'Limit Order'), desc: t('webapp.trades.orderType.limit.desc', 'Set a price; fills when reached') },
-      { value: 'stop', label: t('webapp.trades.orderType.stop', 'Stop Order'), desc: t('webapp.trades.orderType.stop.desc', 'Triggers into market order once price hits') }
+      { value: 'market', label: labels.market, desc: t('webapp.trades.orderType.market.desc', 'Execute immediately at current market price') },
+      { value: 'limit', label: labels.limit, desc: t('webapp.trades.orderType.limit.desc', 'Set a price; fills when reached') },
+      { value: 'stop', label: labels.stop, desc: t('webapp.trades.orderType.stop.desc', 'Triggers into market order once price hits') }
     ];
+
     this.openActionSheet({
       mode: 'menu',
-      theme: 'light', // 改为与 Markets 相同的浅色主题
+      theme: 'light',
       titleKey: 'webapp.trades.orderTypeSheet.title',
       subtitleKey: 'webapp.trades.orderTypeSheet.subtitle',
-      options,
+      // 保底标题（若无 i18n 配置时）
+      title: t('webapp.trades.orderType.title', 'Select Order Type'),
       hideActions: true,
-      onSelect: (option) => {
-        if (this._sheetTrigger) {
-          this._sheetTrigger.textContent = option.label + ' ▾';
-          this._sheetTrigger.dataset.value = option.value;
-          this.handleOrderTypeApplied(this._sheetTrigger, option);
-        }
-        const lang = (window.i18n && window.i18n.lang) || 'en-US';
-        const msg = lang === 'zh-CN' ? `已切换为 ${option.label}` : `Switched to ${option.label}`;
-        try {
-          if (typeof window.ShowToast === 'function') {
-            window.ShowToast(msg, { icon: 'success' });
-          } else {
-          }
-        } catch (_) { }
+      options,
+      selected: cur,
+      onSelect: (selection) => {
+        if (!selection || !selection.value) return;
+        const val = selection.value;
+        trigger.dataset.value = val;
+        trigger.textContent = (labels[val] || val) + ' ▾';
+        this.handleOrderTypeApplied(trigger, { value: val, label: labels[val] || val });
+        // 不弹 Toast，按新规范保持安静切换
       }
     });
   },
@@ -4233,10 +6198,16 @@ Page({
       track.addEventListener('pointerdown', (ev) => {
         // 约束2: 如果 Available = 0, 滑动条不能拖动
         const panel = picker.closest('.order-panel');
-        const available = panel && this.getPanelAvailable ? this.getPanelAvailable(panel) : 0;
+        const availableRaw = panel && this.getPanelAvailable ? this.getPanelAvailable(panel) : 0;
+        const quoteInput = panel ? panel.querySelector('.floating-field[data-field^="quote"] input.num') : null;
+        const quoteVal = quoteInput ? (parseFloat(quoteInput.value || '0') || 0) : 0;
         const maxVolume = this.getRangeMax(picker, 'volume');
-        if (available <= 0 || maxVolume <= 0) {
-          try { (window.ShowToast || console.log)('可用余额为0,无法操作'); } catch (_) {}
+        let blockedReason = '';
+        if (availableRaw <= 0) blockedReason = '可用余额为0';
+        else if (quoteVal <= 0) blockedReason = '报价未就绪';
+        else if (maxVolume <= 0) blockedReason = '当前可买数量为0';
+        if (blockedReason) {
+          try { (window.ShowToast || console.log)(blockedReason + ',无法操作'); } catch (_) {}
           return; // 禁止拖动
         }
         
@@ -4268,10 +6239,16 @@ Page({
       mark.addEventListener('click', () => {
         // 约束2: 如果 Available = 0, 标记按钮也不能点击
         const panel = picker.closest('.order-panel');
-        const available = panel && this.getPanelAvailable ? this.getPanelAvailable(panel) : 0;
+        const availableRaw = panel && this.getPanelAvailable ? this.getPanelAvailable(panel) : 0;
+        const quoteInput = panel ? panel.querySelector('.floating-field[data-field^="quote"] input.num') : null;
+        const quoteVal = quoteInput ? (parseFloat(quoteInput.value || '0') || 0) : 0;
         const maxVolume = this.getRangeMax(picker, 'volume');
-        if (available <= 0 || maxVolume <= 0) {
-          try { (window.ShowToast || console.log)('可用余额为0,无法操作'); } catch (_) {}
+        let blockedReason = '';
+        if (availableRaw <= 0) blockedReason = '可用余额为0';
+        else if (quoteVal <= 0) blockedReason = '报价未就绪';
+        else if (maxVolume <= 0) blockedReason = '当前可买数量为0';
+        if (blockedReason) {
+          try { (window.ShowToast || console.log)(blockedReason + ',无法操作'); } catch (_) {}
           return;
         }
         const val = Number(mark.dataset.value || 0);
@@ -4409,6 +6386,14 @@ Page({
           this._floatingDirty = false;
         }
         this.refreshSpreadMetrics(picker.closest('.order-panel'));
+        // 百分比滑动后刷新指标（可用/可买）但避免回调改变数量，直接更新 UI
+        try {
+          if (panel) {
+            const typeBtn = panel.querySelector('.order-type .type-btn');
+            const scopeType = typeBtn && typeBtn.dataset && typeBtn.dataset.form === 'leveraged' ? 'leveraged' : 'capital';
+            this.updateTradeMetricsUI && this.updateTradeMetricsUI(scopeType);
+          }
+        } catch (e) { console.warn('update metrics after range percent failed', e); }
         requestAnimationFrame(() => { this._rangeLock = false; });
       }
     } catch (e) {
@@ -4424,6 +6409,33 @@ Page({
     } catch (e) {
       console.warn('refreshRangePickers failed', e);
     }
+  },
+
+  // 成功下单后，重置当前面板的数量、总金额与进度条到初始状态
+  resetOrderPanel(panel){
+    try{
+      if(!panel) return;
+      // 1) 重置数量与总金额输入框
+      const inputs = panel.querySelectorAll('.floating-field[data-field^="volume"] input.num, .floating-field[data-field^="lastPrice"] input.num');
+      inputs.forEach(inp=>{
+        const field = (inp.closest('.floating-field')?.dataset?.field || '').toLowerCase();
+        if(field.startsWith('lastprice')){
+          inp.value = '0.00';
+        }else{
+          inp.value = '0.000000';
+        }
+      });
+      // 2) 将进度条归零（根据表单类型定位对应的 allocation-picker）
+      const typeBtn = panel.querySelector('.order-type .type-btn');
+      const pickerType = (typeBtn && typeBtn.dataset && typeBtn.dataset.form === 'leveraged') ? 'leveraged' : 'capital';
+      const picker = document.querySelector(`.allocation-picker[data-picker="${pickerType}"]`);
+      if (picker && typeof this.applyRangePercent === 'function') {
+        this.applyRangePercent(picker, 0, { deferFloating: false });
+      }
+      // 3) 刷新浮动标签与指标
+      this.refreshFloatingFields && this.refreshFloatingFields();
+      this.updateTradeMetricsUI && this.updateTradeMetricsUI(pickerType);
+    }catch(err){ console.warn('resetOrderPanel failed', err); }
   },
 
   initSLForms() {
@@ -4511,6 +6523,14 @@ Page({
             }
             
             this.refreshSpreadMetrics(panel || null);
+            // 键盘输入数量后更新指标显示
+            try {
+              if (panel) {
+                const typeBtn = panel.querySelector('.order-type .type-btn');
+                const scopeType = typeBtn && typeBtn.dataset && typeBtn.dataset.form === 'leveraged' ? 'leveraged' : 'capital';
+                this.updateTradeMetricsUI && this.updateTradeMetricsUI(scopeType);
+              }
+            } catch (e2) { console.warn('update metrics after volume input failed', e2); }
           });
         }
         // Quote 输入框监听:重新计算 buyable 和 data-max-volume
@@ -5021,6 +7041,12 @@ Page({
         } else {
           cancelBtn.textContent = config.cancelText || 'Cancel';
           try { cancelBtn.removeAttribute('data-i18n'); } catch (_) { }
+        }
+        // alert 模式下若未提供取消文案，则隐藏取消按钮，形成单按钮样式
+        if (mode === 'alert' && (!config.cancelText || config.cancelText === '')) {
+          cancelBtn.style.display = 'none';
+        } else {
+          cancelBtn.style.display = '';
         }
       }
 
@@ -5534,16 +7560,16 @@ Page({
           if (!sym) return;
           seen.add(sym);
           const bars = extractBars(entry);
-          if (!bars.length) {
-            finalizeSymbol(sym, false);
-            return;
-          }
+          
           let primed = false;
           try {
             if (window.MarketsStore && typeof window.MarketsStore.primeKlinesFromHttp === 'function') {
+              // 即使 bars 为空，也调用 Store 方法以确保品种被初始化
+              // Store 内部会判断空数据并保留之前的缓存
               window.MarketsStore.primeKlinesFromHttp(sym, bars, '1d');
-              // 利用日 K 一次性初始化交易日级别快照 (6.1~6.4)
-              if (typeof window.MarketsStore.primeDailySnapshotFromKlines === 'function') {
+              
+              // 只有在有数据时才更新日快照
+              if (bars.length && typeof window.MarketsStore.primeDailySnapshotFromKlines === 'function') {
                 window.MarketsStore.primeDailySnapshotFromKlines(sym, bars, null);
               }
               primed = true;
@@ -5551,9 +7577,13 @@ Page({
           } catch (storeErr) {
             console.warn('[primeDailyPrevClose] store prime failed', sym, storeErr);
           }
-          if (!primed) {
+          
+          // 有数据时才执行 fallback 逻辑
+          if (bars.length && !primed) {
             this.applyDailyBaselineFallback(sym, bars);
           }
+          
+          // 休市期间接口可能返回空数据，仍标记为成功以保留上次缓存
           finalizeSymbol(sym, true);
         });
         batch.forEach(sym => {
@@ -5612,6 +7642,9 @@ Page({
     try {
       if (this._marketsHealthTimer) return; // 已启动
       this._marketsLastQuoteAt = Date.now();
+      this._lastResubscribeAttempt = 0; // 上次重订阅时间
+      this._resubscribeCooldown = 120000; // 重订阅冷却期 120 秒，避免频繁重连
+      
       this._marketsHealthTimer = setInterval(() => {
         try {
           const now = Date.now();
@@ -5625,10 +7658,20 @@ Page({
             }
           }
           const staleMs = now - (this._marketsLastQuoteAt || 0);
-          if (staleMs > 15000) { // 15s 未收到增量视为异常
-            console.warn('[marketsHealth] 15s 无增量，触发重订阅 (staleMs=', staleMs, ')');
-            try { this.syncMarketsSubscriptions(); } catch (_) { }
+          
+          // 【关键修复】：15秒无增量时，不立即重订阅，先判断冷却期
+          if (staleMs > 15000) {
+            const timeSinceLastResubscribe = now - (this._lastResubscribeAttempt || 0);
+            if (timeSinceLastResubscribe > this._resubscribeCooldown) {
+              console.warn('[marketsHealth] 15s 无增量 + 已过冷却期，触发重订阅 (staleMs=', staleMs, ')');
+              this._lastResubscribeAttempt = now;
+              try { this.syncMarketsSubscriptions(); } catch (_) { }
+            } else {
+              // 在冷却期内，静默等待
+              console.log('[marketsHealth] 15s 无增量但在冷却期内，跳过重订阅 (剩余', Math.round((this._resubscribeCooldown - timeSinceLastResubscribe) / 1000), 's)');
+            }
           }
+          
           // 若超过 60s 无任何增量，可能休市：启动 HTTP K 线轮询降级
           if (staleMs > 60000) {
             if (!this._closedMarketPolling) {
@@ -5642,7 +7685,7 @@ Page({
             }
           }
         } catch (loopErr) { console.warn('[marketsHealth] loopErr', loopErr); }
-      }, 5000); // 每 5s 检查一次
+      }, 15000); // 【关键修复】：改为每 15s 检查一次，减少检查频率
     } catch (e) { console.warn('[marketsHealth] 启动失败', e); }
   },
 
@@ -5862,17 +7905,8 @@ Page({
   getPricePrecision(sym) {
     const symbol = (sym || '').toUpperCase();
     if (!symbol) return 4;
-    if (/^(XAU|XAG|XTI|XBR|XCU|XNI)/.test(symbol)) {
-      // 金属/能源类优先根据最近一次真实报价的小数位动态推断精度，最多保留 5 位
-      const cache = this._marketsLiveQuotes && this._marketsLiveQuotes[symbol];
-      if (cache && cache.raw && cache.raw.last != null) {
-        const dyn = this._detectDigitsFromValue(cache.raw.last, 5);
-        if (dyn > 0) return dyn;
-      }
-      if (cache && cache.last != null) {
-        const dyn2 = this._detectDigitsFromValue(cache.last, 5);
-        if (dyn2 > 0) return dyn2;
-      }
+    if (/XAU|XAG|XPT|XPD|XTI|XBR|XCU|XNI|USOIL|UKOIL/.test(symbol)) {
+      // 金属/能源：固定 2 位小数
       return 2;
     }
     if (/USDT$|USDC$/i.test(symbol)) return 4;
@@ -5929,13 +7963,11 @@ Page({
   },
 
   formatVolume(v) {
+    // 盘口手数统一展示为“手”，不使用“万/亿”，并取整数
     var num = Number(v);
     if (!isFinite(num) || num <= 0) return '--';
-    var abs = Math.abs(num);
-    if (abs >= 1e8) return (abs / 1e8).toFixed(2) + '亿';
-    if (abs >= 1e4) return (abs / 1e4).toFixed(2) + '万';
-    if (abs >= 1e3) return (abs / 1e3).toFixed(2) + 'K';
-    return abs.toFixed(2);
+    var lots = Math.max(1, Math.round(Math.abs(num)));
+    return String(lots);
   },
 
   // 从数值或字符串中推断小数位数，去掉尾随 0，并限制最大位数
@@ -5970,6 +8002,13 @@ Page({
       alertBox.dataset.status = config.status || '';
       const msgEl = alertBox.querySelector('.sheet-alert-message');
       if (msgEl) msgEl.textContent = config.message || '';
+      // 设置图标
+      const iconEl = alertBox.querySelector('.sheet-alert-icon-img');
+      if (iconEl) {
+        const base = '../../images/';
+        iconEl.src = (config.status === 'success') ? (base + 'successfully.png') : (base + 'err.png');
+        iconEl.alt = config.status === 'success' ? 'success' : 'error';
+      }
     } catch (e) {
       console.warn('renderSheetAlert failed', e);
     }
@@ -6045,121 +8084,500 @@ Page({
     this.hideActionSheet('confirm');
   },
 
-  // 初始化滑动删除功能
-  initSwipeToDelete() {
-    const items = document.querySelectorAll('.pending-item');
-    items.forEach(item => {
-      const row = item.querySelector('.pending-row');
-      const deleteBtn = item.querySelector('.pending-delete-btn');
-      if (!row || !deleteBtn) return;
-
-      let startX = 0;
-      let currentX = 0;
-      let isDragging = false;
-      let isOpen = false;
-
-      const handleTouchStart = (e) => {
-        startX = e.touches[0].clientX;
-        currentX = startX;
-        isDragging = true;
-        row.style.transition = 'none';
-      };
-
-      const handleTouchMove = (e) => {
-        if (!isDragging) return;
-        currentX = e.touches[0].clientX;
-        const diff = currentX - startX;
-
-        // 只允许向左滑动
-        if (diff < 0 && diff >= -80) {
-          e.preventDefault();
-          row.style.transform = `translateX(${diff}px)`;
-        } else if (diff > 0 && isOpen) {
-          // 如果已打开，允许向右滑动关闭
-          e.preventDefault();
-          const newPos = -80 + diff;
-          if (newPos <= 0) {
-            row.style.transform = `translateX(${newPos}px)`;
-          }
-        }
-      };
-
-      const handleTouchEnd = () => {
-        if (!isDragging) return;
-        isDragging = false;
-        row.style.transition = 'transform 0.3s ease';
-
-        const diff = currentX - startX;
-
-        // 判断是否应该打开或关闭
-        if (isOpen) {
-          // 已打开状态：向右滑动超过 40px 则关闭
-          if (diff > 40) {
-            row.style.transform = 'translateX(0)';
-            item.classList.remove('swipe-active');
-            isOpen = false;
-          } else {
-            row.style.transform = 'translateX(-80px)';
-          }
-        } else {
-          // 关闭状态：向左滑动超过 40px 则打开
-          if (diff < -40) {
-            row.style.transform = 'translateX(-80px)';
-            item.classList.add('swipe-active');
-            isOpen = true;
-            // 关闭其他打开的项
-            this.closeOtherSwipeItems(item);
-          } else {
-            row.style.transform = 'translateX(0)';
-          }
-        }
-      };
-
-      row.addEventListener('touchstart', handleTouchStart, { passive: true });
-      row.addEventListener('touchmove', handleTouchMove, { passive: false });
-      row.addEventListener('touchend', handleTouchEnd);
-
-      // 点击删除按钮
-      deleteBtn.addEventListener('click', () => {
-        this.deletePendingOrder({ currentTarget: item });
+  // 统一订单结果提示弹层（成功/失败），替代旧的弹窗/Toast
+  showOrderAlert(status = 'success', message = '') {
+    try {
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const normalizedMsg = message || (status === 'success'
+        ? (lang === 'zh-CN' ? '开仓成功' : 'Position Opened Successfully')
+        : (lang === 'zh-CN' ? '余额不足' : 'Insufficient balance'));
+      this.openActionSheet({
+        mode: 'alert',
+        theme: (status === 'success' ? 'success' : 'danger'),
+        status, // success|error
+        message: normalizedMsg,
+        hideActions: false,
+        confirmText: (lang === 'zh-CN' ? '确定' : 'Confirm'),
+        cancelText: '',
+        onConfirm: () => { this.hideActionSheet('confirm'); }
       });
-    });
+    } catch (e) {
+      console.warn('showOrderAlert failed', e);
+    }
   },
 
-  // 关闭其他已打开的滑动项
-  closeOtherSwipeItems(currentItem) {
-    const items = document.querySelectorAll('.pending-item');
-    items.forEach(item => {
-      if (item !== currentItem && item.classList.contains('swipe-active')) {
-        const row = item.querySelector('.pending-row');
-        if (row) {
-          row.style.transition = 'transform 0.3s ease';
-          row.style.transform = 'translateX(0)';
-          item.classList.remove('swipe-active');
+  // 初始化滑动删除功能（已移除，改为点击删除按钮）
+  initSwipeToDelete() {
+    // 不再需要滑动删除功能，删除按钮已在 buildPendingItem 中直接绑定
+  },
+
+  // 平仓单个持仓（调用后端平仓接口 I00008）
+  // 注意：聚合持仓架构中，outTradeNo 实际上是 pId（聚合持仓ID）。此处仅平仓该卡片对应的订单，避免误批量。
+  closePosition(e) {
+    try {
+      const btn = e && e.currentTarget;
+      if (!btn) return;
+      const outTradeNo = btn.dataset.outTradeNo;  // 实际上是 pId 或聚合持仓ID
+      const scope = btn.dataset.scope || 'capital';
+      const symbol = btn.dataset.symbol || this._activeSymbol || this._defaultSymbol || '';
+
+      // 获取方向信息（从卡片的 dataset 中读取）
+      let direction = btn.dataset.direction;
+      if (!direction) {
+        const card = btn.closest('.position-card');
+        if (card && card.dataset && card.dataset.direction) {
+          direction = card.dataset.direction;
         }
       }
-    });
+
+      const userAccount = this.resolveUserAccount();
+      if (!symbol || !userAccount) {
+        console.warn('[closePosition] missing symbol or userAccount');
+        return;
+      }
+      if (btn.dataset.closing === '1') {
+        console.warn('[closePosition] duplicate click ignored for', symbol);
+        return;
+      }
+
+      // 统一使用通用弹窗组件进行二次确认（单笔平仓）
+      if (!outTradeNo) {
+        console.warn('[closePosition] missing outTradeNo; abort');
+        return;
+      }
+      return this.confirmClosePosition(btn, { scope, symbol, direction, outTradeNo });
+      
+      // 获取当前市场价格作为平仓价
+      const currentPrice = this.getCurrentPrice(symbol);
+      if (!currentPrice || currentPrice <= 0) {
+        const errMsg = lang === 'zh-CN' ? '无法获取当前市场价格' : 'Failed to get current market price';
+        if (typeof window.ShowToast === 'function') window.ShowToast(errMsg, { icon: 'error' });
+        btn.dataset.closing = '0';
+        btn.disabled = false;
+        return;
+      }
+      
+      try {
+        const encryptKey = (sessionStorage && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k'])) || '';
+        if (!window.superAPI) {
+          window.superAPI = (typeof createSuperAPI === 'function') ? createSuperAPI(userAccount, encryptKey) : null;
+        } else {
+          if (!window.superAPI.userAccount && userAccount) window.superAPI.userAccount = userAccount;
+          if (!window.superAPI.encryptKey && encryptKey) window.superAPI.encryptKey = encryptKey;
+        }
+      } catch (eInit) {
+        console.warn('[closePosition] init superAPI failed', eInit);
+      }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[closePosition] superAPI unavailable');
+        btn.dataset.closing = '0';
+        btn.disabled = false;
+        return;
+      }
+      
+      // I00008 接口参数（聚合持仓模式，新签名）：
+      // - itemId：必传当前品种代码
+      // - pId：可为空/NULL，表示不按聚合ID限定（全平按品种与方向）
+      // - detailsWalletType：资金类型 0=资本 1=杠杆（由 scope 推断）
+      // - direction：可为空/NULL，表示该品种的所有方向；有值时仅平该方向
+      // - currentPrice：平仓价
+      // - tradeStatus=2：已平仓
+      const params = {
+        userAccount,
+        pId: null,
+        itemId: symbol,
+        detailsWalletType: scope === 'leveraged' ? 1 : 0,
+        direction: direction || null,
+        currentPrice: currentPrice,
+        tradeStatus: 2
+      };
+      
+      console.info('[closePosition] closing all positions for symbol:', symbol, 'params:', params);
+      
+      window.superAPI.request('I00008', params)
+        .then(resp => {
+          const success = resp && (resp.status === 1 || resp.code === 2000);
+          console.info('[closePosition] response=', resp);
+          if (success) {
+            const successMsg = lang === 'zh-CN' ? `${symbol} 持仓已平仓` : `${symbol} positions closed successfully`;
+            this.showOrderAlert('success', successMsg);
+            try { this.handleTab3Click({ type: scope, symbol }); } catch (e2) { console.warn('refresh after close failed', e2); }
+          } else {
+            let msg = (resp && (resp.message || resp.msg)) || (lang === 'zh-CN' ? '平仓失败' : 'Close position failed');
+            this.showOrderAlert('error', msg);
+          }
+        })
+        .catch(err => {
+          console.warn('[closePosition] I00008 failed', err);
+          const errMsg = lang === 'zh-CN' ? '平仓请求失败' : 'Close position request failed';
+          this.showOrderAlert('error', errMsg);
+        })
+        .finally(() => {
+          btn.dataset.closing = '0';
+          btn.disabled = false;
+        });
+    } catch (err) {
+      console.warn('[closePosition] failed', err);
+      const btn = e && e.currentTarget;
+      if (btn) {
+        btn.dataset.closing = '0';
+        btn.disabled = false;
+      }
+    }
   },
 
-  // 删除待处理订单
-  deletePendingOrder(e) {
-    const item = e.currentTarget.closest('.pending-item');
-    if (!item) return;
+  // 平仓确认弹窗（统一风格），确认后再执行实际平仓
+  confirmClosePosition(btn, ctx) {
+    try {
+      if (!btn || !ctx) return;
+      const { scope, symbol } = ctx;
+      let { direction, outTradeNo } = ctx; // outTradeNo 实际承载 pId（聚合持仓ID），允许为空表示全平该品种
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const directionLabel = direction === 'sell' || direction === 'short'
+        ? (lang === 'zh-CN' ? '做空' : 'Short')
+        : (lang === 'zh-CN' ? '做多' : 'Long');
+      const msg = lang === 'zh-CN'
+        ? `确认平仓 ${symbol} (${directionLabel}) 单笔持仓？`
+        : `Confirm closing single ${symbol} ${directionLabel} position?`;
 
-    const orderId = item.dataset.orderId;
+      // 打开浅色主题的 Alert 模式
+      if (typeof this.openActionSheet === 'function') {
+        this.openActionSheet({
+          mode: 'alert',
+          theme: 'light',
+          status: '',
+          message: msg,
+          hideActions: false,
+          confirmText: lang === 'zh-CN' ? '平仓' : 'Close',
+          cancelText: lang === 'zh-CN' ? '取消' : 'Cancel',
+          onConfirm: () => {
+            // 设置提交状态并执行实际平仓逻辑
+            btn.dataset.closing = '1';
+            btn.disabled = true;
+            this.executeClosePosition && this.executeClosePosition(btn, ctx);
+          },
+          onCancel: () => {
+            // 明确复位按钮样式与状态
+            btn.dataset.closing = '0';
+            btn.disabled = false;
+            this.hideActionSheet && this.hideActionSheet('cancel');
+          }
+        });
+      } else {
+        // 无弹窗组件时回退 confirm
+        if (confirm(msg)) {
+          btn.dataset.closing = '1';
+          btn.disabled = true;
+          this.executeClosePosition && this.executeClosePosition(btn, ctx);
+        } else {
+          btn.dataset.closing = '0';
+          btn.disabled = false;
+        }
+      }
+    } catch (err) {
+      console.warn('confirmClosePosition failed', err);
+    }
+  },
 
-    // 动画移除
-    item.style.transition = 'all 0.3s ease';
-    item.style.opacity = '0';
-    item.style.transform = 'translateX(-100%)';
+  // 实际调用 I00008 的执行体，供弹窗确认后调用
+  executeClosePosition(btn, ctx) {
+    try {
+      if (!btn || !ctx) return;
+      const { scope, symbol } = ctx;
+      let { direction, outTradeNo } = ctx;
+      const userAccount = this.resolveUserAccount();
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      if (!symbol || !userAccount) {
+        console.warn('[executeClosePosition] missing symbol or userAccount');
+        btn.dataset.closing = '0';
+        btn.disabled = false;
+        return;
+      }
 
-    setTimeout(() => {
-      item.remove();
-      // 这里应该调用 API 删除订单
+      // 获取当前市场价格作为平仓价
+      const currentPrice = this.getCurrentPrice(symbol);
+      if (!currentPrice || currentPrice <= 0) {
+        const errMsg = lang === 'zh-CN' ? '无法获取当前市场价格' : 'Failed to get current market price';
+        if (typeof window.ShowToast === 'function') window.ShowToast(errMsg, { icon: 'error' });
+        btn.dataset.closing = '0';
+        btn.disabled = false;
+        return;
+      }
+
       try {
-        (window.ShowToast || console.log)('Order cancelled');
-      } catch (_) { }
-    }, 300);
+        const encryptKey = (sessionStorage && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k'])) || '';
+        if (!window.superAPI) {
+          window.superAPI = (typeof createSuperAPI === 'function') ? createSuperAPI(userAccount, encryptKey) : null;
+        } else {
+          if (!window.superAPI.userAccount && userAccount) window.superAPI.userAccount = userAccount;
+          if (!window.superAPI.encryptKey && encryptKey) window.superAPI.encryptKey = encryptKey;
+        }
+      } catch (eInit) {
+        console.warn('[executeClosePosition] init superAPI failed', eInit);
+      }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[executeClosePosition] superAPI unavailable');
+        btn.dataset.closing = '0';
+        btn.disabled = false;
+        return;
+      }
+
+      const params = {
+        userAccount,
+        pId: outTradeNo || null,
+        itemId: symbol,
+        detailsWalletType: scope === 'leveraged' ? 1 : 0,
+        direction: direction || null,
+        currentPrice: currentPrice,
+        tradeStatus: 2
+      };
+      window.superAPI.request('I00008', params)
+        .then(resp => {
+          const success = resp && (resp.status === 1 || resp.code === 2000);
+          if (success) {
+            const successMsg = lang === 'zh-CN' ? `${symbol} 持仓已平仓` : `${symbol} positions closed successfully`;
+            this.showOrderAlert('success', successMsg);
+            try { this.handleTab3Click({ type: scope, symbol }); } catch (e2) { console.warn('refresh after close failed', e2); }
+          } else {
+            let msg = (resp && (resp.message || resp.msg)) || (lang === 'zh-CN' ? '平仓失败' : 'Close position failed');
+            this.showOrderAlert('error', msg);
+          }
+        })
+        .catch(err => {
+          console.warn('[executeClosePosition] I00008 failed', err);
+          const errMsg = lang === 'zh-CN' ? '平仓请求失败' : 'Close position request failed';
+          this.showOrderAlert('error', errMsg);
+        })
+        .finally(() => {
+          btn.dataset.closing = '0';
+          btn.disabled = false;
+        });
+    } catch (err) {
+      console.warn('executeClosePosition failed', err);
+      if (btn) { btn.dataset.closing = '0'; btn.disabled = false; }
+    }
+  },
+
+  // 一键平仓所有同产品持仓（批量调用 I00008）
+  closeAllPositions(scope) {
+    try {
+      const userAccount = this.resolveUserAccount();
+      if (!userAccount) {
+        console.warn('[closeAllPositions] userAccount missing');
+        return;
+      }
+      const list = document.querySelector(`.position-list[data-position-scope="${scope}"]`);
+      if (!list) return;
+      const cards = list.querySelectorAll('.position-card');
+      if (!cards.length) return;
+      const closeAllBtn = list.querySelector('.position-close-all-btn');
+
+      // 计算本产品 symbol（优先卡片 symbol，其次 activeSymbol）
+      let symbol = '';
+      for (const card of cards) {
+        const symEl = card.querySelector('.pos-symbol');
+        if (symEl && symEl.textContent) { symbol = symEl.textContent.trim().toUpperCase(); break; }
+      }
+      if (!symbol) symbol = (this._activeSymbol || this._defaultSymbol || '').toUpperCase();
+
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const msg = lang === 'zh-CN'
+        ? `确认平仓当前产品 ${symbol} 的所有持仓？`
+        : `Confirm closing ALL positions for ${symbol}?`;
+
+      // 统一使用通用弹窗组件
+      if (typeof this.openActionSheet === 'function') {
+        this.openActionSheet({
+          mode: 'alert',
+          theme: 'light',
+          status: '',
+          message: msg,
+          hideActions: false,
+          confirmText: lang === 'zh-CN' ? '全部平仓' : 'Close All',
+          cancelText: lang === 'zh-CN' ? '取消' : 'Cancel',
+          onConfirm: () => this.executeCloseAllPositions(scope, symbol, closeAllBtn),
+          onCancel: () => { if (closeAllBtn) { closeAllBtn.disabled = false; closeAllBtn.textContent = lang === 'zh-CN' ? '全部平仓' : 'Close All'; } this.hideActionSheet && this.hideActionSheet('cancel'); }
+        });
+        return;
+      }
+
+      // Fallback: 浏览器 confirm
+      if (confirm(msg)) {
+        this.executeCloseAllPositions(scope, symbol, closeAllBtn);
+      }
+    } catch (err) {
+      console.warn('[closeAllPositions] failed', err);
+    }
+  },
+
+  // 执行“该产品所有仓单”批量平仓
+  executeCloseAllPositions(scope, symbol, closeAllBtn) {
+    try {
+      const list = document.querySelector(`.position-list[data-position-scope="${scope}"]`);
+      const cards = list ? Array.from(list.querySelectorAll('.position-card')) : [];
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      if (!cards.length) return;
+      if (closeAllBtn) { closeAllBtn.disabled = true; closeAllBtn.textContent = lang === 'zh-CN' ? '平仓中...' : 'Closing...'; }
+
+      const userAccount = this.resolveUserAccount();
+      try {
+        const encryptKey = (sessionStorage && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k'])) || '';
+        if (!window.superAPI) {
+          window.superAPI = (typeof createSuperAPI === 'function') ? createSuperAPI(userAccount, encryptKey) : null;
+        } else {
+          if (!window.superAPI.userAccount && userAccount) window.superAPI.userAccount = userAccount;
+          if (!window.superAPI.encryptKey && encryptKey) window.superAPI.encryptKey = encryptKey;
+        }
+      } catch (eInit) { console.warn('[executeCloseAllPositions] init superAPI failed', eInit); }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[executeCloseAllPositions] superAPI unavailable');
+        const errMsg = lang === 'zh-CN' ? 'API 初始化失败' : 'API initialization failed';
+        this.showOrderAlert('error', errMsg);
+        if (closeAllBtn) { closeAllBtn.disabled = false; closeAllBtn.textContent = lang === 'zh-CN' ? '全部平仓' : 'Close All'; }
+        return;
+      }
+
+      // 仅筛选当前产品 symbol 的卡片，并分方向构造请求
+      const positions = [];
+      cards.forEach(card => {
+        const symText = (card.querySelector('.pos-symbol')?.textContent || '').trim().toUpperCase();
+        if (!symText || symText !== symbol.toUpperCase()) return;
+        const closeBtn = card.querySelector('.position-card-close-btn');
+        const direction = closeBtn?.dataset?.direction || card.dataset?.direction || null; // 批量平仓时允许为 NULL 表示全方向
+        const currentPrice = this.getCurrentPrice(symbol);
+        if (currentPrice > 0) {
+          positions.push({
+            userAccount,
+            pId: null,
+            itemId: symbol,
+            detailsWalletType: scope === 'leveraged' ? 1 : 0,
+            direction,
+            currentPrice,
+            tradeStatus: 2
+          });
+        }
+      });
+
+      if (!positions.length) {
+        const errMsg = lang === 'zh-CN' ? '没有可平的持仓' : 'No positions to close';
+        this.showOrderAlert('error', errMsg);
+        if (closeAllBtn) { closeAllBtn.disabled = false; closeAllBtn.textContent = lang === 'zh-CN' ? '全部平仓' : 'Close All'; }
+        return;
+      }
+
+      console.info('[executeCloseAllPositions] closing positions for', symbol, positions);
+      const promises = positions.map(pos => window.superAPI.request('I00008', pos));
+      Promise.allSettled(promises)
+        .then(results => {
+          const successCount = results.filter(r => r.status === 'fulfilled' && (r.value?.status === 1 || r.value?.code === 2000)).length;
+          const msg = lang === 'zh-CN' ? `已平仓 ${successCount}/${positions.length} 个持仓` : `Closed ${successCount}/${positions.length} positions`;
+          const status = successCount === positions.length ? 'success' : (successCount > 0 ? 'success' : 'error');
+          this.showOrderAlert(status, msg);
+          try { this.handleTab3Click({ type: scope, symbol }); } catch (e2) { console.warn('refresh after close all failed', e2); }
+        })
+        .catch(err => {
+          console.warn('[executeCloseAllPositions] failed', err);
+          const errMsg = lang === 'zh-CN' ? '批量平仓失败' : 'Close all failed';
+          this.showOrderAlert('error', errMsg);
+        })
+        .finally(() => {
+          if (closeAllBtn) { closeAllBtn.disabled = false; closeAllBtn.textContent = lang === 'zh-CN' ? '全部平仓' : 'Close All'; }
+        });
+    } catch (err) {
+      console.warn('executeCloseAllPositions outer failed', err);
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      if (closeAllBtn) { closeAllBtn.disabled = false; closeAllBtn.textContent = lang === 'zh-CN' ? '全部平仓' : 'Close All'; }
+    }
+  },
+
+  // 删除待处理订单（调用后端撤单接口 I00018）
+  deletePendingOrder(e) {
+    try {
+      const holder = e && e.currentTarget ? (e.currentTarget.closest && e.currentTarget.closest('.pending-item')) || e.currentTarget : null;
+      if (!holder) return;
+      const outTradeNo = holder.dataset.orderId || holder.dataset.outTradeNo;
+      const scope = holder.dataset.scope || 'capital';
+      const symbol = holder.dataset.symbol || this._activeSymbol || this._defaultSymbol || '';
+      const userAccount = this.resolveUserAccount();
+      if (!outTradeNo || !userAccount) {
+        console.warn('deletePendingOrder: missing outTradeNo or userAccount');
+        return;
+      }
+
+      // 防重复：同一个挂单快速多次点击撤单 -> 429 或并发状态错乱
+      if (holder.dataset.cancelling === '1') {
+        console.warn('[deletePendingOrder] duplicate click ignored for', outTradeNo);
+        return;
+      }
+      holder.dataset.cancelling = '1';
+
+      // 确保 superAPI 初始化携带 userAccount + encryptKey,否则可能导致 401
+      try {
+        const encryptKey = (sessionStorage && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k'])) || '';
+        if (!window.superAPI) {
+          window.superAPI = (typeof createSuperAPI === 'function') ? createSuperAPI(userAccount, encryptKey) : null;
+        } else {
+          // 运行时补齐缺失字段
+          if (!window.superAPI.userAccount && userAccount) window.superAPI.userAccount = userAccount;
+          if (!window.superAPI.encryptKey && encryptKey) window.superAPI.encryptKey = encryptKey;
+        }
+      } catch (eInit) {
+        console.warn('[deletePendingOrder] init superAPI failed', eInit);
+      }
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[deletePendingOrder] superAPI unavailable (no request function)');
+        delete holder.dataset.cancelling;
+        return;
+      }
+      console.info('[deletePendingOrder] using userAccount=', userAccount, 'outTradeNo=', outTradeNo);
+
+      // 先乐观动画，再刷新数据
+      const animateRemove = () => {
+        try {
+          holder.style.transition = 'all 0.3s ease';
+          holder.style.opacity = '0';
+          holder.style.transform = 'translateX(-100%)';
+          setTimeout(() => { try { holder.remove(); } catch (_) {} }, 300);
+        } catch (_) {}
+      };
+
+      window.superAPI.request('I00018', { userAccount, outTradeNo })
+        .then(resp => {
+          const statusRaw = resp && (resp.status != null ? resp.status : resp.code);
+          const success = resp && (resp.status === 1 || resp.code === 2000);
+          console.info('[deletePendingOrder] response=', resp);
+          if (success) {
+            animateRemove();
+            if (typeof window.ShowToast === 'function') window.ShowToast('Cancelled'); else console.log('Cancelled');
+            try { this.handleTab3Click({ type: scope, symbol }); } catch (e2) { console.warn('refresh after cancel failed', e2); }
+          } else {
+            // 失败分类：已成交/已撤 -> 不可取消；429 -> 操作过快；其他 -> 通用失败
+            let msg = (resp && (resp.message || resp.msg)) || 'Cancel failed';
+            if (/not cancelable/i.test(msg) || /not cancelable/i.test(String(resp && resp.code))) {
+              msg = '订单已成交或已撤销，无法取消';
+              // 若列表中已经不存在该挂单，说明已被撮合或后端已处理，保持消失状态不做回滚
+            }
+            if (resp && (resp.code === 429 || /Too Many Requests/i.test(msg))) {
+              msg = '操作过快，请稍后再试';
+            }
+            if (typeof window.ShowToast === 'function') window.ShowToast(msg, { icon: 'warning' }); else console.warn(msg);
+            // 失败时不强制刷新列表，避免把已消失的挂单误判为成功撤单
+          }
+        })
+        .catch(err => {
+          console.warn('[deletePendingOrder] I00018 failed', err);
+          let msg = 'Cancel failed';
+          if (err && /429/.test(err.message)) msg = '操作过快，请稍后再试';
+          if (typeof window.ShowToast === 'function') window.ShowToast(msg, { icon: 'warning' });
+        })
+        .finally(() => {
+          delete holder.dataset.cancelling;
+        });
+    } catch (err) {
+      console.warn('deletePendingOrder failed', err);
+      const holder = e && e.currentTarget ? (e.currentTarget.closest && e.currentTarget.closest('.pending-item')) || e.currentTarget : null;
+      if (holder) delete holder.dataset.cancelling;
+    }
   },
 
   onUnload() {

@@ -329,17 +329,20 @@ Page({
     var p = hex_md5_utf($("#u").val() + $("#p").val()).toUpperCase()
 
     if (localStorage["apiKey"] && this.data.keyStatus) {
-      const decryptedK = await Decrypt(
-        localStorage["apiKey"],
-        p,
-        p.substring(0, 12)
-      );
-      sessionStorage.setItem("k", decryptedK);
-      if (sessionStorage["k"] == "") {
-        app.showToast(
-          window.i18n ? window.i18n.t('login.toast.passwordError') : "密码错误",
-          window.i18n ? window.i18n.t('login.toast.reEnter') : "重新输入"
+      try {
+        const decryptedK = await Decrypt(
+          localStorage["apiKey"],
+          p,
+          p.substring(0, 12)
         );
+        sessionStorage.setItem("k", decryptedK);
+        if (!sessionStorage["k"]) {
+          app && app.showToast ? app.showToast('密码输入错误！', 'confirm') : null;
+          return;
+        }
+      } catch (decryptErr) {
+        // 解密失败（通常为密码错误），给出友好弹窗提示并终止后续流程
+        app && app.showToast ? app.showToast('密码输入错误！', 'confirm') : null;
         return;
       }
     } else {
@@ -362,6 +365,16 @@ Page({
       if (!window.superAPI) {
         window.superAPI = createSuperAPI();
       }
+
+      // 移动端 401 修复：为登录请求临时设置邮箱作为 userAccount 头
+      // 注意：不写入 sessionStorage，只在请求对象上临时设置
+      try {
+        if (u && typeof u === 'string' && window.superAPI) {
+          if (!window.superAPI.userAccount) {
+            window.superAPI.userAccount = u; // 临时头部字段，仅用于登录请求
+          }
+        }
+      } catch (eSet) { console.warn('[index@loginInterface] pre-set userAccount failed', eSet); }
 
       const data = await window.superAPI.request(
         'I00002',
@@ -418,6 +431,11 @@ Page({
         errMsg = error && error.message ? String(error.message) : '';
       } catch (_) {
         // 如果连 name/message 都取不到，就保持空字符串
+      }
+
+      // 若出现 401，尝试补偿：提示用户刷新或重新输入 32 位密钥；可选自动重试逻辑（暂不启用避免频繁请求）
+      if (errMsg && /401/.test(errMsg)) {
+        console.warn('[index@loginInterface] detected 401, session k length=', (sessionStorage.getItem ? (sessionStorage.getItem('k') || '').length : (sessionStorage['k']||'').length));
       }
 
       const baseTitle = window.i18n ? window.i18n.t('login.toast.loginError', '登录失败') : '登录失败';

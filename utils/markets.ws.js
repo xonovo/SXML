@@ -401,6 +401,12 @@
     var displayCode = msg.code || (msg.data && msg.data.code) || 'N/A';
     this._log('解析后', { type: msg.type, code: displayCode, hasData: !!msg.data });
 
+    // 处理服务端数值鉴权提示
+    if (typeof msg.code === 'number' && msg.code === 4010) {
+      this._sendAuth();
+      return;
+    }
+
     // 基于 Infoway 100xx/110xx 协议号的精细识别（兼容无 type 的纯 code 消息）
     if (msg && typeof msg.code === 'number' && !msg.type) {
       switch (msg.code) {

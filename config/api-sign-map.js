@@ -16,7 +16,7 @@ const API_SIGN_MAP = {
   // 登录相关
   'I00001': 'FAA4BC4D55921F91F6958FBE967FF7BE',  // 用户注册创建一个用户(传递参数:userEmail,userName,userPassword,invitationUserAccount,userIdCardFrontImage,userIdCardReverseImage),(返回参数:[{"key": "userAccount", "note": "用户账号", "type": "string"}, {"key": "apiKey", "note": "传输密钥", "type": "string"}])
   'I00002': '00000C4D55921F91F6958FBE967FF7BE',  // 用户登录(传递参数:userEmail,userPassword,loginIp,loginLocation,loginOs,loginStatus,loginMsg),(返回参数:[{"key": "userAccount", "note": "用户账号", "type": "string"}])
-  'I00003': '4446A32D857207AFA58E09480522B08C',  // 获取我的钱包信息(传递参数:userAccount),(返回参数:[{"key": "userAccount", "note": "用户账号", "type": "string"}, {"key": "userMobile", "note": "手机号码", "type": "string"}, {"key": "userNick", "note": "昵称", "type": "string"}, {"key": "userName", "note": "真实姓名", "type": "string"}, {"key": "totalAsset", "note": "总资产", "type": "Number"}, {"key": "walletBalance", "note": "钱包余额", "type": "Number"}, {"key": "accountBalance", "note": "账户余额", "type": "Number"}, {"key": "openPositionPL", "note": "持仓盈亏", "type": "Number"}, {"key": "equity", "note": "净值", "type": "Number"}, {"key": "marginLevel", "note": "保证金水平", "type": "Number"}, {"key": "credit", "note": "信用", "type": "Number"}, {"key": "freeMargin", "note": "可用保证金", "type": "Number"}, {"key": "borrowed", "note": "已借款", "type": "Number"}, {"key": "interest", "note": "利息", "type": "Number"}])
+  'I00003': '4446A32D857207AFA58E09480522B08C',  // 获取我的钱包信息(传递参数:userAccount,detailsWalletType),(返回参数:[{"key": "userAccount", "note": "用户账号", "type": "string"}, {"key": "userMobile", "note": "手机号码", "type": "string"}, {"key": "userNick", "note": "昵称", "type": "string"}, {"key": "userName", "note": "真实姓名", "type": "string"}, {"key": "totalAsset", "note": "总资产", "type": "Number"},{"key": "walletBalance", "note": "钱包余额", "type": "Number"}, {"key": "accountBalance", "note": "账户余额", "type": "Number"}, {"key": "openPositionPL", "note": "持仓盈亏", "type": "Number"}, {"key": "equity", "note": "净值", "type": "Number"}, {"key": "marginLevel", "note": "保证金水平", "type": "Number"}, {"key": "credit", "note": "信用", "type": "Number"}, {"key": "freeMargin", "note": "可用保证金", "type": "Number"}, {"key": "borrowed", "note": "已借款", "type": "Number"}, {"key": "interest", "note": "利息", "type": "Number"}])
   'I00004': 'B98A0E82B1277F34C5DFC7D5966F3114',  // 入金(第一步获取收款账户)(传递参数:userAccount,accountType,accountProtocol),(返回参数:[{"key": "accountList", "note": "账户列表", "type": "array"}])
   'I00005': 'ED6DCFBB3219A2EFC25863042EF24DBB',  // 入金(第二步预订单)(传递参数:userAccount,tradeCurrency,tradeAmount,inAccount),(返回参数:[{"key": "userAccount", "note": "用户账号", "type": "string"}, {"key": "tradeNo", "note": "资金编号", "type": "string"}])
   'I00006': '6C70919CA7D94C8B10397BE27B348DF3',  // 入金(第三步确收收到款)(传递参数:tradeNo,outAccount),(返回参数:[])
@@ -32,6 +32,7 @@ const API_SIGN_MAP = {
   'I00016': 'A0918DA58ECC538E539331F9167F8DDA',  // 还款(传递参数:userAccount,repaymentAmount),(返回参数:[])
   // 用户信息相关
   'I00017': '17DDE8B62CE8ED1746D23997A635FEDA',  // 轮询二维码登录
+  'I00018': '60C6704023DBADE7039C0DA33BB7A934',  // 限价单和止损单退单
   // 示例：添加更多接口映射
 };
 

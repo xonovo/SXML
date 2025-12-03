@@ -162,7 +162,10 @@ html, body {
 
 /* Banner 轮播区 (Swiper) - 保留左右间距，不贴边 */
 .banner-swiper-container {
-  width: 100%;
+.pending-delete-btn{ position:absolute; top:12px; right:12px; background:#f1f2f5; color:#333; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; z-index:10; border:1px solid #e0e0e0; cursor:pointer; }
+.pending-delete-btn:active{ filter:brightness(0.98); }
+/* 当撤销按钮内联放在头部时，使用更高优先级样式覆盖绝对定位 */
+.pending-header .pending-delete-btn{ position:static; margin-left:auto; height:24px; line-height:24px; padding:0 10px; }
   /* 减小左右留白，让 banner 更宽 */
   padding: 8px 8px 28px; /* 上 / 左右 / 下(为分页点预留内间距) - 使用 px 保证编译后生效，减小与分页的距离 */
   position: relative;
@@ -1032,7 +1035,7 @@ html, body {
   border: none;
   outline: none;
   border-radius: 10px;
-  padding: 10px 4px;
+  padding: 0px 4px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1627,13 +1630,13 @@ html, body {
 
 /* Leveraged 模式标签 */
 .leveraged-mode-tabs{ display:flex; gap:10px; margin:0 0 12px; }
-.lev-mode-tab{ flex:1; border:1px solid #e0e0e0; background:#fff; padding:10px 4px; border-radius:4px; font-size:13px; color:#666; font-weight:500; line-height:1; cursor:pointer; transition:all .18s ease; }
+.lev-mode-tab{  border:1px solid #e0e0e0; background:#fff; padding:10px 4px; border-radius:4px; font-size:13px; color:#666; font-weight:500; line-height:1; cursor:pointer; transition:all .18s ease; }
 .lev-mode-tab:hover{ background:#f7f7f7; }
 /* .lev-mode-tab.active{ border-color:#111; color:#111; box-shadow:0 0 0 1px #111 inset; font-weight:600; }
 .lev-mode-tab:active{ transform:scale(.97); } */
 /* 头部内联模式：更紧凑 */
 .trade-header .leveraged-mode-tabs.header-inline{ margin:0; gap:6px; }
-.trade-header .leveraged-mode-tabs.header-inline .lev-mode-tab{ padding:2px 8px; font-size:12px; }
+.trade-header .leveraged-mode-tabs.header-inline .lev-mode-tab{ padding:6px 8px; font-size:12px; }
 /* 子标签与持仓卡片 */
 .trade-subtabs{ display:flex; gap:24px; background:#fff; padding:0 6px; }
 .subtab{ background:none; border:0; padding:14px 0; color:#999; font-size:14px; position:relative; }
@@ -1660,22 +1663,23 @@ html, body {
 .trade-subpanel{ display:block; }
 .pending-list{ display:flex; flex-direction:column; gap:12px; }
 
-/* 滑动删除容器 */
-.pending-item{ position:relative; overflow:hidden; }
-.pending-row{ display:flex; justify-content:space-between; align-items:flex-start; background:#fff; position:relative; z-index:2; transition:transform 0.3s ease; touch-action:pan-y; }
-.pending-item:last-child .pending-row{ border-bottom:none; padding-bottom:0; }
+/* 挂单项容器 */
+.pending-item{ position:relative; background:#fff; border-radius:12px; padding:12px; margin:0; }
 
-/* 隐藏的删除按钮 */
-.pending-delete-btn{ position:absolute; right: 1px; top:1px; bottom:1px; width:80px; background:#ff4d4f; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:600; z-index:1; }
+/* 挂单头部：圆点 + 品种 + 类型 */
+.pending-header{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.pending-header .dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.pending-header .dot.long{ background:#e85a5a; }
+.pending-header .dot.short{ background:#2bb673; }
+.pending-symbol{ font-size:18px; font-weight:700; color:#111; }
+.pending-type{ font-size:12px; color:#999; margin-left:auto; }
 
-/* 滑动激活状态 */
-.pending-item.swipe-active .pending-row{ transform:translateX(-80px); }
+/* 挂单指标网格 */
+.pending-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; border-top:1px solid #f0f0f0; padding-top:12px; margin-bottom:12px; }
 
-.pending-symbol{ display:block; font-size:16px; font-weight:700; color:#111; }
-.pending-type{ display:block; font-size:12px; color:#999; margin-top:2px; }
-.pending-meta{ text-align:right; }
-.pending-price{ display:block; font-size:15px; font-weight:600; color:#111; }
-.pending-status{ display:block; font-size:11px; color:#999; margin-top:2px; }
+/* 删除按钮 */
+.pending-delete-btn{  top:12px; right:12px; background:#f1f2f5; color:#333; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; z-index:10; border:1px solid #e0e0e0; cursor:pointer; }
+.pending-delete-btn:active{ background:#e9ebf0; }
 
 .position-list{ display:flex; flex-direction:column; gap:12px; }
 .position-empty{ padding:40px 20px; text-align:center; color:#999; font-size:14px; }
@@ -2081,19 +2085,28 @@ body { font-family: var(--app-font-family); }
 .sheet-option.active{border-color:#fff; background:rgba(255,255,255,0.18);}
 .sheet-option:focus-visible{outline:2px solid #fff; outline-offset:2px;}
 .sheet-alert{padding:8px 0;}
-.sheet-alert-icon{width:58px; height:58px; border-radius:50%; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; font-size:28px;}
-.sheet-alert-icon::before{content:'!'; color:var(--sheet-text-color);}
-.sheet-alert-message{font-size:17px; line-height:1.4;}
-.sheet-alert[data-status="success"] .sheet-alert-icon::before{content:'✔';}
-.sheet-alert[data-status="danger"] .sheet-alert-icon::before{content:'✕';}
-.sheet-alert:not([data-status]) .sheet-alert-icon::before,
-.sheet-alert[data-status="info"] .sheet-alert-icon::before{content:'!';}
-.sheet-actions{display:flex; gap:12px; margin-top:20px;}
+.sheet-alert-icon{width:62px; height:62px; border-radius:50%; display:flex; align-items:center; justify-content:center;}
+.sheet-alert-icon-img{width:46px; height:46px; object-fit:contain; display:block;}
+/* 在浅色（白底）弹窗中，对提示图标进行颜色反转，确保 err/success 图标在白底可见 */
+.action-sheet[data-theme="light"] .sheet-alert .sheet-alert-icon-img{ filter: invert(1); }
+.sheet-alert-message{font-size:17px; line-height:1.4;margin-bottom: 25px;}
+.sheet-alert[data-status] .sheet-alert-icon::before{content:'';}
+.sheet-actions{display:flex; gap:12px; margin-bottom:40px;}
 .sheet-actions.hidden{display:none;}
-.sheet-btn{flex:1; padding:14px; border-radius:999px; font-size:15px; font-weight:600; border:none; cursor:pointer; transition:transform .15s ease, opacity .15s ease;}
+.sheet-btn{flex:1; padding:14px; border-radius:999px; font-size:18px; font-weight:600; border:none; cursor:pointer; transition:transform .15s ease, opacity .15s ease;}
 .sheet-btn:active{transform:scale(0.97); opacity:0.85;}
 .sheet-btn.primary{background:var(--sheet-primary-bg); color:var(--sheet-primary-color);}
 .sheet-btn.ghost{background:transparent; border:1px solid var(--sheet-ghost-border); color:var(--sheet-text-color);}
+.sheet-form{display:flex; flex-direction:column; gap:12px;}
+.sheet-input-row{display:flex; align-items:center; gap:10px;}
+.sheet-label{min-width:120px; font-size:14px; color:#555;}
+.sheet-input{flex:1; height:36px; border:1px solid #ddd; border-radius:8px; padding:6px 10px; font-size:14px; color:#111; background:#fff;}
+.action-sheet[data-theme="light"] .sheet-input{background:#fff; border-color:#e0e0e0;}
+.action-sheet[data-mode="alert"] .sheet-panel{padding-top:10px;} /* 紧凑顶部空间，使内容上移 */
+.action-sheet[data-mode="alert"] .sheet-handle{margin:6px auto 6px;} /* 减少把手与内容的间距 */
+.action-sheet[data-mode="alert"] .sheet-header{margin-bottom:8px;} /* 适度压缩标题与内容间距 */
+.action-sheet[data-mode="alert"] .sheet-alert{padding-top:0;} /* 提高警告内容位置 */
+.action-sheet[data-mode="alert"] .sheet-actions{margin-bottom:40px;} /* 按钮与内容距离略收紧 */
 .action-sheet[data-theme="light"]{
   --sheet-panel-bg:#ffffff;
   --sheet-text-color:#1f1f25;
@@ -2106,22 +2119,23 @@ body { font-family: var(--app-font-family); }
 .action-sheet[data-theme="light"] .sheet-option{background:#f7f7f9; border-color:rgba(0,0,0,0.12);}
 .action-sheet[data-theme="light"] .sheet-option-icon-wrap{background:rgba(0,0,0,0.04);}
 .action-sheet[data-theme="danger"]{
-  --sheet-panel-bg:#d64a4a;
+  --sheet-panel-bg:#3a3a3a; /* 错误信息使用深灰背景，弱化侵扰性 */
   --sheet-text-color:#fff;
   --sheet-muted-color:rgba(255,255,255,0.75);
   --sheet-outline-color:rgba(255,255,255,0.25);
   --sheet-primary-bg:#fff;
-  --sheet-primary-color:#b01f1f;
+  --sheet-primary-color:#111; /* 深灰背景下主按钮文本采用深色以提升对比 */
   --sheet-ghost-border:rgba(255,255,255,0.45);
 }
 .action-sheet[data-theme="success"]{
-  --sheet-panel-bg:#178f60;
+  /* 成功提示使用红色背景（按产品规范） */
+  --sheet-panel-bg:#D93026; /* Google Danger Red tone */
   --sheet-text-color:#fff;
-  --sheet-muted-color:rgba(255,255,255,0.78);
-  --sheet-outline-color:rgba(255,255,255,0.28);
-  --sheet-primary-bg:#fff;
-  --sheet-primary-color:#13744d;
-  --sheet-ghost-border:rgba(255,255,255,0.45);
+  --sheet-muted-color:rgba(255,255,255,0.85);
+  --sheet-outline-color:rgba(255,255,255,0.3);
+  --sheet-primary-bg:#ffffff;
+  --sheet-primary-color:#7a0e0b; /* 与红底有对比的深红文字 */
+  --sheet-ghost-border:rgba(255,255,255,0.5);
 }
 
 /* ============================================

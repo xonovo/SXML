@@ -180,6 +180,13 @@
     this._dailySnapshot = Object.create(null); // symbol -> { yesterdayDate, yesterdayClose, todayDate, todayOpen, lastPrice, changeAbs, changePct, high, low, updatedAt }
     this._tradingCalendar = null; // 来自 HTTP 的市场交易日信息原始结构
     this._tradingSessions = null; // 来自 HTTP 的市场交易时间信息原始结构
+    
+    // 🔥 Funds 资产实时计算模块
+    this._fundsPositions = []; // 用户持仓列表 { itemId, direction, avgOpenPrice, totalVolume, totalSwap, tradeRate }
+    this._fundsStaticData = null; // 钱包余额、负债等静态数据
+    this._fundsEnabled = false; // 是否启用 Funds 计算
+    this._fundsWalletType = 0; // 0=Capital, 1=Leveraged
+    this._fundsCallback = null; // UI 更新回调函数
   }
 
   MarketsStore.prototype.on = function(evt, fn){ this._bus.on(evt, fn); return this; };
@@ -462,6 +469,11 @@
       };
       this._quotes[sym] = snapshot;
       this._bus.emit('update', sym, snapshot);
+      
+      // 🔥 如果 Funds 计算已启用且该品种在持仓中，触发重新计算
+      if (this._fundsEnabled && this._fundsPositions.some(function(p){ return p.itemId === sym; })) {
+        this._calculateAndNotifyFunds();
+      }
     }
   };
 
@@ -643,9 +655,11 @@
       self._quotes[sym] = snapshot;
       self._lastUpdateMap[sym] = snapshot.updatedAt || Date.now();
       // 添加调试日志
-      if (depth && self._debugEnabled && console && console.log) {
-        console.log('[MarketsStore] emit update with depth:', sym, 'bids:', depth.bids && depth.bids.length, 'asks:', depth.asks && depth.asks.length);
+      if (self._debugEnabled && console && console.log) {
+        console.log('[MarketsStore] emit update with depth:', sym, 'bids:', depth && depth.bids && depth.bids.length, 'asks:', depth && depth.asks && depth.asks.length);
       }
+      // 收到新报价时重置重订阅计时器,确保从休市恢复后立即切换到高频模式
+      self._lastResubscribeAt = Date.now();
       self._bus.emit('update', sym, snapshot);
     }
 
@@ -672,11 +686,18 @@
     var creds = await resolveWsCredentials();
     if (!creds) {
       // 尝试访客模式（只建立连接不发送 auth，部分公开行情源可能允许匿名订阅）
-      if (this._debugEnabled && console && console.log) {
-        console.log('[MarketsStore] 未找到登录凭证，进入访客试探模式');
+      if (console && console.warn) {
+        console.warn('[MarketsStore] ⚠️ 未找到登录凭证（userAccount/apiKey），WebSocket 可能无法连接');
+      }
+    } else {
+      if (console && console.log) {
+        console.log('[MarketsStore] ✅ 已获取凭证，用户:', creds.userAccount);
       }
     }
     var endpoint = resolveWsEndpoint();
+    if (console && console.log) {
+      console.log('[MarketsStore] WebSocket 端点:', endpoint);
+    }
     var socket = new MarketsSocket({
       endpoint: endpoint,
       cryptoMode: 'no',
@@ -693,8 +714,8 @@
       socket.connect(creds);
     } else {
       // 没有凭证则直接标记 open，等待后续凭证补齐再重连
-      if (this._debugEnabled && console && console.log) {
-        console.log('[MarketsStore] 访客模式：暂不鉴权，仅等待后续凭证');
+      if (console && console.warn) {
+        console.warn('[MarketsStore] ⚠️ 访客模式：暂不鉴权，等待后续凭证');
       }
       // 仍创建 socket 以便后续检测 ready 状态；由于 MarketsSocket.connect 会直接报 Missing credentials，这里绕开
       try { socket.credentials = {}; socket._emitState('connecting'); } catch(_) {}
@@ -744,7 +765,15 @@
     return null;
   };
   MarketsStore.prototype.primeKlinesFromHttp = function(symbol, list, timeframe){
-    if (!symbol || !Array.isArray(list) || !list.length) return;
+    if (!symbol) return;
+    // 如果数据为空，仍然需要初始化品种结构，避免后续访问 undefined
+    if (!Array.isArray(list) || !list.length) {
+      // 确保品种已初始化，但保留现有数据
+      if (!this._quotes[symbol]) {
+        this._quotes[symbol] = { s: symbol };
+      }
+      return;
+    }
     var tfKey = normalizeTimeframeKey(timeframe || '1m');
     this._handleData({ s: symbol, klineList: list, timeframe: tfKey });
   };
@@ -758,6 +787,7 @@
   MarketsStore.prototype._runHealthScan = function(){
     var now = Date.now();
     var staleSymbols = [];
+    var totalWatched = Object.keys(this._lastUpdateMap).length;
     for (var sym in this._lastUpdateMap){
       var lastTs = this._lastUpdateMap[sym];
       if (!lastTs) continue;
@@ -767,11 +797,325 @@
       this._bus.emit('stale', staleSymbols.slice());
       // 若长时间无更新, 尝试重新发送订阅请求
       if (this._socket && this._socket.isReady && this._socket.isReady()){
-        if (now - this._lastResubscribeAt > this._resubscribeIntervalMs){
+        // 动态调整重订阅间隔: 如果所有品种都过期(可能休市),延长到60秒降低请求频率
+        var allStale = (totalWatched > 0 && staleSymbols.length === totalWatched);
+        var effectiveInterval = allStale ? 60000 : this._resubscribeIntervalMs; // 全部休市: 60s, 部分活跃: 15s
+        if (now - this._lastResubscribeAt > effectiveInterval){
           this._lastResubscribeAt = now;
+          if (this._debugEnabled && console && console.log) {
+            console.log('[MarketsStore] 健康检查重订阅:', allStale ? '休市模式(60s)' : '正常模式(15s)', 'stale:', staleSymbols.length, '/', totalWatched);
+          }
           try { this._rebuildWatch(); } catch(e){ if (console && console.warn) console.warn('[MarketsStore] resubscribe failed', e); }
         }
       }
+    }
+  };
+
+  // ========== Funds 资产实时计算模块 ==========
+  
+  /**
+   * 启用 Funds 资产实时计算
+   * @param {Object} data - I00003 接口返回的数据（根级别包含所有字段）
+   * @param {Function} callback - UI 更新回调函数 function(metrics) { ... }
+   */
+  MarketsStore.prototype.enableFundsCalculation = function(data, callback){
+    try {
+      console.log('[MarketsStore] enableFundsCalculation 收到数据:', data);
+      console.log('[MarketsStore] data 类型:', typeof data, ', 是否为对象:', data && typeof data === 'object');
+      console.log('[MarketsStore] data.positions:', data && data.positions);
+      console.log('[MarketsStore] callback 类型:', typeof callback);
+      
+      if (!data) {
+        if (console && console.warn) console.warn('[MarketsStore] enableFundsCalculation: invalid data');
+        return;
+      }
+      
+      // I00003 返回的数据直接在根级别，不在 data.data 里
+      this._fundsStaticData = data;
+      this._fundsPositions = data.positions || [];
+      this._fundsWalletType = data.walletType || 0;
+      this._fundsCallback = callback;
+      this._fundsEnabled = true;
+      
+      console.log('[MarketsStore] 已存储数据，positions 长度:', this._fundsPositions.length);
+      
+      // 订阅所有持仓品种的行情
+      var symbols = this._fundsPositions.map(function(p){ return p.itemId; }).filter(Boolean);
+      console.log('[MarketsStore] 提取的品种列表:', symbols);
+      
+      if (symbols.length > 0) {
+        this.subscribe(symbols);
+        if (this._debugEnabled && console && console.log) {
+          console.log('[MarketsStore] Funds 已启用，订阅品种:', symbols);
+        }
+      }
+      
+      console.log('[MarketsStore] 即将调用 _calculateAndNotifyFunds');
+      // 立即计算一次
+      this._calculateAndNotifyFunds();
+    } catch(err) {
+      if (console && console.warn) console.warn('[MarketsStore] enableFundsCalculation failed', err);
+    }
+  };
+  
+  /**
+   * 禁用 Funds 资产实时计算
+   */
+  MarketsStore.prototype.disableFundsCalculation = function(){
+    try {
+      if (!this._fundsEnabled) return;
+      
+      // 取消订阅
+      var symbols = this._fundsPositions.map(function(p){ return p.itemId; }).filter(Boolean);
+      if (symbols.length > 0) {
+        this.unsubscribe(symbols);
+      }
+      
+      this._fundsEnabled = false;
+      this._fundsPositions = [];
+      this._fundsStaticData = null;
+      this._fundsCallback = null;
+      
+      if (this._debugEnabled && console && console.log) {
+        console.log('[MarketsStore] Funds 已禁用');
+      }
+    } catch(err) {
+      if (console && console.warn) console.warn('[MarketsStore] disableFundsCalculation failed', err);
+    }
+  };
+  
+  /**
+   * 获取实时价格（内部方法）
+   */
+  MarketsStore.prototype.getPrice = function(itemId){
+    try {
+      var quote = this._quotes[itemId];
+      if (!quote) return 0;
+      
+      // 优先级：最新价 > 收盘价 > 开盘价
+      var price = Number(quote.last || quote.lastPrice || quote.c || quote.close || quote.o || quote.open);
+      return isFinite(price) && price > 0 ? price : 0;
+    } catch(err) {
+      return 0;
+    }
+  };
+  
+  /**
+   * 计算 Funds 指标并通知 UI
+   * @private
+   */
+  MarketsStore.prototype._calculateAndNotifyFunds = function(){
+    try {
+      if (!this._fundsEnabled || !this._fundsCallback) {
+        console.warn('[MarketsStore] _calculateAndNotifyFunds: 未启用或无回调');
+        return;
+      }
+      
+      var payload = this._fundsStaticData;
+      var positions = this._fundsPositions;
+      
+      console.log('[MarketsStore] 🔥 开始计算 Funds (调用栈):', new Error().stack.split('\n')[2]);
+      console.log('[MarketsStore] 开始计算 Funds，positions 数量:', positions.length);
+      console.log('[MarketsStore] 静态数据 walletBalance:', payload.walletBalance, ', totalLiabilities:', payload.totalLiabilities);
+      
+      // 1️⃣ 计算持仓盈亏
+      var positionPL = 0;
+      var marginUsed = 0;
+      
+      for (var i = 0; i < positions.length; i++) {
+        var pos = positions[i];
+        var currentPrice = this.getPrice(pos.itemId);
+        
+        console.log('[MarketsStore] 持仓 ' + (i+1) + ':', {
+          itemId: pos.itemId,
+          currentPrice: currentPrice,
+          avgOpenPrice: pos.avgOpenPrice,
+          totalVolume: pos.totalVolume,
+          direction: pos.direction,
+          tradeRate: pos.tradeRate
+        });
+        
+        if (!currentPrice || currentPrice <= 0) {
+          console.warn('[MarketsStore] 跳过持仓 ' + pos.itemId + '，价格无效:', currentPrice);
+          continue;
+        }
+        
+        var avgOpenPrice = Number(pos.avgOpenPrice) || 0;
+        var totalVolume = Number(pos.totalVolume) || 0;
+        var totalSwap = Number(pos.totalSwap) || 0;
+        var tradeRate = Number(pos.tradeRate) || 1;  // 🔥 默认 1 倍，避免除以 0
+        if (tradeRate <= 0) tradeRate = 1;  // 🔥 强制保护
+        var direction = String(pos.direction || '').toLowerCase();
+        
+        // 方向系数：buy=1, sell=-1
+        var directionCoef = direction === 'buy' ? 1 : -1;
+        
+        // 盈亏 = (当前价 - 开仓价) × 数量 × 方向 - 隔夜费
+        var pl = (currentPrice - avgOpenPrice) * totalVolume * directionCoef - totalSwap;
+        positionPL += pl;
+        
+        // 已用保证金 = 开仓价 × 数量 / 杠杆倍数
+        var margin = (avgOpenPrice * totalVolume) / tradeRate;
+        marginUsed += margin;
+        
+        console.log('[MarketsStore] 持仓 ' + pos.itemId + ' 计算结果: PL=' + pl.toFixed(2) + ', margin=' + margin.toFixed(2));
+      }
+      
+      console.log('[MarketsStore] 🔢 汇总: positionPL=' + positionPL.toFixed(2) + ', marginUsed=' + marginUsed.toFixed(2));
+      
+      // 2️⃣ 计算总资产（用户所有资产 - 负债）：
+      // 组成：
+      // 1) 现金钱包余额 cashBalance
+      // 2) 杠杆钱包余额 leverBalance - borrowed - interest + collateral
+      // 3) 持仓当前总价值（使用当前价 × 数量，方向 buy=正，sell=负）
+      // 4) 挂单当前总价值（使用挂单 openPrice × 数量，方向同上）
+      var cashBalance = Number(payload.cashBalance) || 0;
+      var leverBalance = Number(payload.leverBalance) || 0;
+      var borrowed = Number(payload.borrowed) || 0;
+      var interest = Number(payload.interest) || 0;
+      var collateral = Number(payload.collateral) || 0;
+      var totalLiabilities = Number(payload.totalLiabilities) || (borrowed + interest) || 0;
+
+      // 3) 持仓总价值（全部账户）与现金账户专属
+      var positionsValue = 0;
+      var cashPositionsValue = 0;
+      var cashPositionPL = 0;
+      for (var j = 0; j < positions.length; j++) {
+        var p = positions[j];
+        var priceNow = this.getPrice(p.itemId);
+        if (!priceNow || priceNow <= 0) continue;
+        var vol = Number(p.totalVolume) || 0;
+        var dirCoef = String(p.direction||'').toLowerCase() === 'sell' ? -1 : 1;
+        var posValue = (priceNow * vol * dirCoef);
+        positionsValue += posValue;
+        if (Number(p.detailsWalletType) === 0) {
+          cashPositionsValue += posValue;
+          var avgP = Number(p.avgOpenPrice) || 0;
+          var swapP = Number(p.totalSwap) || 0;
+          cashPositionPL += ((priceNow - avgP) * vol * dirCoef - swapP);
+        }
+      }
+
+      // 4) 挂单总价值（全部账户）与现金账户专属
+      var pendingOrders = Array.isArray(payload.pendingOrders) ? payload.pendingOrders : [];
+      var pendingValue = 0;
+      var cashPendingValue = 0;
+      for (var k = 0; k < pendingOrders.length; k++) {
+        var o = pendingOrders[k];
+        var openPrice = Number(o.openPrice) || 0;
+        var tVol = Number(o.tradeVolume) || 0;
+        var oDir = String(o.direction||'').toLowerCase() === 'sell' ? -1 : 1;
+        if (openPrice > 0 && tVol > 0) {
+          var oVal = (openPrice * tVol * oDir);
+          pendingValue += oVal;
+          if (Number(o.detailsWalletType) === 0) cashPendingValue += oVal;
+        }
+      }
+
+      // 综合总资产（包含现金账户+杠杆账户）
+      var leverNet = leverBalance - borrowed - interest + collateral;
+      var totalAsset = cashBalance + leverNet + positionsValue + pendingValue;
+
+      // 杠杆账户（币安模式）指标：
+      // A 抵押基数（来自现金账户划转并抵押的金额）
+      var leverageBase = collateral;
+      // B 倍率（例如 20x）与借款后可用总金额
+      var leverageRatio = Number(payload.maxLeverageRatio) || 0;
+      var leverageAvailableTotal = leverageRatio > 0 ? (leverageRatio * leverageBase) : 0;
+      // C 实际负债上限（最大可借金额）= 借款后可用总金额 - 抵押基数
+      var leverageMaxBorrowable = Math.max(0, leverageAvailableTotal - leverageBase);
+      // 已借金额（含利息外的本金）
+      var leverageBorrowed = Math.max(0, borrowed);
+      // D 剩余可借款额度（不能重复抵押借款）
+      var leverageBorrowableRemaining = Math.max(0, leverageMaxBorrowable - leverageBorrowed);
+      // 展示余额（包含划转与已借款）
+      var leverageDisplayBalance = leverBalance;
+
+      console.log('[MarketsStore] 💰 总资产计算明细:', {
+        cashBalance: cashBalance,
+        leverBalance: leverBalance,
+        borrowed: borrowed,
+        interest: interest,
+        collateral: collateral,
+        positionsValue: positionsValue,
+        pendingValue: pendingValue,
+        totalAsset: totalAsset
+      });
+      
+      // 3️⃣ 计算净值
+      var equity = totalAsset;
+      
+      // 4️⃣ 计算保证金水平
+      var marginLevel = equity > 0 ? (marginUsed / equity) * 100 : 0;
+      
+      // 5️⃣ 计算可用保证金
+      var freeMargin = equity - marginUsed;
+      
+      // 6️⃣ 构造结果对象
+      var metrics = {
+        positionPL: positionPL,
+        marginUsed: marginUsed,
+        totalAsset: totalAsset,
+        equity: equity,
+        marginLevel: marginLevel,
+        freeMargin: freeMargin,
+        positionsValue: positionsValue,
+        pendingValue: pendingValue,
+        leverNet: leverNet,
+        // 现金账户分项（用于红框口径）
+        cashBalance: cashBalance,
+        cashCollateral: collateral,
+        cashHolding: cashPositionsValue,
+        cashProfitLoss: cashPositionPL,
+        cashNetWorth: (cashBalance + cashPositionsValue + cashPendingValue),
+        cashPending: cashPendingValue,
+        // 杠杆账户分项（用于杠杆页与风控）
+        leverageBase: leverageBase,
+        leverageRatio: leverageRatio,
+        leverageAvailableTotal: leverageAvailableTotal,
+        leverageMaxBorrowable: leverageMaxBorrowable,
+        leverageBorrowed: leverageBorrowed,
+        leverageBorrowableRemaining: leverageBorrowableRemaining,
+        leverageDisplayBalance: leverageDisplayBalance,
+        leverageInterest: interest,
+        timestamp: Date.now()
+      };
+      
+      // 7️⃣ 触发回调
+      if (typeof this._fundsCallback === 'function') {
+        this._fundsCallback(metrics);
+      }
+      
+      // 8️⃣ 发出事件
+      this._bus.emit('funds:update', metrics);
+      
+    } catch(err) {
+      if (console && console.warn) console.warn('[MarketsStore] _calculateAndNotifyFunds failed', err);
+    }
+  };
+  
+  /**
+   * 更新 Funds 静态数据（钱包余额、负债等）
+   * @param {Object} data - 新的静态数据
+   */
+  MarketsStore.prototype.updateFundsStaticData = function(data){
+    try {
+      if (!this._fundsEnabled) return;
+      if (!data || !data.data) return;
+      
+      this._fundsStaticData = data.data;
+      this._fundsPositions = data.data.positions || [];
+      
+      // 重新订阅品种
+      var symbols = this._fundsPositions.map(function(p){ return p.itemId; }).filter(Boolean);
+      if (symbols.length > 0) {
+        this.subscribe(symbols);
+      }
+      
+      // 重新计算
+      this._calculateAndNotifyFunds();
+    } catch(err) {
+      if (console && console.warn) console.warn('[MarketsStore] updateFundsStaticData failed', err);
     }
   };
 

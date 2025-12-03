@@ -1,6 +1,6 @@
 // 注册页逻辑
 var app;
-try { app = getApp(); } catch(_) { app = window.app || {}; }
+try { app = getApp(); } catch (_) { app = window.app || {}; }
 
 function getAppBasePath() {
   try {
@@ -27,9 +27,49 @@ function buildAppUrl(subPath) {
   return (base.endsWith('/') ? base : (base + '/')) + normalized;
 }
 
-const PUBLIC_REGISTER_ACCOUNT = 'public_user';
-const PUBLIC_REGISTER_KEY = '070143E3A2777BB093A58318A963B0EE';
-const FILE_UPLOAD_PATH = '/file';
+// 原生轻提示（自动消失，不依赖自定义控件）
+function nativeToast(message, duration) {
+  try {
+    var ms = typeof duration === 'number' ? duration : 1800;
+    var el = document.createElement('div');
+    el.textContent = String(message || '');
+    el.style.position = 'fixed';
+    el.style.left = '50%';
+    el.style.bottom = '12%';
+    el.style.transform = 'translateX(-50%)';
+    el.style.background = 'rgba(0,0,0,0.75)';
+    el.style.color = '#fff';
+    el.style.padding = '10px 14px';
+    el.style.borderRadius = '8px';
+    el.style.fontSize = '14px';
+    el.style.lineHeight = '1.4';
+    el.style.zIndex = '99999';
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 180ms ease';
+    document.body.appendChild(el);
+    // 淡入
+    requestAnimationFrame(function(){ el.style.opacity = '1'; });
+    // 定时移除
+    setTimeout(function(){
+      try {
+        el.style.opacity = '0';
+        setTimeout(function(){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 220);
+      } catch(_) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+    }, ms);
+  } catch(_){
+    try { console.info('[toast]', message); } catch(__) {}
+  }
+}
+
+if (typeof PUBLIC_REGISTER_ACCOUNT === 'undefined') {
+  var PUBLIC_REGISTER_ACCOUNT = 'ICE00000002';
+}
+if (typeof PUBLIC_REGISTER_KEY === 'undefined') {
+  var PUBLIC_REGISTER_KEY = '070143E3A2777BB093A58318A963B0EE';
+}
+if (typeof FILE_UPLOAD_PATH === 'undefined') {
+  var FILE_UPLOAD_PATH = '/file';
+}
 
 Page({
   data: {
@@ -43,9 +83,10 @@ Page({
 
   onLoad() {
     this.updateTitle();
+    this.loadjQueryShim();
     this.loadShowToast();
     this.setupI18n();
-    // 预加载登录页以加速后退滑动
+    // 预加载登录页以加速后退滑动（确保 SPA 路由切换时有缓存）
     if (window.sxmlPrefetch) {
       window.sxmlPrefetch(buildAppUrl('pages/index/index.html'));
     }
@@ -70,7 +111,7 @@ Page({
         if (document.body) {
           document.body.classList.add('loaded');
         }
-      } catch (_) {}
+      } catch (_) { }
 
       this.initLanguageButton();
     };
@@ -120,7 +161,7 @@ Page({
   updateTitle() {
     try {
       document.title = 'IEC Markets - Sign up';
-    } catch (_) {}
+    } catch (_) { }
   },
 
   onUnload() {
@@ -179,7 +220,11 @@ Page({
     }
 
     // ID Card 验证（可选）
-    if (!this.data.idFrontFile || !this.data.idFrontFile.fileId || !this.data.idBackFile || !this.data.idBackFile.fileId) {
+    // 开发环境临时跳过：设置 skipIdCardUpload=true 可跳过身份证上传测试注册接口
+    const skipIdCardUpload = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+      (new URLSearchParams(window.location.search).get('skipUpload') === '1');
+
+    if (!skipIdCardUpload && (!this.data.idFrontFile || !this.data.idFrontFile.fileId || !this.data.idBackFile || !this.data.idBackFile.fileId)) {
       app.showToast(
         window.i18n ? window.i18n.t('regist.toast.idCardRequired') : 'Please upload both sides of ID card',
         'confirm'
@@ -190,30 +235,30 @@ Page({
     // 调用注册接口
     try {
       const registerAPI = this.ensureRegisterAPI();
+      // 密码加密：email + password 的 MD5（与登录接口一致）
       const hashedPassword = hex_md5_utf(email + password).toUpperCase();
 
+      // I00001 接口参数：userEmail, userName, userPassword, invitationUserAccount, userIdCardFrontImage, userIdCardReverseImage
       const payload = {
         userEmail: email,
+        userName: realName,  // 真实姓名
         userPassword: hashedPassword,
-        realName: realName,
-        inviterAccount: inviter,
-        idCardFront: this.data.idFrontFile.fileId,
-        idCardBack: this.data.idBackFile.fileId,
-        registerSource: 'MOBILE_WEB'
+        invitationUserAccount: inviter,  // 邀请人账号
+        userIdCardFrontImage: skipIdCardUpload ? 'SKIP_DEV_MODE' : this.data.idFrontFile.fileId,  // 身份证正面
+        userIdCardReverseImage: skipIdCardUpload ? 'SKIP_DEV_MODE' : this.data.idBackFile.fileId  // 身份证反面
       };
 
+      console.log('[regist] Calling I00001 with payload:', { ...payload, userPassword: '***' });
       const data = await registerAPI.request('I00001', payload);
 
       if (data && data.userAccount && data.apiKey) {
-        app.showToast(
-          window.i18n ? window.i18n.t('regist.toast.success') : 'Registration successful! Redirecting to login...',
-          'confirm'
+        nativeToast(
+          window.i18n ? window.i18n.t('regist.toast.success') : 'Registration successful! Redirecting to login...'
         );
 
         try {
           sessionStorage.setItem('u', data.userAccount);
           sessionStorage.setItem('k', data.apiKey);
-          sessionStorage.setItem('p', hashedPassword);
           const cipher = await Encrypt(
             data.apiKey,
             hashedPassword,
@@ -221,6 +266,7 @@ Page({
           );
           localStorage.setItem('apiKey', cipher);
           localStorage.setItem('userAccount', data.userAccount);
+          localStorage.setItem('email', email);
         } catch (storageError) {
           console.warn('Failed to cache registration info', storageError);
         }
@@ -279,6 +325,7 @@ Page({
           console.warn('[regist] sxmlNavigate failed, fallback to hard redirect', navErr);
         }
       }
+      // SPA 路由不可用或失败，回退到硬跳转
       try {
         window.location.href = loginPage;
       } catch (_) {
@@ -288,6 +335,18 @@ Page({
     };
 
     attemptNavigate(0);
+  },
+
+  // 加载 jQuery $.ajax 兼容 shim（兜底）
+  loadjQueryShim() {
+    if (typeof window.$ === 'undefined' || typeof window.$.ajax !== 'function') {
+      const script = document.createElement('script');
+      script.src = '../../utils/jquery-ajax-shim.js?v=' + Date.now();
+      script.onerror = () => {
+        console.error('jquery-ajax-shim 加载失败，SAPI 调用可能失败');
+      };
+      document.head.appendChild(script);
+    }
   },
 
   // 加载 Toast 工具（兜底）
@@ -320,22 +379,57 @@ Page({
   async processIdUpload(side, file) {
     const uploadingKey = side === 'front' ? 'uploadingFront' : 'uploadingBack';
     const labelKey = side === 'front' ? 'idFrontFile' : 'idBackFile';
+    const boxId = side === 'front' ? 'uploadFrontBox' : 'uploadBackBox';
+    const box = document.getElementById(boxId);
+
     try {
       this.safeSetData({ [uploadingKey]: true });
-      app.showToast(side === 'front'
-        ? (window.i18n ? window.i18n.t('regist.toast.uploadingFront') : 'Uploading front ID...')
-        : (window.i18n ? window.i18n.t('regist.toast.uploadingBack') : 'Uploading back ID...'),
-        'none'
-      );
+
+      // 更新 UI 显示上传中
+      if (box) {
+        const statusText = box.querySelector('.upload-status');
+        if (statusText) {
+          statusText.textContent = side === 'front' ? '上传中...' : 'Uploading...';
+          statusText.style.color = '#4169b8';
+        }
+        box.style.borderColor = '#4169b8';
+      }
+
+      // 取消弹窗式“上传中”提示，仅在区域内显示状态文字
+      // 如需轻提示，可启用下一行：
+      // nativeToast(side === 'front' ? (window.i18n ? window.i18n.t('regist.toast.uploadingFront') : 'Uploading front ID...') : (window.i18n ? window.i18n.t('regist.toast.uploadingBack') : 'Uploading back ID...'), 1200);
+
       const uploaded = await this.uploadFileToServer(file, side);
       this.safeSetData({ [labelKey]: uploaded });
-      app.showToast(side === 'front'
+
+      // 更新 UI 显示上传成功
+      if (box) {
+        const statusText = box.querySelector('.upload-status');
+        if (statusText) {
+          statusText.textContent = '✓';
+          statusText.style.color = '#67c23a';
+        }
+        box.style.borderColor = '#67c23a';
+        box.style.background = '#f0f9ff';
+      }
+
+      nativeToast(side === 'front'
         ? (window.i18n ? window.i18n.t('regist.toast.idFrontUploaded') : 'ID card front uploaded')
-        : (window.i18n ? window.i18n.t('regist.toast.idBackUploaded') : 'ID card back uploaded'),
-        'none'
+        : (window.i18n ? window.i18n.t('regist.toast.idBackUploaded') : 'ID card back uploaded')
       );
     } catch (err) {
       console.error('Upload failed', err);
+
+      // 更新 UI 显示上传失败
+      if (box) {
+        const statusText = box.querySelector('.upload-status');
+        if (statusText) {
+          statusText.textContent = '✗';
+          statusText.style.color = '#f56c6c';
+        }
+        box.style.borderColor = '#f56c6c';
+      }
+
       app.showToast(err.message || 'Upload failed', 'confirm');
     } finally {
       this.safeSetData({ [uploadingKey]: false });
@@ -371,19 +465,23 @@ Page({
     return '';
   },
 
-  computeRequestIv(dynamicKey, baseKey, timestamp) {
-  const rawWeekday = new Date(parseInt(timestamp, 10)).getUTCDay();
-  const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
+  computeRequestIv(dynamicKey, timestamp) {
+    // let tsSrv = timestamp;
+    // if (tsSrv && String(tsSrv).length <= 10) {
+    //   tsSrv = String(parseInt(tsSrv, 10) * 1000);
+    // }
+    const rawWeekday = new Date(parseInt(timestamp, 10)).getUTCDay();
+    const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
     let source = dynamicKey;
     while (source.length < weekday + 12) {
-      source += baseKey;
+      source += dynamicKey;
     }
     return source.substring(weekday, weekday + 12);
   },
 
   computeResponseIv(decryptKey, timestamp) {
-  const rawWeekday = new Date(parseInt(timestamp, 10)).getUTCDay();
-  const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
+    const rawWeekday = new Date(parseInt(timestamp, 10)).getUTCDay();
+    const weekday = rawWeekday === 0 ? 7 : rawWeekday - 1;
     let source = decryptKey;
     while (source.length < weekday + 12) {
       source += decryptKey;
@@ -435,7 +533,18 @@ Page({
     }
     const baseUrl = this.resolveApiBaseUrl();
     const normalizedBase = baseUrl ? baseUrl.replace(/\/$/, '') : '';
-    const endpoint = normalizedBase ? `${normalizedBase}${FILE_UPLOAD_PATH}` : FILE_UPLOAD_PATH;
+    // 文件上传端点：优先使用完整基础 URL，否则使用相对路径兜底
+    const endpoint = normalizedBase ? `${normalizedBase}${FILE_UPLOAD_PATH}` : (baseUrl || window.location.origin) + FILE_UPLOAD_PATH;
+
+    console.log('[regist] uploadFileToServer config:', {
+      FILE_UPLOAD_PATH,
+      baseUrl,
+      normalizedBase,
+      endpoint,
+      fileName: file.name,
+      fileSize: file.size
+    });
+
     const md5Func = this.getMd5Function();
     if (!md5Func) {
       throw new Error('MD5 library is not loaded');
@@ -443,13 +552,21 @@ Page({
 
     const timestamp = Date.now().toString();
     const dynamicKey = md5Func(PUBLIC_REGISTER_KEY + timestamp).toUpperCase();
-    const iv = this.computeRequestIv(dynamicKey, PUBLIC_REGISTER_KEY, timestamp);
-  const fileMd5 = await this.computeFileMd5(file);
-  const safeName = file.name || `id-card-${side}-${Date.now()}.jpg`;
+    const iv = this.computeRequestIv(dynamicKey, timestamp);
+    const fileMd5 = await this.computeFileMd5(file);
+    const safeName = file.name || `id-card-${side}-${Date.now()}.jpg`;
+
+    console.log('[regist] Encryption params:', {
+      timestamp,
+      dynamicKeyLength: dynamicKey.length,
+      ivLength: iv.length,
+      iv,
+      fileNameForSign: safeName
+    });
 
     const meta = {
       fileMd5,
-      sign: md5Func(`${safeName}${dynamicKey}${timestamp}`).toUpperCase(),
+      sign: md5Func(`${safeName}${dynamicKey}${timestamp}`),
       params: {
         fileName: safeName,
         description: `${side === 'front' ? 'ID_FRONT' : 'ID_BACK'}_${new Date().toISOString()}`,
@@ -457,11 +574,25 @@ Page({
       }
     };
 
+    console.log('[regist] Meta before encryption:', {
+      fileMd5,
+      signInput: `${safeName}${dynamicKey}${timestamp}`,
+      sign: meta.sign,
+      params: meta.params
+    });
+
     const encryptedPayload = await Encrypt(JSON.stringify(meta), dynamicKey, iv);
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('data', encryptedPayload);
+
+    console.log('[regist] Uploading to:', endpoint);
+    console.log('[regist] Request headers:', {
+      'x-user-account': PUBLIC_REGISTER_ACCOUNT,
+      'x-crypto-mode': 'aes-gcm',
+      'x-timestamp': timestamp
+    });
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -474,6 +605,11 @@ Page({
     });
 
     if (!response.ok) {
+      console.error('[regist] Upload failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url
+      });
       throw new Error(`Upload failed (${response.status})`);
     }
 

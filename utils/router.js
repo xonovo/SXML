@@ -292,6 +292,16 @@
 
     // 确保 CSS 已加载再执行动画，减少闪烁
     try { await cssReadyPromise; } catch(_){ }
+    
+    // 立即实例化页面（在动画开始前），确保事件绑定立即可用
+    try {
+      if (typeof window.__instantiatePage === 'function') {
+        window.__instantiatePage(targetUrl.replace(/\?.*$/,'')); // path 作为 key
+      }
+    } catch(instErr){ console.warn('[router] instantiate error:', instErr); }
+    
+    try { if (window.i18n && typeof window.i18n.apply === 'function') window.i18n.apply(nextView); } catch(_){ }
+    
     // 通过 rAF 分离布局与动画类添加，降低卡顿
     requestAnimationFrame(function(){
       nextView.offsetHeight; // 强制 reflow
@@ -329,6 +339,20 @@
       try {
         if (before && before.parentNode) before.parentNode.removeChild(before);
       } catch(e) { /* ignore remove errors */ }
+      
+      // 移除旧页面的脚本标签，防止二次执行覆盖 currentPage
+      try {
+        var scripts = document.querySelectorAll('script[data-page-script]');
+        for (var i = 0; i < scripts.length; i++) {
+          var s = scripts[i];
+          var scriptUrl = s.getAttribute('data-page-script');
+          // 只保留当前目标页面的脚本，移除其他页面的
+          if (scriptUrl && scriptUrl !== extractPageJsUrl(targetUrl)) {
+            s.parentNode.removeChild(s);
+          }
+        }
+      } catch(cleanupErr){ console.warn('[router] script cleanup error:', cleanupErr); }
+      
       if (nextView) {
         if (useFade) {
           nextView.classList.remove('fade-mode','fade-enter','fade-visible');
@@ -343,13 +367,7 @@
         var shouldPush = !options.noHistory && window.history && window.history.pushState && (direction !== 'back' || options.forceHistory);
         if (shouldPush) window.history.pushState({ url: targetUrl }, '', targetUrl);
       } catch(_){}
-      // 页面实例重建（基于 page.loader 缓存的定义）
-      try {
-        if (typeof window.__instantiatePage === 'function') {
-          window.__instantiatePage(targetUrl.replace(/\?.*$/,'')); // path 作为 key
-        }
-      } catch(_){}
-      try { if (window.i18n && typeof window.i18n.apply === 'function') window.i18n.apply(nextView); } catch(_){ }
+      // 页面实例已在动画开始前实例化，这里不再重复调用
       hideOverlay();
       clearTimeout(timer);
     }

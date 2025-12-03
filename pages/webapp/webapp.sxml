@@ -322,7 +322,7 @@
 
                       <!-- 止盈止损 -->
                       <view class="sl-switch" data-sl-target="capital">
-                        <label><input id="sl-enable" type="checkbox" checked /> <text
+                        <label><input id="sl-enable" type="checkbox" /> <text
                             data-i18n="webapp.trades.labels.sltp">S/L and T/P</text></label>
                       </view>
                       <view class="order-form tp-sl-form" data-sl-form="capital">
@@ -395,38 +395,7 @@
                     <view class="swiper-slide" data-panel="pending">
                       <view class="trade-subpanel pending">
                         <view class="pending-list">
-                          <view class="pending-item" data-order-id="1">
-                            <view class="pending-delete-btn" bindtap="deletePendingOrder">
-                              <text data-i18n="webapp.trades.buttons.cancel">Cancel</text>
-                            </view>
-                            <view class="pending-row">
-                              <view>
-                                <text class="pending-symbol">EURUSD</text>
-                                <text class="pending-type" data-i18n="webapp.trades.pending.limitBuy">Limit ·
-                                  Buy</text>
-                              </view>
-                              <view class="pending-meta">
-                                <text class="pending-price">2,066.3300</text>
-                                <text class="pending-status" data-i18n="webapp.trades.pending.gtc">GTC</text>
-                              </view>
-                            </view>
-                          </view>
-                          <view class="pending-item" data-order-id="2">
-                            <view class="pending-delete-btn" bindtap="deletePendingOrder">
-                              <text data-i18n="webapp.trades.buttons.cancel">Cancel</text>
-                            </view>
-                            <view class="pending-row">
-                              <view>
-                                <text class="pending-symbol">XAUUSD</text>
-                                <text class="pending-type" data-i18n="webapp.trades.pending.stopSell">Stop ·
-                                  Sell</text>
-                              </view>
-                              <view class="pending-meta">
-                                <text class="pending-price">1,984.5200</text>
-                                <text class="pending-status" data-i18n="webapp.trades.pending.ioc">IOC</text>
-                              </view>
-                            </view>
-                          </view>
+                          <!-- JS 动态渲染 nowCommission 数据 -->
                         </view>
                       </view>
                     </view>
@@ -487,11 +456,11 @@
                 </view>
                 <!-- Leveraged 模式标签 (移动至此) -->
                 <view class="leveraged-mode-tabs header-inline" data-mode-group="leveraged">
-                  <button class="lev-mode-tab active" data-mode="full" bindtap="switchLeveragedMode"
+                  <button class="lev-mode-tab active" data-mode="full"
                     data-i18n="webapp.trades.leveragedModes.full">Full Position</button>
-                  <button class="lev-mode-tab" data-mode="multiplier" bindtap="switchLeveragedMode"
+                  <button class="lev-mode-tab" data-mode="multiplier"
                     data-i18n="webapp.trades.leveragedModes.multiplier">20x</button>
-                  <button class="lev-mode-tab" data-mode="loan" bindtap="switchLeveragedMode"
+                  <button class="lev-mode-tab" data-mode="loan"
                     data-i18n="webapp.trades.leveragedModes.loan">Loan/Repay</button>
                 </view>
               </view>
@@ -635,7 +604,7 @@
 
                       <!-- 止盈止损 -->
                       <view class="sl-switch" data-sl-target="leveraged">
-                        <label><input id="sl-enable-lev" type="checkbox" checked /> <text
+                        <label><input id="sl-enable-lev" type="checkbox" /> <text
                             data-i18n="webapp.trades.labels.sltp">S/L and T/P</text></label>
                       </view>
                       <view class="order-form tp-sl-form" data-sl-form="leveraged">
@@ -706,23 +675,7 @@
                     <view class="swiper-slide" data-panel="pending">
                       <view class="trade-subpanel pending">
                         <view class="pending-list">
-                          <view class="pending-item" data-order-id="3">
-                            <view class="pending-delete-btn" bindtap="deletePendingOrder">
-                              <text data-i18n="webapp.trades.buttons.cancel">Cancel</text>
-                            </view>
-                            <view class="pending-row">
-                              <view>
-                                <text class="pending-symbol">EURUSD</text>
-                                <text class="pending-type" data-i18n="webapp.trades.pending.limitSell">Limit ·
-                                  Sell</text>
-                              </view>
-                              <view class="pending-meta">
-                                <text class="pending-price">2,070.0000</text>
-                                <text class="pending-status" data-i18n="webapp.trades.pending.postOnly">Post
-                                  Only</text>
-                              </view>
-                            </view>
-                          </view>
+                          <!-- JS 动态渲染 nowCommission 数据 -->
                         </view>
                       </view>
                     </view>
@@ -847,29 +800,28 @@
         <!-- 账户详情列表 -->
         <view class="account-details">
           <view class="detail-row">
-            <text class="detail-label" data-i18n="webapp.funds.capital.details.balance">Balance</text>
-            <text class="detail-value" data-funds-field="walletBalance">0.00</text>
+            <text class="detail-label" data-i18n="webapp.funds.capital.details.balance">余额</text>
+            <text class="detail-value" data-funds-field="balance">0.00</text>
           </view>
           <view class="detail-row">
-            <text class="detail-label" data-i18n="webapp.funds.capital.details.profitLoss">Profit/Loss</text>
-            <text class="detail-value" data-funds-field="profitLoss">20</text>
+            <text class="detail-label" data-i18n="webapp.funds.capital.details.holding">持单</text>
+            <text class="detail-value" data-funds-field="holding">0.00</text>
           </view>
           <view class="detail-row">
-            <text class="detail-label" data-i18n="webapp.funds.capital.details.netWorth">Net worth</text>
+            <text class="detail-label" data-i18n="webapp.funds.capital.details.profitLoss">盈亏</text>
+            <text class="detail-value" data-funds-field="profitLoss">0.00</text>
+          </view>
+          <view class="detail-row">
+            <text class="detail-label" data-i18n="webapp.funds.capital.details.netWorth">净值</text>
             <text class="detail-value" data-funds-field="netWorth">0.00</text>
           </view>
           <view class="detail-row">
-            <text class="detail-label" data-i18n="webapp.funds.capital.details.margin">Margin</text>
-            <text class="detail-value" data-funds-field="marginLevel">0.00</text>
+            <text class="detail-label" data-i18n="webapp.funds.capital.details.pending">挂单</text>
+            <text class="detail-value" data-funds-field="pending">0.00</text>
           </view>
           <view class="detail-row">
-            <text class="detail-label" data-i18n="webapp.funds.capital.details.credit">Credit</text>
-            <text class="detail-value" data-funds-field="credit">0.00</text>
-          </view>
-          <view class="detail-row">
-            <text class="detail-label" data-i18n="webapp.funds.capital.details.availableMargin">Available
-              Margin</text>
-            <text class="detail-value" data-funds-field="availableMargin">0.00</text>
+            <text class="detail-label" data-i18n="webapp.funds.capital.details.collateral">质押</text>
+            <text class="detail-value" data-funds-field="collateral">0.00</text>
           </view>
         </view>
       </view>
@@ -883,7 +835,7 @@
             <view class="lev-amount-row">
               <text class="lev-amount"><text data-funds-field="levTotalAsset">0.00</text> <text class="currency">USDT</text></text>
               <view class="lev-multiplier">
-                <text data-funds-field="leverageRatio">20 x</text>
+                <text><text data-funds-field="leverageRatioStat">20</text> x</text>
                 <img class="lev-multiplier-icon" src="../../images/app_tabbar_9_day.png" alt="multiplier" />
               </view>
             </view>
@@ -941,20 +893,36 @@
           </view>
           <view class="usdt-stats">
             <view class="usdt-stat">
-              <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.available">available</text>
-              <text class="usdt-value">0.00</text>
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.displayBalance">杠杆账户余额</text>
+              <text class="usdt-value" data-leverage-field="displayBalance">0.00</text>
             </view>
             <view class="usdt-stat">
-              <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.netAssets">net assets</text>
-              <text class="usdt-value">20</text>
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.base">抵押基数</text>
+              <text class="usdt-value" data-leverage-field="base">0.00</text>
             </view>
             <view class="usdt-stat">
-              <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.borrowed">Borrowed</text>
-              <text class="usdt-value">0.00</text>
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.ratio">杠杆倍数</text>
+              <text class="usdt-value" data-leverage-field="ratio">0</text>
             </view>
             <view class="usdt-stat">
-              <text class="usdt-label" data-i18n="webapp.funds.leveraged.usdt.interest">interest</text>
-              <text class="usdt-value">0.00</text>
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.availableTotal">借款后可用总金额</text>
+              <text class="usdt-value" data-leverage-field="availableTotal">0.00</text>
+            </view>
+            <view class="usdt-stat">
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.maxBorrowable">最大可借金额</text>
+              <text class="usdt-value" data-leverage-field="maxBorrowable">0.00</text>
+            </view>
+            <view class="usdt-stat">
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.borrowed">已借本金</text>
+              <text class="usdt-value" data-leverage-field="borrowed">0.00</text>
+            </view>
+            <view class="usdt-stat">
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.remaining">剩余可借额度</text>
+              <text class="usdt-value" data-leverage-field="remaining">0.00</text>
+            </view>
+            <view class="usdt-stat">
+              <text class="usdt-label" data-i18n="webapp.funds.leverage.interest">利息</text>
+              <text class="usdt-value" data-leverage-field="interest">0.00</text>
             </view>
           </view>
         </view>
@@ -974,7 +942,9 @@
       </view>
       <view class="sheet-section sheet-menu"></view>
       <view class="sheet-section sheet-alert">
-        <view class="sheet-alert-icon"></view>
+        <view class="sheet-alert-icon">
+          <img class="sheet-alert-icon-img" src="" alt="status" />
+        </view>
         <text class="sheet-alert-message" data-i18n="webapp.actionSheet.alert">Message</text>
       </view>
       <view class="sheet-actions">

@@ -1,0 +1,210 @@
+<view class="funds-container">
+  <!-- 顶部 Tab 切换 -->
+  <view class="tab-bar">
+    <view 
+      class="tab-item {{activeTab === 0 ? 'active' : ''}}" 
+      bindtap="switchTab" 
+      data-index="0">
+      资金账户
+    </view>
+    <view 
+      class="tab-item {{activeTab === 1 ? 'active' : ''}}" 
+      bindtap="switchTab" 
+      data-index="1">
+      杠杆账户
+    </view>
+  </view>
+  
+  <!-- 资产总额卡片 -->
+  <view class="asset-card">
+    <view class="card-header">
+      <text class="card-title">资产总额</text>
+      <view class="refresh-btn" bindtap="refresh">
+        <text class="icon-refresh">↻</text>
+      </view>
+    </view>
+    
+    <view class="asset-amount">
+      <text class="amount-value">{{totalAsset.toFixed(2)}}</text>
+      <text class="amount-unit">USDT</text>
+    </view>
+    
+    <view class="asset-estimate">
+      ≈ ${{totalAsset.toFixed(2)}}
+    </view>
+    
+    <!-- 操作按钮 -->
+    <view class="action-buttons">
+      <view class="action-btn">
+        <view class="btn-icon">💰</view>
+        <text>充值</text>
+      </view>
+      <view class="action-btn">
+        <view class="btn-icon">💸</view>
+        <text>提现</text>
+      </view>
+      <view class="action-btn">
+        <view class="btn-icon">📊</view>
+        <text>明细</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 账户信息 -->
+  <view class="account-info">
+    <view class="account-row">
+      <text class="account-label">账号</text>
+      <text class="account-value">{{userAccount}}</text>
+      <view class="setting-icon">⚙</view>
+    </view>
+  </view>
+  
+  <!-- 财务详情 -->
+  <view class="financial-details">
+    <view class="detail-row">
+      <text class="detail-label">余额</text>
+      <text class="detail-value">{{currentWallet.walletBalance.toFixed(2)}}</text>
+    </view>
+    
+    <view class="detail-row highlight">
+      <text class="detail-label">盈亏</text>
+      <text class="detail-value {{profitLoss >= 0 ? 'profit' : 'loss'}}">
+        {{profitLoss >= 0 ? '+' : ''}}{{profitLoss.toFixed(2)}}
+      </text>
+    </view>
+    
+    <view class="detail-row">
+      <text class="detail-label">净值</text>
+      <text class="detail-value">{{equity.toFixed(2)}}</text>
+    </view>
+    
+    <view class="detail-row" s:if="{{activeTab === 1}}">
+      <text class="detail-label">保证金</text>
+      <text class="detail-value">{{currentWallet.collateral.toFixed(2)}}</text>
+    </view>
+    
+    <view class="detail-row" s:if="{{activeTab === 0}}">
+      <text class="detail-label">保证金</text>
+      <text class="detail-value">--</text>
+    </view>
+    
+    <view class="detail-row">
+      <text class="detail-label">信用</text>
+      <text class="detail-value">{{credit.toFixed(2)}}</text>
+    </view>
+    
+    <view class="detail-row">
+      <text class="detail-label">可用保证金</text>
+      <text class="detail-value">{{freeMargin.toFixed(2)}}</text>
+    </view>
+    
+    <!-- 杠杆账户额外信息 -->
+    <view s:if="{{activeTab === 1}}">
+      <view class="detail-row">
+        <text class="detail-label">已借款</text>
+        <text class="detail-value">{{currentWallet.borrowed.toFixed(2)}}</text>
+      </view>
+      
+      <view class="detail-row">
+        <text class="detail-label">累计利息</text>
+        <text class="detail-value">{{currentWallet.interest.toFixed(2)}}</text>
+      </view>
+      
+      <view class="detail-row">
+        <text class="detail-label">小时利率</text>
+        <text class="detail-value">{{(currentWallet.leverInterest * 100).toFixed(4)}}%</text>
+      </view>
+      
+      <view class="detail-row">
+        <text class="detail-label">保证金比率</text>
+        <text class="detail-value">{{marginRatio}}%</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 持仓列表（可选展示） -->
+  <view class="position-section" s:if="{{currentWallet.positions.length > 0}}">
+    <view class="section-title">当前持仓 ({{currentWallet.positions.length}})</view>
+    
+    <view class="position-list">
+      <view 
+        class="position-item" 
+        s:for="{{currentWallet.positions}}" 
+        s:for-item="pos" 
+        s:key="outTradeNo">
+        <view class="pos-header">
+          <text class="pos-symbol">{{pos.itemId}}</text>
+          <text class="pos-direction {{pos.direction === 'buy' ? 'buy' : 'sell'}}">
+            {{pos.direction === 'buy' ? '做多' : '做空'}}
+          </text>
+        </view>
+        <view class="pos-details">
+          <view class="pos-row">
+            <text class="pos-label">开仓价:</text>
+            <text class="pos-value">{{pos.openPrice.toFixed(2)}}</text>
+          </view>
+          <view class="pos-row">
+            <text class="pos-label">当前价:</text>
+            <text class="pos-value">{{(priceCache[pos.itemId] || pos.openPrice).toFixed(2)}}</text>
+          </view>
+          <view class="pos-row">
+            <text class="pos-label">数量:</text>
+            <text class="pos-value">{{pos.tradeVolume.toFixed(2)}}</text>
+          </view>
+          <view class="pos-row">
+            <text class="pos-label">杠杆:</text>
+            <text class="pos-value">{{pos.tradeRate}}x</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 挂单列表（可选展示） -->
+  <view class="pending-section" s:if="{{currentWallet.pendingOrders.length > 0}}">
+    <view class="section-title">挂单 ({{currentWallet.pendingOrders.length}})</view>
+    
+    <view class="pending-list">
+      <view 
+        class="pending-item" 
+        s:for="{{currentWallet.pendingOrders}}" 
+        s:for-item="order" 
+        s:key="outTradeNo">
+        <view class="pending-header">
+          <text class="pending-symbol">{{order.itemId}}</text>
+          <text class="pending-type">{{order.tradeType === 0 ? '限价' : '止损'}}</text>
+        </view>
+        <view class="pending-details">
+          <view class="pending-row">
+            <text class="pending-label">挂单价:</text>
+            <text class="pending-value">{{order.openPrice.toFixed(2)}}</text>
+          </view>
+          <view class="pending-row">
+            <text class="pending-label">数量:</text>
+            <text class="pending-value">{{order.tradeVolume.toFixed(2)}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 底部导航 -->
+  <view class="bottom-nav">
+    <view class="nav-item">
+      <view class="nav-icon">🏠</view>
+      <text>首页</text>
+    </view>
+    <view class="nav-item">
+      <view class="nav-icon">📊</view>
+      <text>行情</text>
+    </view>
+    <view class="nav-item">
+      <view class="nav-icon">💱</view>
+      <text>交易</text>
+    </view>
+    <view class="nav-item active">
+      <view class="nav-icon">💰</view>
+      <text>资金</text>
+    </view>
+  </view>
+</view>

@@ -106,6 +106,17 @@ window.LOCALE_zh_CN = {
                 "pending": "挂单",
                 "position": "持仓"
             },
+            "leverage": {
+                "title": "杠杆账户",
+                "displayBalance": "杠杆账户余额",
+                "base": "抵押基数",
+                "ratio": "杠杆倍数",
+                "availableTotal": "借款后可用总金额",
+                "maxBorrowable": "最大可借金额",
+                "borrowed": "已借本金",
+                "remaining": "剩余可借额度",
+                "interest": "利息"
+            },
             "pending": {
                 "limitBuy": "限价·买入",
                 "stopSell": "止损·卖出",
@@ -121,6 +132,7 @@ window.LOCALE_zh_CN = {
                 "openPrice": "开仓价",
                 "indexPrice": "指数价",
                 "liquidation": "强平价",
+                "spreadFee": "点差费",
                 "hourlyInterest": "小时利率",
                 "pnl": "盈亏",
                 "empty": "暂无持仓"
@@ -128,7 +140,7 @@ window.LOCALE_zh_CN = {
             "leveragedModes": {
                 "full": "全仓",
                 "multiplier": "20 倍",
-                "loan": "借贷/还款"
+                "loan": "借还"
             },
             "orderTypeSheet": {
                 "title": "选择下单方式",
@@ -160,15 +172,15 @@ window.LOCALE_zh_CN = {
                 "settings": "设置",
                 "details": {
                     "balance": "余额",
+                    "collateral": "质押",
+                    "holding": "持单",
                     "profitLoss": "盈亏",
                     "netWorth": "净值",
-                    "margin": "保证金",
-                    "credit": "信用",
-                    "availableMargin": "可用保证金"
+                    "pending": "挂单"
                 }
             },
             "leveraged": {
-                "totalAssetBalance": "资产总额",
+                "totalAssetBalance": "杠杆账户余额",
                 "approxDollar": "≈ $0.00",
                 "todaysPnL": "今日盈亏：",
                 "collateralUSDT": "抵押物(USDT)",

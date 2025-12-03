@@ -121,6 +121,7 @@ window.LOCALE_en_US = {
         "openPrice": "Open Price",
         "indexPrice": "Index Price",
         "liquidation": "Liquidation",
+        "spreadFee": "Spread Fee",
         "hourlyInterest": "Hourly Interest",
         "pnl": "Profit and Loss",
         "empty": "No active positions"
@@ -160,15 +161,15 @@ window.LOCALE_en_US = {
         "settings": "Settings",
         "details": {
           "balance": "Balance",
+          "collateral": "Collateral",
+          "holding": "Holding",
           "profitLoss": "Profit/Loss",
           "netWorth": "Net worth",
-          "margin": "Margin",
-          "credit": "Credit",
-          "availableMargin": "Available Margin"
+          "pending": "Pending"
         }
        },
        "leveraged": {
-        "totalAssetBalance": "Total asset balance",
+        "totalAssetBalance": "Leveraged balance",
         "approxDollar": "≈ $0.00",
         "todaysPnL": "Today's profit and loss:",
         "collateralUSDT": "Collateral (USDT)",

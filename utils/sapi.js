@@ -201,8 +201,27 @@ class SuperAPI {
         // 基础 API Key：优先使用构造函数传入的 encryptKey，否则从 sessionStorage['k'] 中读取
         const baseApiKey = this.encryptKey || (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k']));
         if (!baseApiKey) {
-            const err = new Error('Base API key not found. Please provide encryptKey or set sessionStorage["k"]');
-            if (typeof ShowToast === 'function') ShowToast(err.message, 'confirm');
+            const msg = '您没有登录，请先登录';
+            if (typeof ShowToast === 'function') ShowToast(msg, 'confirm');
+            else if (typeof window !== 'undefined') {
+                // 退化提示
+                try { alert(msg); } catch (_) {}
+            }
+            // 在浏览器环境下尝试跳转到 index 页面
+            try {
+                if (typeof window !== 'undefined' && window.location) {
+                    const href = window.location.pathname || '';
+                    const onIndex = /\/index\.html$|\/pages\/index\/index\.html$/.test(href);
+                    if (!onIndex) {
+                        if (window.router && typeof window.router.navigate === 'function') {
+                            try { window.router.navigate('index'); } catch (_) { window.location.href = '/index.html'; }
+                        } else {
+                            window.location.href = '/index.html';
+                        }
+                    }
+                }
+            } catch (_) {}
+            const err = new Error(msg);
             return Promise.reject(err);
         }
 
@@ -275,7 +294,7 @@ class SuperAPI {
             'x-request-id': requestId,
             ...(localOptions.headers || {})
         };
-
+// console.log('【Request】:', data);
         // 加密请求数据
         const encryptedData = await encryptData(data, dynamicKey, iv);
         // 计算请求 URL：支持三种情况
@@ -344,7 +363,7 @@ class SuperAPI {
                             const iv2 = ivSource2.substring(weekday2, weekday2 + 12);
 
                             const decryptedData = await decryptData(response.data, decryptKey, iv2);
-console.log('Decrypted data:', decryptedData);
+// console.log('Decrypted data:', decryptedData);
                             // 统一处理服务器响应格式：{ status, data, ... }
                             // 如果 status === 1 且 data 存在，则提取 data 并处理数组格式
                             if (decryptedData && decryptedData.status === 1 && decryptedData.data) {

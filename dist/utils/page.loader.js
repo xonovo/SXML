@@ -57,7 +57,11 @@
 	function clone(obj){ if (!obj || typeof obj !== 'object') return obj; try { return JSON.parse(JSON.stringify(obj)); } catch(_) { var o = Array.isArray(obj)?[]:{}; for (var k in obj){ if (Object.prototype.hasOwnProperty.call(obj,k)) o[k]=clone(obj[k]); } return o; } }
 	function instantiateFromDef(url){
 		var def = __pageDefs[url];
-		if (!def) { log('no page def for', url); return null; }
+		if (!def) {
+			log('no page def for', url);
+			log('available page defs:', Object.keys(__pageDefs));
+			return null;
+		}
 		log('instantiating from cached def:', url);
 		var inst = {};
 		for (var k in def){ if (k !== 'data' && Object.prototype.hasOwnProperty.call(def,k)) inst[k] = def[k]; }
@@ -66,6 +70,7 @@
 		currentPage = inst; // 更新内部变量，但不覆盖 window.currentPage(stub)
 		window.__SXML_REAL_PAGE__ = inst;
 		log('currentPage updated to:', inst);
+		log('methods available:', Object.keys(inst).filter(function(k){ return typeof inst[k] === 'function'; }));
 		try { if (typeof inst.onLoad === 'function') inst.onLoad(); } catch(e){ warn('cached onLoad error', e); }
 		try { if (typeof inst.onShow === 'function') inst.onShow(); } catch(e){ }
 		return inst;
@@ -282,6 +287,7 @@
 				var s = document.createElement('script');
 				s.src = src;
 				s.async = false;
+				s.setAttribute('data-page-script', src); // 标记页面脚本，便于路由清理
 				s.onload = function(){ resolve(); };
 				s.onerror = function(){ reject(new Error('load failed: '+src)); };
 				document.head.appendChild(s);
