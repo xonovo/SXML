@@ -302,7 +302,15 @@ window.LOCALE_en_US = {
   },
   "deposit": {
     "title": "Deposit",
-    "coinDesc": "Tether USD",
+    "currency": "USDT",
+    "networkHint": "Please select a blockchain network.",
+    "submitBtn": "Deposit",
+    "qr": {
+      "network": "network",
+      "address": "Crypto Address",
+      "orderNo": "Order No."
+    },
+    "coinDesc": "Tether",
     "balance": "Balance",
     "selectMethod": "Select deposit method",
     "methods": {
@@ -348,6 +356,38 @@ window.LOCALE_en_US = {
       }
     },
     "submit": "Submit deposit request"
+  },
+  "withdrawal": {
+    "title": "Withdrawal",
+    "currency": "USDT",
+    "available": "Available",
+    "cryptoAddress": "Crypto Address",
+    "accountName": "Account Name",
+    "bankName": "Bank Name",
+    "cardNumber": "Card Number",
+    "submitBtn": "Withdrawal",
+    "confirmTitle": "Confirm Withdrawal",
+    "confirmSubtitle": "Please confirm the following information",
+    "amount": "Amount",
+    "network": "Network",
+    "address": "Address",
+    "confirm": "Confirm Withdrawal",
+    "sheet": {
+      "title": "Select withdrawal method",
+      "subtitle": "Please choose how you would like to withdraw"
+    },
+    "options": {
+      "crypto": {
+        "label": "Withdraw to crypto wallet",
+        "desc": "Safer and more reliable when depositing into ICE wallet using cryptocurrency",
+        "iconAlt": "Crypto wallet"
+      },
+      "bank": {
+        "label": "Withdraw to bank card",
+        "desc": "Manual service through bank",
+        "iconAlt": "Bank card"
+      }
+    }
   },
   "numpad": {
     "label": "Amount",

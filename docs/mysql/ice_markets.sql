@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43-0ubuntu0.24.04.2)
  File Encoding         : 65001
 
- Date: 28/11/2025 23:58:39
+ Date: 05/12/2025 19:20:38
 */
 
 SET NAMES utf8mb4;
@@ -97,7 +97,7 @@ CREATE TABLE `i_balance_details`  (
   INDEX `idx_user_wallet_deleted`(`userAccount` ASC, `detailsWalletType` ASC, `deleted` ASC) USING BTREE COMMENT '用户余额查询优化',
   INDEX `idx_wallet_status`(`detailsWalletType` ASC, `detailsStatus` ASC, `deleted` ASC) USING BTREE COMMENT '钱包状态过滤',
   INDEX `idx_created_date`(`createdDate` DESC) USING BTREE COMMENT '时间序列查询'
-) ENGINE = InnoDB AUTO_INCREMENT = 16 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for i_collateral
@@ -158,7 +158,7 @@ CREATE TABLE `i_details_log`  (
   UNIQUE INDEX `logNo_unique`(`logNo` ASC) USING BTREE,
   INDEX `indexed_index`(`indexed` ASC) USING BTREE,
   INDEX `idx_user_type_created`(`userAccount` ASC, `logType` ASC, `createdDate` DESC, `deleted` ASC) USING BTREE COMMENT '用户日志查询优化'
-) ENGINE = InnoDB AUTO_INCREMENT = 25 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '明细表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 244371 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '明细表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for i_inout
@@ -183,7 +183,7 @@ CREATE TABLE `i_inout`  (
   UNIQUE INDEX `tradeNo_unique`(`tradeNo` ASC) USING BTREE,
   INDEX `indexed_index`(`indexed` ASC) USING BTREE,
   INDEX `idx_user_status`(`userAccount` ASC, `tradeStatus` ASC, `deleted` ASC) USING BTREE COMMENT '用户出入金查询'
-) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '充值表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 37 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '充值表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for i_item_type
@@ -254,8 +254,9 @@ CREATE TABLE `i_login_log`  (
   `indexed` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'ES index flag.',
   `deleted` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Logical deletion flag.',
   PRIMARY KEY (`rowId`) USING BTREE,
-  INDEX `logId_unique`(`logId` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 84 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+  INDEX `logId_unique`(`logId` ASC) USING BTREE,
+  INDEX `idx_user_created`(`userAccount` ASC, `createdDate` DESC) USING BTREE COMMENT '用户登录历史'
+) ENGINE = InnoDB AUTO_INCREMENT = 100 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for i_positions
@@ -267,6 +268,18 @@ CREATE TABLE `i_positions`  (
   `userAccount` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'userAccount',
   `outTradeNo` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单号',
   `itemId` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'EURUSD' COMMENT '对应i_item_type',
+  `aggDirection` enum('buy','sell') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `aggItemId` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `detailsWalletType` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=cash,1=leveraged',
+  `totalVolume` decimal(20, 8) NOT NULL DEFAULT 0.00000000,
+  `avgOpenPrice` decimal(20, 8) NOT NULL DEFAULT 0.00000000,
+  `totalLiability` decimal(20, 8) NOT NULL DEFAULT 0.00000000,
+  `takeSpread` decimal(20, 8) NOT NULL DEFAULT 0.00000000,
+  `swap` decimal(20, 8) NOT NULL DEFAULT 0.00000000 COMMENT '聚合swap',
+  `tradeRate` decimal(10, 4) NOT NULL DEFAULT 1.0000 COMMENT '交易倍率（杠杆倍数）',
+  `openedAt` datetime(3) NULL DEFAULT NULL,
+  `updatedAt` datetime(3) NULL DEFAULT NULL,
+  `interestAccrued` decimal(20, 8) NOT NULL DEFAULT 0.00000000,
   `unrealizedPnl` decimal(20, 8) NOT NULL DEFAULT 0.00000000 COMMENT '未实现盈亏，(当前价-开仓价)×手数',
   `marginUsed` decimal(20, 8) NOT NULL DEFAULT 0.00000000 COMMENT '保证金，合约价值×保证金比例+风险附加保证金，其中合约价值=开仓价×数量',
   `stopLoss` decimal(20, 8) NOT NULL DEFAULT 0.00000000 COMMENT '止损价位',
@@ -279,8 +292,9 @@ CREATE TABLE `i_positions`  (
   UNIQUE INDEX `pId_unique`(`pId` ASC) USING BTREE,
   INDEX `indexed_index`(`indexed` ASC) USING BTREE,
   INDEX `idx_user_deleted`(`userAccount` ASC, `deleted` ASC) USING BTREE COMMENT '用户持仓查询',
-  INDEX `idx_order_deleted`(`outTradeNo` ASC, `deleted` ASC) USING BTREE COMMENT '订单关联查询'
-) ENGINE = InnoDB AUTO_INCREMENT = 10 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '持仓表表' ROW_FORMAT = Dynamic;
+  INDEX `idx_order_deleted`(`outTradeNo` ASC, `deleted` ASC) USING BTREE COMMENT '订单关联查询',
+  INDEX `idx_user_item_wallet`(`userAccount` ASC, `aggItemId` ASC, `detailsWalletType` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 15 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '持仓表表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for i_trade_order
@@ -291,6 +305,7 @@ CREATE TABLE `i_trade_order`  (
   `outTradeNo` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'id ',
   `userAccount` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'userAccount',
   `itemId` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '0' COMMENT '关联期货ID i_item_type表',
+  `positionId` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'outTradeNo',
   `detailsWalletType` int NOT NULL DEFAULT 0 COMMENT '钱包类型 0=现金钱包，1=杠杆钱包，2=合约钱包',
   `direction` enum('buy','sell') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'buy' COMMENT '类型 buy=买多，sell=买空',
   `tradeType` int NOT NULL DEFAULT 0 COMMENT '成交类型 0=市场价，1=限制价格，2=停止',
@@ -303,6 +318,7 @@ CREATE TABLE `i_trade_order`  (
   `tradeVolume` int NOT NULL DEFAULT 0 COMMENT '数量 ',
   `tradeRate` decimal(4, 2) NOT NULL DEFAULT 0.00 COMMENT '交易倍率 交易倍率不为0，则动用现金账户',
   `tradeStatus` int NOT NULL DEFAULT 1 COMMENT '订单状态 0=等待交易，1=持仓中，2=已平仓，3=已取消',
+  `settled` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否已结算，0=未结算 1=已结算',
   `openedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '订单创建时间戳',
   `closedAt` timestamp NULL DEFAULT NULL COMMENT '平仓时间',
   `tradeRemarks` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '备注 ',
@@ -317,8 +333,10 @@ CREATE TABLE `i_trade_order`  (
   INDEX `idx_user_status_item`(`userAccount` ASC, `tradeStatus` ASC, `itemId` ASC, `deleted` ASC) USING BTREE COMMENT '持仓查询优化',
   INDEX `idx_user_wallet_status`(`userAccount` ASC, `detailsWalletType` ASC, `tradeStatus` ASC, `deleted` ASC) USING BTREE COMMENT '用户订单过滤',
   INDEX `idx_status_opened`(`tradeStatus` ASC, `openedAt` DESC) USING BTREE COMMENT '订单时间序列',
-  INDEX `idx_item_status`(`itemId` ASC, `tradeStatus` ASC, `deleted` ASC) USING BTREE COMMENT '品种持仓统计'
-) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+  INDEX `idx_item_status`(`itemId` ASC, `tradeStatus` ASC, `deleted` ASC) USING BTREE COMMENT '品种持仓统计',
+  INDEX `idx_symbol_status_sl_tp`(`itemId` ASC, `direction` ASC, `tradeStatus` ASC, `stopLoss` ASC, `takeProfit` ASC) USING BTREE,
+  INDEX `idx_settle_candidate`(`tradeStatus` ASC, `settled` ASC, `closedAt` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 84 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for i_user
@@ -350,8 +368,9 @@ CREATE TABLE `i_user`  (
   `deleted` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Logical deletion flag.',
   PRIMARY KEY (`rowId`) USING BTREE,
   UNIQUE INDEX `userEmail_unique`(`userEmail` ASC) USING BTREE,
-  UNIQUE INDEX `userAccount_unique`(`userAccount` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+  UNIQUE INDEX `userAccount_unique`(`userAccount` ASC) USING BTREE,
+  INDEX `idx_access_deleted`(`accesslevel` ASC, `deleted` ASC) USING BTREE COMMENT '权限等级过滤'
+) ENGINE = InnoDB AUTO_INCREMENT = 14 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for id_config
@@ -391,8 +410,22 @@ CREATE TABLE `interface`  (
   `deleted` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Logical deletion flag.',
   PRIMARY KEY (`rowId`) USING BTREE,
   UNIQUE INDEX `interfaceid_unique`(`interfaceId` ASC) USING BTREE,
-  INDEX `indexed_index`(`indexed` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 19 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+  INDEX `indexed_index`(`indexed` ASC) USING BTREE,
+  INDEX `idx_type_access`(`interfaceType` ASC, `accesslevel` ASC, `deleted` ASC) USING BTREE COMMENT '接口类型过滤'
+) ENGINE = InnoDB AUTO_INCREMENT = 31 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for market_prices
+-- ----------------------------
+DROP TABLE IF EXISTS `market_prices`;
+CREATE TABLE `market_prices`  (
+  `symbol` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '交易对符号 如 BTC/USDT',
+  `price` decimal(20, 8) NOT NULL COMMENT '最新价格',
+  `volume_24h` decimal(20, 8) NULL DEFAULT 0.00000000 COMMENT '24小时成交量',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`symbol`) USING BTREE,
+  INDEX `idx_updated`(`updated_at` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '市场实时价格表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for market_trade_data
@@ -443,7 +476,7 @@ CREATE TABLE `trade_ticks`  (
   INDEX `idx_symbol`(`symbol` ASC) USING BTREE,
   INDEX `idx_trade_time`(`trade_time` ASC) USING BTREE,
   INDEX `idx_received`(`received_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 23304607 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'Trade 逐笔数据（5小时自动清理）' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 23673251 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'Trade 逐笔数据（5小时自动清理）' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for ws_active_subscriptions
@@ -645,6 +678,85 @@ END
 delimiter ;
 
 -- ----------------------------
+-- Procedure structure for i_cancel_order
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `i_cancel_order`;
+delimiter ;;
+CREATE PROCEDURE `i_cancel_order`(IN user_Account VARCHAR(255),
+  IN out_TradeNo VARCHAR(255))
+BEGIN
+  DECLARE t_error INTEGER DEFAULT 0;
+  DECLARE affected INTEGER DEFAULT 0;
+  DECLARE details_WalletType INT DEFAULT 0;
+  DECLARE cancel_Amount DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error = 1;
+
+  -- 读取订单必要信息（钱包类型、金额）
+  -- 修正：takeSpread 已是总费用，不能再乘数量
+  SELECT 
+    detailsWalletType,
+    (openPrice * tradeVolume) + IFNULL(takeSpread, 0)
+  INTO details_WalletType, cancel_Amount
+  FROM i_trade_order
+  WHERE deleted = 0 
+    AND userAccount = user_Account 
+    AND outTradeNo = out_TradeNo
+  LIMIT 1;
+
+  START TRANSACTION;
+
+  -- 更新订单状态为已取消（tradeStatus = 3）
+  UPDATE i_trade_order 
+  SET tradeStatus = 3,
+      closedAt = NOW()
+  WHERE deleted = 0 
+    AND userAccount = user_Account 
+    AND outTradeNo = out_TradeNo
+    AND tradeStatus = 0;  -- 仅限价单（未成交）可撤销
+
+  SET affected = ROW_COUNT();
+
+  IF t_error = 1 THEN
+    ROLLBACK;
+    SELECT 0 AS status, 'Cancel failed' AS message, 4003 AS code;
+  ELSEIF affected = 0 THEN
+    ROLLBACK;
+    SELECT 0 AS status, 'Order not cancelable' AS message, 4004 AS code;
+  ELSE
+    -- 解冻保证金：撤单后原路退回
+    INSERT INTO i_balance_details(
+      detailsId,
+      userAccount,
+      detailsWalletType,
+      detailsType,
+      detailsSubType,
+      income,
+      expense,
+      outTradeNo,
+      detailsRemarks,
+      createdDate
+    )
+    VALUES(
+      getGenerateId('i_balance_details'),
+      user_Account,
+      IFNULL(details_WalletType, 0),
+      1,  -- detailsType: 1=交易
+      6,  -- detailsSubType: 6=撤单解冻
+      IFNULL(cancel_Amount, 0),  -- income: 返还冻结金额
+      0,  -- expense: 0
+      out_TradeNo,
+      CONCAT('撤单解冻保证金: ', cancel_Amount),
+      NOW()
+    );
+    
+    COMMIT;
+    SELECT 1 AS status, 'Cancelled successfully' AS message, 2000 AS code;
+  END IF;
+END
+;;
+delimiter ;
+
+-- ----------------------------
 -- Procedure structure for i_check_in
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `i_check_in`;
@@ -706,40 +818,268 @@ delimiter ;
 DROP PROCEDURE IF EXISTS `i_close_order`;
 delimiter ;;
 CREATE PROCEDURE `i_close_order`(IN user_Account VARCHAR(255),
-IN out_TradeNo VARCHAR(255),#如果为NULL,则全部平仓
-IN item_Id VARCHAR(255),#选择金融产品
-IN current_Price decimal(20,8),#平仓价格
-IN trade_Status INT)
+  IN p_Id VARCHAR(255),           -- 聚合持仓ID（必填用于单/全平仓）
+  IN item_Id VARCHAR(255),        -- 产品代码（从 i_positions 取）
+  IN details_WalletType INT,      -- 钱包类型：0=现金，1=杠杆
+  IN direction_Val VARCHAR(10),   -- 方向过滤：'buy' 或 'sell'；NULL 表示全部方向
+  IN current_Price DECIMAL(20,8), -- 平仓价格
+  IN trade_Status INT)
 BEGIN
-#平仓订单
-DECLARE t_error INTEGER DEFAULT 0;
-DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
+  DECLARE t_error INTEGER DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
 
-start transaction;
+  -- 参数校验：itemId 必填（按你的约定）
+  IF (item_Id IS NULL OR item_Id = '') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Missing itemId for close', MYSQL_ERRNO = 4004;
+  END IF;
 
-IF(out_TradeNo IS NULL)THEN
-   #平仓
-   UPDATE i_trade_order SET
-	 currentPrice = current_Price,
-   tradeStatus = trade_Status
-   WHERE deleted = 0 AND userAccount = user_Account AND tradeStatus < 2 AND itemId = item_Id;
-ELSE
-   #平仓
-   UPDATE i_trade_order SET
-	 currentPrice = current_Price,
-   tradeStatus = trade_Status
-   WHERE deleted = 0 AND userAccount = user_Account AND outTradeNo = out_TradeNo AND tradeStatus < 2;
-END IF;
+  -- 兜底获取产品与方向（当 itemId 或 direction 缺失时）
+  IF (direction_Val IS NULL OR direction_Val = '') THEN
+    SELECT aggDirection INTO direction_Val
+    FROM i_positions
+    WHERE deleted = 0 AND userAccount = user_Account AND detailsWalletType = details_WalletType
+      AND (pId = p_Id OR p_Id IS NULL OR p_Id = '')
+      AND aggItemId = item_Id
+    LIMIT 1;
+  END IF;
 
+  START TRANSACTION;
 
-IF t_error=1 THEN
-ROLLBACK;
-SELECT 0 as `status`,'close failed' as `message`,4003 AS `code`;
-ELSE
-commit;
-SELECT 1 as `status`,'close successfully' as `message`,out_TradeNo as outTradeNo,2000 AS `code`;
-END if;
+  -- 单/全平仓：按 (userAccount, itemId, walletType[, direction]) 更新持仓订单为已平仓
+  UPDATE i_trade_order SET
+    currentPrice = current_Price,
+    tradeStatus = trade_Status
+  WHERE deleted = 0
+    AND userAccount = user_Account
+    AND itemId = item_Id
+    AND detailsWalletType = details_WalletType
+    AND tradeStatus = 1
+    AND (
+      direction_Val IS NULL OR direction = direction_Val
+    );
 
+  -- 说明：递减 i_positions.totalVolume 与日志记录由触发器 `auto_updated_date_on_i_trade_order` 逐行处理
+
+  IF t_error = 1 THEN
+    ROLLBACK;
+    SELECT 0 AS `status`, 'Close order failed' AS `message`, 4003 AS `code`;
+  ELSE
+    COMMIT;
+    SELECT 1 AS `status`, 'Close order successfully' AS `message`, 2000 AS `code`;
+  END IF;
+END
+;;
+delimiter ;
+
+-- ----------------------------
+-- Procedure structure for i_close_order_complete
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `i_close_order_complete`;
+delimiter ;;
+CREATE PROCEDURE `i_close_order_complete`(IN user_Account VARCHAR(255),
+  IN out_TradeNo VARCHAR(255),  -- 如果为 NULL，则全部平仓（慎用）
+  IN item_Id VARCHAR(255),       -- 选择金融产品（用于批量平仓）
+  IN current_Price DECIMAL(20,8), -- 平仓价格
+  IN trade_Status INT)
+BEGIN
+  -- 变量声明
+  DECLARE v_outTradeNo, v_itemId, v_direction, v_detailsId, v_leverId VARCHAR(255);
+  DECLARE v_detailsWalletType INT;
+  DECLARE v_openPrice, v_tradeVolume, v_takeSpread, v_swap DECIMAL(20,8);
+  DECLARE v_tradeRate DECIMAL(4,2);
+  DECLARE v_totalCost, v_totalRevenue, v_pnl, v_netPnl DECIMAL(20,8);
+  DECLARE v_repayAmount, v_leverBalance, v_borrowed DECIMAL(20,8);
+  DECLARE done INT DEFAULT 0;
+  DECLARE t_error INT DEFAULT 0;
+  
+  -- 游标：遍历需要平仓的订单
+  DECLARE order_cursor CURSOR FOR
+    SELECT 
+      outTradeNo, itemId, detailsWalletType, direction,
+      openPrice, tradeVolume, takeSpread, swap, tradeRate
+    FROM i_trade_order
+    WHERE deleted = 0 
+      AND userAccount = user_Account
+      AND tradeStatus = 1  -- 仅平仓「持仓中」的订单
+      AND (out_TradeNo IS NULL OR outTradeNo = out_TradeNo)
+      AND (item_Id IS NULL OR item_Id = '' OR itemId = item_Id);
+  
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error = 1;
+  
+  START TRANSACTION;
+  
+  -- ========================================
+  -- 1. 遍历所有待平仓订单
+  -- ========================================
+  OPEN order_cursor;
+  
+  read_loop: LOOP
+    FETCH order_cursor INTO 
+      v_outTradeNo, v_itemId, v_detailsWalletType, v_direction,
+      v_openPrice, v_tradeVolume, v_takeSpread, v_swap, v_tradeRate;
+    
+    IF done THEN
+      LEAVE read_loop;
+    END IF;
+    
+    -- ========================================
+    -- 2. 计算盈亏（PnL）
+    -- ========================================
+    -- 开仓总成本 = 开仓价×数量 + 总点差费用
+    -- 注意：takeSpread 已经是总费用（单位点差×数量），不能再乘以数量
+    SET v_totalCost = (v_openPrice * v_tradeVolume) + v_takeSpread;
+    
+    -- 平仓总收入 = 平仓价 × 数量
+    SET v_totalRevenue = current_Price * v_tradeVolume;
+    
+    -- 原始盈亏 = 收入 - 成本（做多）或 成本 - 收入（做空）
+    IF v_direction = 'buy' THEN
+      SET v_pnl = v_totalRevenue - v_totalCost;
+    ELSE
+      SET v_pnl = v_totalCost - v_totalRevenue;
+    END IF;
+    
+    -- 净盈亏 = 原始盈亏 - 利息（杠杆账户）
+    SET v_netPnl = v_pnl - IFNULL(v_swap, 0);
+    
+    -- ========================================
+    -- 3. 更新订单状态为「已平仓」
+    -- ========================================
+    UPDATE i_trade_order
+    SET 
+      currentPrice = current_Price,
+      tradeStatus = trade_Status,
+      closedAt = NOW(),  -- 触发器会自动设置，这里显式更新更安全
+      pnl = v_netPnl     -- 记录实际盈亏（如果表有此字段）
+    WHERE deleted = 0 
+      AND userAccount = user_Account 
+      AND outTradeNo = v_outTradeNo;
+    
+    -- ========================================
+    -- 4. 入账余额明细（平仓收入）
+    -- ========================================
+    SET v_detailsId = getGenerateId('i_balance_details');
+    
+    INSERT INTO i_balance_details (
+      detailsId, userAccount, detailsWalletType, detailsType, detailsSubType,
+      income, expense, outTradeNo, detailsRemarks
+    ) VALUES (
+      v_detailsId,
+      user_Account,
+      v_detailsWalletType,
+      1,  -- detailsType: 1=交易
+      3,  -- detailsSubType: 3=平仓卖出
+      CASE 
+        WHEN v_netPnl > 0 THEN v_totalCost + v_netPnl  -- 盈利：本金+盈利
+        ELSE v_totalCost + v_netPnl  -- 亏损：本金-亏损
+      END,
+      0,  -- expense=0（平仓是收入）
+      v_outTradeNo,
+      CONCAT('平仓 ', v_itemId, ' 净盈亏=', v_netPnl)
+    );
+    
+    -- ========================================
+    -- 5. 杠杆账户：平仓即还款逻辑
+    -- ========================================
+    IF v_detailsWalletType = 1 THEN
+      -- 查询当前杠杆余额和总借款
+      SELECT 
+        IFNULL(SUM(income) - SUM(expense), 0)
+      INTO v_leverBalance
+      FROM i_balance_details
+      WHERE deleted = 0 
+        AND userAccount = user_Account 
+        AND detailsWalletType = 1;
+      
+      SELECT 
+        IFNULL(SUM(leverAmount), 0)
+      INTO v_borrowed
+      FROM i_lever
+      WHERE deleted = 0 
+        AND userAccount = user_Account 
+        AND leverStatus = 0;  -- 未还款
+      
+      -- 计算可还款金额（取平仓收入和总借款的最小值）
+      SET v_repayAmount = LEAST(v_leverBalance, v_borrowed);
+      
+      -- 如果有借款且平仓后有余额，则自动还款
+      IF v_repayAmount > 0 THEN
+        -- 找到最早的未还借款记录
+        SELECT leverId INTO v_leverId
+        FROM i_lever
+        WHERE deleted = 0 
+          AND userAccount = user_Account 
+          AND leverStatus = 0
+        ORDER BY createTime ASC
+        LIMIT 1;
+        
+        -- 标记借款为已还（或部分还）
+        UPDATE i_lever
+        SET 
+          leverStatus = 1,  -- 1=已还款
+          repayAmount = v_repayAmount,
+          repayTime = NOW()
+        WHERE deleted = 0 
+          AND userAccount = user_Account 
+          AND leverId = v_leverId;
+        
+        -- 入账还款明细
+        SET v_detailsId = getGenerateId('i_balance_details');
+        INSERT INTO i_balance_details (
+          detailsId, userAccount, detailsWalletType, detailsType, detailsSubType,
+          income, expense, outTradeNo, detailsRemarks
+        ) VALUES (
+          v_detailsId,
+          user_Account,
+          1,  -- 杠杆账户
+          3,  -- 交易类型
+          7,  -- detailsSubType: 7=平仓还款
+          0,
+          v_repayAmount,
+          v_leverId,
+          CONCAT('平仓自动还款 ', v_repayAmount)
+        );
+        
+        -- 释放对应的抵押品
+        UPDATE i_collateral
+        SET collateralStatus = 1  -- 1=已释放
+        WHERE deleted = 0 
+          AND userAccount = user_Account 
+          AND collateralId = (
+            SELECT collateralId FROM i_lever WHERE leverId = v_leverId LIMIT 1
+          );
+      END IF;
+    END IF;
+    
+    -- ========================================
+    -- 6. 更新持仓表（标记为已平仓）
+    -- ========================================
+    UPDATE i_positions
+    SET 
+      positionStatus = 2,  -- 2=已平仓（假设有此字段）
+      closedAt = NOW(),
+      realizedPnl = v_netPnl  -- 实现盈亏（假设有此字段）
+    WHERE deleted = 0 
+      AND userAccount = user_Account 
+      AND outTradeNo = v_outTradeNo;
+    
+  END LOOP read_loop;
+  
+  CLOSE order_cursor;
+  
+  -- ========================================
+  -- 7. 事务提交或回滚
+  -- ========================================
+  IF t_error = 1 THEN
+    ROLLBACK;
+    SELECT 0 AS `status`, 'Close position failed' AS `message`, 4003 AS `code`;
+  ELSE
+    COMMIT;
+    SELECT 1 AS `status`, 'Position(s) closed successfully' AS `message`, 
+           out_TradeNo AS outTradeNo, 2000 AS `code`;
+  END IF;
+  
 END
 ;;
 delimiter ;
@@ -749,108 +1089,64 @@ delimiter ;
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `i_create_lever`;
 delimiter ;;
-CREATE PROCEDURE `i_create_lever`(IN user_Account VARCHAR(255),
-IN collateralAmount DECIMAL(20,8),#抵押金额
-IN lever_Rate INT,#杠杆倍数
-IN lever_Amount DECIMAL(20,8))
+CREATE PROCEDURE `i_create_lever`(IN user_Account VARCHAR(255),IN collateralAmount DECIMAL(20,8),IN lever_Rate INT,IN lever_Amount DECIMAL(20,8))
 BEGIN
-#创建抵押借款 - 性能优化版
-DECLARE collateral_Id,lever_Id,details_Id VARCHAR(255);
-DECLARE leveragedBalance,collateral,borrowed,leveragedTransfer,lever_Interest DECIMAL(20,8) DEFAULT 0.00000000;
-DECLARE t_error INTEGER DEFAULT 0;
-DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
+  DECLARE collateral_Id,lever_Id,details_Id VARCHAR(255);
+  DECLARE leveragedBalance,collateral,borrowed,leveragedTransfer,lever_Interest DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE t_error INTEGER DEFAULT 0; 
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
+START TRANSACTION;
+  SELECT 
+    IFNULL(SUM(CASE WHEN bd.detailsWalletType = 1 THEN bd.income - bd.expense ELSE 0 END), 0),
+    IFNULL(SUM(DISTINCT c.collateralAmount), 0),
+    IFNULL(SUM(l.leverAmount), 0),
+    u.leverInterest
+  INTO leveragedBalance, collateral, borrowed, lever_Interest
+  FROM i_user u
+  LEFT JOIN i_balance_details bd ON bd.deleted = 0 AND bd.userAccount = user_Account
+  LEFT JOIN i_collateral c ON c.deleted = 0 AND c.userAccount = user_Account AND c.collateralStatus = 0
+  LEFT JOIN i_lever l ON l.deleted = 0 AND l.userAccount = user_Account AND l.leverStatus = 0
+  WHERE u.deleted = 0 AND u.userAccount = user_Account;
 
-# 优化：一次查询获取所有余额数据
-SELECT 
-  IFNULL(SUM(CASE WHEN bd.detailsWalletType = 1 THEN bd.income - bd.expense ELSE 0 END), 0),
-  IFNULL(SUM(DISTINCT c.collateralAmount), 0),
-  IFNULL(SUM(l.leverAmount), 0),
-  u.leverInterest
-INTO leveragedBalance, collateral, borrowed, lever_Interest
-FROM i_user u
-LEFT JOIN i_balance_details bd ON bd.deleted = 0 AND bd.userAccount = user_Account
-LEFT JOIN i_collateral c ON c.deleted = 0 AND c.userAccount = user_Account AND c.collateralStatus = 0
-LEFT JOIN i_lever l ON l.deleted = 0 AND l.userAccount = user_Account AND l.leverStatus = 0
-WHERE u.deleted = 0 AND u.userAccount = user_Account;
+  SET leveragedTransfer = (leveragedBalance - collateral - borrowed);
 
-# 计算可转账余额
-SET leveragedTransfer = (leveragedBalance - collateral - borrowed);
-
-# 判断是否有余额可以借
-IF(leveragedTransfer >= collateralAmount)THEN
-   
-	 IF(collateralAmount * (lever_Rate - 1) = lever_Amount)THEN
-	    
-			start transaction;
-			
-			# 2、抵押金额
-	    SET collateral_Id = getGenerateId('i_collateral');
-      INSERT INTO `i_collateral`(
-      collateralId, userAccount, collateralAmount
-      )VALUES(
-      collateral_Id, user_Account, collateralAmount
-      );
-			
-			# 3、扣除抵押金额
-	    SET details_Id = getGenerateId('i_balance_details');
-      INSERT INTO `i_balance_details`(
-      detailsId, userAccount, detailsWalletType, detailsType,
-	    detailsSubType, expense, outTradeNo, detailsRemarks
-      )VALUES(
-      details_Id, user_Account, 1, 3,
-	    9, collateralAmount, collateral_Id, '扣除借款抵押金额'
-      );
-			
-			# 4、借款
-			SET lever_Id = getGenerateId('i_lever');
-      INSERT INTO `i_lever`(
-      leverId, userAccount, collateralId, leverRate,
-      leverQuantity, leverAmount, leverInterest
-      )VALUES(
-      lever_Id, user_Account, collateral_Id, lever_Rate,
-			lever_Amount, lever_Amount, lever_Interest
-      );
-			
-			# 5、加入借款
-			SET details_Id = getGenerateId('i_balance_details');
-      INSERT INTO `i_balance_details`(
-      detailsId, userAccount, detailsWalletType, detailsType,
-	    detailsSubType, income, outTradeNo, detailsRemarks
-      )VALUES(
-      details_Id, user_Account, 1, 3,
-	    10, collateralAmount * lever_Rate, lever_Id, '借款放款'
-      );
-			
-			IF t_error=1 THEN
-      ROLLBACK;
-      SELECT 0 as `status`,'Lever failed' as `message`,4003 AS `code`;
-      ELSE
-      commit;
-			
-			# 优化：事务后重新计算余额（一次查询）
-      SELECT 
-        IFNULL(SUM(CASE WHEN bd.detailsWalletType = 1 THEN bd.income - bd.expense ELSE 0 END), 0),
-        IFNULL(SUM(DISTINCT c.collateralAmount), 0),
-        IFNULL(SUM(l.leverAmount), 0)
-      INTO leveragedBalance, collateral, borrowed
-      FROM i_balance_details bd
-      LEFT JOIN i_collateral c ON c.deleted = 0 AND c.userAccount = user_Account AND c.collateralStatus = 0
-      LEFT JOIN i_lever l ON l.deleted = 0 AND l.userAccount = user_Account AND l.leverStatus = 0
-      WHERE bd.deleted = 0 AND bd.userAccount = user_Account;
+  IF(leveragedTransfer >= collateralAmount)THEN
+    IF(collateralAmount * (lever_Rate - 1) = lever_Amount)THEN
       
-      SET leveragedTransfer = (leveragedBalance - collateral - borrowed);
-			
-      SELECT 1 as `status`,'Lever successfully' as `message`,2000 AS `code`,leveragedBalance,collateral,borrowed,leveragedTransfer,lever_Interest AS leverInterest;
-      END if;
-		
-	 ELSE
-	    SELECT 0 as `status`,'The loan amount and multiplier calculation are incorrect.' as `message`,4001 AS `code`;
-	 END IF;
+      SET collateral_Id = getGenerateId('i_collateral');
+      INSERT INTO i_collateral(collateralId,userAccount,collateralAmount) VALUES(collateral_Id,user_Account,collateralAmount);
 
-ELSE
-   SELECT 0 as `status`,'Insufficient balance' as `message`,4004 AS `code`;
-END IF;
+      SET details_Id = getGenerateId('i_balance_details');
+      INSERT INTO i_balance_details(detailsId,userAccount,detailsWalletType,detailsType,detailsSubType,expense,outTradeNo,detailsRemarks)
+      VALUES(details_Id,user_Account,1,3,9,collateralAmount,collateral_Id,'扣除借款抵押金额');
 
+      SET lever_Id = getGenerateId('i_lever');
+      INSERT INTO i_lever(leverId,userAccount,collateralId,leverRate,leverQuantity,leverAmount,leverInterest)
+      VALUES(lever_Id,user_Account,collateral_Id,lever_Rate,lever_Amount,lever_Amount,lever_Interest);
+
+      SET details_Id = getGenerateId('i_balance_details');
+      INSERT INTO i_balance_details(detailsId,userAccount,detailsWalletType,detailsType,detailsSubType,income,outTradeNo,detailsRemarks)
+      VALUES(details_Id,user_Account,1,3,10,collateralAmount*lever_Rate,lever_Id,'借款放款');
+
+      IF t_error=1 THEN ROLLBACK; SELECT 0 AS status,'Lever failed' AS message,4003 AS code; ELSE COMMIT;
+        SELECT 
+          IFNULL(SUM(CASE WHEN bd.detailsWalletType = 1 THEN bd.income - bd.expense ELSE 0 END), 0),
+          IFNULL(SUM(DISTINCT c.collateralAmount), 0),
+          IFNULL(SUM(l.leverAmount), 0)
+        INTO leveragedBalance, collateral, borrowed
+        FROM i_balance_details bd
+        LEFT JOIN i_collateral c ON c.deleted = 0 AND c.userAccount = user_Account AND c.collateralStatus = 0
+        LEFT JOIN i_lever l ON l.deleted = 0 AND l.userAccount = user_Account AND l.leverStatus = 0
+        WHERE bd.deleted = 0 AND bd.userAccount = user_Account;
+        SET leveragedTransfer = (leveragedBalance - collateral - borrowed);
+        SELECT 1 AS status,'Lever successfully' AS message,2000 AS code,leveragedBalance,collateral,borrowed,leveragedTransfer,lever_Interest AS leverInterest; 
+      END IF;
+    ELSE
+      SELECT 0 AS status,'The loan amount and multiplier calculation are incorrect.' AS message,4001 AS code; 
+    END IF;
+  ELSE
+    SELECT 0 AS status,'Insufficient balance' AS message,4004 AS code;
+  END IF;
 END
 ;;
 delimiter ;
@@ -860,101 +1156,197 @@ delimiter ;
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `i_create_order`;
 delimiter ;;
-CREATE PROCEDURE `i_create_order`(IN user_Account VARCHAR(255),
-IN item_Id VARCHAR(255),#enum('EURUSD','XAUUSD','XTIUSD','EURGBP'),
-IN details_WalletType INT(1),#钱包类型 0=现金钱包，1=杠杆钱包，2=合约钱包
-IN direction_Temp ENUM('buy', 'sell'),#类型 buy=买多，sell=买空
-IN trade_Type INT(1),#成交类型 0=市场价，1=限制价格，2=停止
-IN open_Price decimal(20,8),#开仓价格
-IN stop_Loss decimal(20,8),#止损价位
-IN take_Profit decimal(20,8),#止盈价位
-IN take_Spread decimal(20,8),#点差，点差x数量
-IN trade_Volume decimal(20,8),#数量
-IN trade_Rate decimal(4,2),#交易倍率 现金账户忽略 20
-IN trade_Status INT)
-BEGIN
-#创建订单 - 性能优化版
-DECLARE out_TradeNo,trader_temp,details_Id,p_Id VARCHAR(255);
-DECLARE balance,totalAmount,swap_temp,lever_Interest decimal(20,8) DEFAULT 0;
-DECLARE margin_Used decimal(20,8) DEFAULT 0;
-DECLARE t_error INTEGER DEFAULT 0;
-DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
+CREATE PROCEDURE `i_create_order`(IN user_Account VARCHAR(255),IN item_Id VARCHAR(255),IN details_WalletType TINYINT,IN direction_Temp VARCHAR(8),IN trade_Type TINYINT,IN open_Price DECIMAL(20,8),IN stop_Loss DECIMAL(20,8),IN take_Profit DECIMAL(20,8),IN take_Spread DECIMAL(20,8),IN trade_Volume DECIMAL(20,8),IN trade_Rate DECIMAL(10,4),IN trade_Status INT)
+proc_label: BEGIN
+  DECLARE out_TradeNo,trader_temp,details_Id,p_Id VARCHAR(255);
+  DECLARE balance,totalAmount,swap_temp,lever_Interest DECIMAL(20,8) DEFAULT 0; 
+  DECLARE margin_Used DECIMAL(20,8) DEFAULT 0;
+  DECLARE max_Lever DECIMAL(6,2) DEFAULT 0.00;
+  DECLARE nowCommission,position JSON;
+  DECLARE available DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE last_step VARCHAR(64) DEFAULT 'init';
 
-# 优化：合并余额查询和用户配置查询
-SELECT 
-  IFNULL(SUM(bd.income) - SUM(bd.expense), 0),
-  u.invitationUserAccount,
-  u.leverInterest
-INTO balance, trader_temp, lever_Interest
-FROM i_user u
-LEFT JOIN i_balance_details bd ON bd.deleted = 0 
-  AND bd.userAccount = user_Account 
-  AND bd.detailsWalletType = details_WalletType
-WHERE u.deleted = 0 AND u.userAccount = user_Account
-GROUP BY u.userAccount;
+  DECLARE lev_collateral DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE lev_borrowBalance DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE lev_usedBuyingPower DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE lev_leverageRate DECIMAL(8,2) DEFAULT 1.00;
+  DECLARE lev_liqThreshold DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE lev_hourlyInterestRate DECIMAL(10,8) DEFAULT 0.00000000;
 
-# 计算总金额和利息
-SET totalAmount = (open_Price + take_Spread) * trade_Volume;
-SET swap_temp = IF(details_WalletType > 0 AND trade_Rate > 0, 
-  (totalAmount - totalAmount / trade_Rate) * lever_Interest, 
-  0);
+  DECLARE cur_totalVolume,cur_avgOpenPrice,cur_takeSpread,cur_totalLiability,new_totalVolume,new_avgOpenPrice,new_takeSpread,new_totalLiability DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE t_error INTEGER DEFAULT 0; 
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
 
-# 计算占用保证金（避免除零）
-SET margin_Used = CASE 
-  WHEN trade_Rate IS NULL OR trade_Rate <= 0 THEN totalAmount 
-  ELSE totalAmount / trade_Rate 
-END;
+  SET last_step = 'load_user_balance';
+  SELECT 
+    IFNULL(SUM(bd.income) - SUM(bd.expense), 0),
+    u.invitationUserAccount,
+    u.leverInterest,
+    u.maxLever * 100
+  INTO balance, trader_temp, lever_Interest, max_Lever
+  FROM i_user u
+  LEFT JOIN i_balance_details bd ON bd.deleted = 0 AND bd.userAccount = user_Account AND bd.detailsWalletType = details_WalletType
+  WHERE u.deleted = 0 AND u.userAccount = user_Account
+  GROUP BY u.userAccount;
 
-# 余额检查
-IF(balance >= totalAmount)THEN
-  start transaction;
-  
-  # 创建订单
+  SET last_step = 'compute_amounts';
+  -- 开仓总成本 = 开仓价×数量 + 总点差费用
+  -- 注意：take_Spread 已经是总费用（单位点差×数量），不能再乘以数量
+  SET totalAmount = (open_Price * trade_Volume) + take_Spread;
+  SET swap_temp = IF(details_WalletType > 0 AND trade_Rate > 0,(totalAmount - totalAmount / trade_Rate) * lever_Interest,0);
+  SET margin_Used = CASE WHEN trade_Rate IS NULL OR trade_Rate <= 0 THEN totalAmount ELSE totalAmount / trade_Rate END;
+
+  SET last_step = 'precheck_lever_or_cash';
+  -- 杠杆账户采用"借款入账"的钱包模型：
+  -- 下单只校验杠杆钱包可用余额（不可提现，但可用于买卖），不再按保证金/杠杆率门槛拦截
+  IF(details_WalletType = 1) THEN
+    -- 与现金账户一致的校验方式：按 i_balance_details(杠杆钱包) 的可用余额判断
+    IF(balance < totalAmount) THEN
+      SELECT 0 AS status,'Insufficient balance' AS message,4001 AS code;
+      LEAVE proc_label;
+    END IF;
+  ELSE
+    -- 现金账户：按现金钱包余额校验
+    IF(balance < totalAmount) THEN
+      SELECT 0 AS status,'Insufficient balance' AS message,4001 AS code;
+      LEAVE proc_label;
+    END IF;
+  END IF;
+
+  SET last_step = 'start_txn';
+  START TRANSACTION;
+
+  SET last_step = CONCAT('gen_trade_no|',t_error);
   SET out_TradeNo = getGenerateId('i_trade_order');
-  INSERT INTO `i_trade_order`(
-  outTradeNo, userAccount, itemId, detailsWalletType,
-  direction, tradeType, openPrice, stopLoss, takeProfit,
-  swap, takeSpread, tradeVolume, tradeRate, tradeStatus, trader
-  )VALUES(
-  out_TradeNo, user_Account, item_Id, details_WalletType,
-  direction_Temp, trade_Type, open_Price, stop_Loss, take_Profit,
-  swap_temp, take_Spread, trade_Volume, trade_Rate, trade_Status, trader_temp
-  );
-  
-  # 交易成功处理
-  IF(trade_Status = 1)THEN
-    # 扣除金额
-    SET details_Id = getGenerateId('i_balance_details');
-    INSERT INTO `i_balance_details`(
-    detailsId, userAccount, detailsWalletType, detailsType,
-    detailsSubType, expense, outTradeNo
-    )VALUES(
-    details_Id, user_Account, details_WalletType, 1,
-    2, totalAmount, out_TradeNo
-    );
-    
-    # 添加持仓
+  IF out_TradeNo IS NULL OR out_TradeNo = '' THEN
+    SET last_step = 'fallback_out_trade_no';
+    SET out_TradeNo = CONCAT('ITO', REPLACE(UUID(),'-',''));
+  END IF;
+
+  SET last_step = CONCAT('find_position_card|',t_error);
+  SELECT pId INTO p_Id FROM i_positions 
+    WHERE deleted = 0 AND userAccount = user_Account AND aggItemId = item_Id AND aggDirection = direction_Temp AND detailsWalletType = details_WalletType
+    LIMIT 1;
+
+  IF p_Id IS NULL OR p_Id = '' THEN
+    SET last_step = CONCAT('create_position_card|',t_error);
     SET p_Id = getGenerateId('i_positions');
-    INSERT INTO `i_positions`(
-    pId, userAccount, outTradeNo, itemId,
-    marginUsed, stopLoss, takeProfit
-    )VALUES(
-    p_Id, user_Account, out_TradeNo, item_Id,
-    margin_Used, stop_Loss, take_Profit
+    INSERT INTO i_positions(outTradeNo,pId,userAccount,aggDirection,aggItemId,detailsWalletType,totalVolume,avgOpenPrice,takeSpread,totalLiability,interestAccrued,stopLoss,takeProfit,swap,tradeRate,openedAt,updatedAt)
+    VALUES(out_TradeNo,p_Id,user_Account,LOWER(direction_Temp),item_Id,details_WalletType,0,0,0,0,0,IFNULL(stop_Loss,0),IFNULL(take_Profit,0),0,IFNULL(trade_Rate,1),NOW(),NOW());
+  END IF;
+
+  INSERT INTO i_trade_order(
+    outTradeNo,positionId,userAccount,itemId,detailsWalletType,direction,tradeType,
+    openPrice,stopLoss,takeProfit,swap,takeSpread,tradeVolume,tradeRate,tradeStatus,trader,openedAt,currentPrice
+  )
+  VALUES(
+    out_TradeNo,p_Id,user_Account,item_Id,details_WalletType,LOWER(direction_Temp),trade_Type,
+    open_Price,stop_Loss,take_Profit,IFNULL(swap_temp,0),IFNULL(take_Spread,0),trade_Volume,trade_Rate,trade_Status,trader_temp,NOW(),open_Price
+  );
+
+  IF(trade_Status = 0) THEN
+    INSERT INTO i_balance_details(
+      detailsId,userAccount,detailsWalletType,detailsType,detailsSubType,
+      income,expense,outTradeNo,detailsRemarks,createdDate
+    )
+    VALUES(
+      getGenerateId('i_balance_details'),user_Account,details_WalletType,1,5,
+      0,IFNULL(totalAmount,0),out_TradeNo,'限价单冻结保证金',NOW()
     );
   END IF;
 
-  IF t_error=1 THEN
-    ROLLBACK;
-    SELECT 0 as `status`,'Creation failed' as `message`,4003 AS `code`;
-  ELSE
-    commit;
-    SELECT 1 as `status`,'Created successfully' as `message`,out_TradeNo as outTradeNo,2000 AS `code`;
-  END if;
-ELSE
-  SELECT 0 as `status`,'Insufficient balance' as `message`,4001 AS `code`;
-END IF;
+  IF(trade_Status = 1)THEN
+    SET details_Id = getGenerateId('i_balance_details');
+    IF details_Id IS NULL OR details_Id = '' THEN
+      SET details_Id = CONCAT('IBD', REPLACE(UUID(),'-',''));
+    END IF;
+    INSERT INTO i_balance_details(
+      detailsId,userAccount,detailsWalletType,detailsType,detailsSubType,
+      income,expense,outTradeNo,detailsRemarks,createdDate
+    )
+    VALUES(
+      details_Id,user_Account,details_WalletType,1,2,
+      0,IFNULL(totalAmount,0),out_TradeNo,'开仓扣款',NOW()
+    );
 
+    SELECT IFNULL(totalVolume,0), IFNULL(avgOpenPrice,0), IFNULL(takeSpread,0), IFNULL(totalLiability,0)
+      INTO cur_totalVolume, cur_avgOpenPrice, cur_takeSpread, cur_totalLiability
+    FROM i_positions
+    WHERE pId = p_Id
+    FOR UPDATE;
+
+    SET new_totalVolume = cur_totalVolume + trade_Volume;
+    SET new_avgOpenPrice = CASE 
+      WHEN new_totalVolume > 0 
+        THEN ((cur_avgOpenPrice * cur_totalVolume) + (open_Price * trade_Volume)) / new_totalVolume
+        ELSE open_Price
+    END;
+    -- 注意：take_Spread 已经是本次交易的总费用，直接累加即可
+    SET new_takeSpread = CASE 
+      WHEN new_totalVolume > 0 
+        THEN ((cur_takeSpread * cur_totalVolume) + IFNULL(take_Spread,0)) / new_totalVolume
+        ELSE IFNULL(take_Spread,0)
+    END;
+    -- 新增负债 = 本次开仓成本 - 保证金
+    -- 注意：take_Spread 已经是总费用，不能再乘以数量
+    SET new_totalLiability = CASE 
+      WHEN details_WalletType = 1 AND max_Lever IS NOT NULL AND max_Lever > 0
+        THEN cur_totalLiability + ((open_Price * trade_Volume + IFNULL(take_Spread,0)) - ((open_Price * trade_Volume + IFNULL(take_Spread,0)) / max_Lever))
+        ELSE cur_totalLiability
+    END;
+
+    UPDATE i_positions
+      SET totalVolume = new_totalVolume,
+          avgOpenPrice = new_avgOpenPrice,
+          takeSpread = new_takeSpread,
+          totalLiability = new_totalLiability,
+          stopLoss = IFNULL(stop_Loss, stopLoss),
+          takeProfit = IFNULL(take_Profit, takeProfit),
+          tradeRate = IFNULL(trade_Rate, tradeRate),
+          updatedAt = NOW()
+    WHERE pId = p_Id;
+  END IF;
+
+  IF t_error=1 THEN 
+    ROLLBACK; 
+    SELECT 0 AS status,'Creation failed' AS message,4003 AS code,last_step AS failedStep; 
+  ELSE 
+    COMMIT;
+
+    SELECT IFNULL(SUM(income - expense), 0) INTO available
+    FROM i_balance_details 
+    WHERE deleted = 0 AND userAccount = user_Account AND detailsWalletType = details_WalletType;
+
+    SET nowCommission = IFNULL((SELECT JSON_ARRAYAGG(JSON_OBJECT(
+      'outTradeNo',outTradeNo,'direction',direction,'tradeType',tradeType,'openPrice',openPrice,
+      'swap',swap,'stopLoss',stopLoss,'takeProfit',takeProfit,'tradeVolume',tradeVolume,
+      'tradeRate',tradeRate,'tradeStatus',tradeStatus,'openedAt',openedAt,
+      'liability',CASE 
+                    WHEN details_WalletType = 1 AND max_Lever IS NOT NULL AND max_Lever > 0 
+                      THEN (openPrice * tradeVolume + takeSpread) - ((openPrice * tradeVolume + takeSpread) / max_Lever)
+                    ELSE 0 
+                  END,
+      'hourlyInterest',IF(details_WalletType = 1,lever_Interest,0),
+      'liquidation',IF(details_WalletType = 1,IF(direction = 'buy',openPrice * (1 - (1 / max_Lever * 0.6)),openPrice * (1 + (1 / max_Lever * 0.6))),'--')
+    )) FROM i_trade_order 
+    WHERE deleted=0 AND userAccount = user_Account AND detailsWalletType = details_WalletType AND itemId = item_Id AND tradeStatus = 0),JSON_ARRAY());
+
+    SET position = IFNULL((SELECT JSON_ARRAYAGG(JSON_OBJECT(
+      'outTradeNo',outTradeNo,'direction',direction,'tradeType',tradeType,'openPrice',openPrice,
+      'swap',swap,'stopLoss',stopLoss,'takeProfit',takeProfit,'tradeVolume',tradeVolume,
+      'tradeRate',tradeRate,'tradeStatus',tradeStatus,'openedAt',openedAt,
+      'liability',CASE 
+                    WHEN details_WalletType = 1 AND max_Lever IS NOT NULL AND max_Lever > 0 
+                      THEN (openPrice * tradeVolume + takeSpread) - ((openPrice * tradeVolume + takeSpread) / max_Lever)
+                    ELSE 0 
+                  END,
+      'hourlyInterest',IF(details_WalletType = 1,lever_Interest,0),
+      'liquidation',IF(details_WalletType = 1,IF(direction = 'buy',openPrice * (1 - (1 / max_Lever * 0.6)),openPrice * (1 + (1 / max_Lever * 0.6))),'--')
+    )) FROM i_trade_order 
+    WHERE deleted=0 AND userAccount = user_Account AND detailsWalletType = details_WalletType AND itemId = item_Id AND tradeStatus = 1),JSON_ARRAY());
+
+    SELECT 1 AS status,'Created successfully' AS message,2000 AS code,out_TradeNo AS outTradeNo,nowCommission,position,available,max_Lever AS maxLever;
+  END IF;
 END
 ;;
 delimiter ;
@@ -965,44 +1357,64 @@ delimiter ;
 DROP PROCEDURE IF EXISTS `i_create_prepaid`;
 delimiter ;;
 CREATE PROCEDURE `i_create_prepaid`(IN user_Account VARCHAR(255),
-IN trade_Currency enum('USDT','WXPAY','ALIPAY','PAYPAL','BANK'),
-IN trade_Amount decimal(20,8),
-IN in_Account VARCHAR(255))
+  IN trade_Currency ENUM('USDT','WXPAY','ALIPAY','PAYPAL','BANK'),
+  IN trade_Amount DECIMAL(20,8),
+  IN in_Account VARCHAR(255))
 BEGIN
-#in-充值预订单
-DECLARE trade_No VARCHAR(255);
-DECLARE t_error INTEGER DEFAULT 0;
-DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
-
-start transaction;
-
-UPDATE i_inout SET
-tradeStatus = 2
-WHERE deleted=0 AND userAccount = user_Account AND tradeStatus = 0;
-
-SET trade_No = getGenerateId('i_inout');
-INSERT INTO `i_inout`(
-tradeNo,
-userAccount,
-tradeCurrency,
-tradeAmount,
-inAccount
-)VALUES(
-trade_No,
-user_Account,
-trade_Currency,
-trade_Amount,
-in_Account
-);
-
-IF t_error=1 THEN
-ROLLBACK;
-SELECT 0 as `status`,'Creation failed' as `message`,4003 AS `code`;
-ELSE
-commit;
-SELECT 1 as `status`,'Created successfully' as `message`,user_Account as userAccount,trade_No AS tradeNo,2000 AS `code`;
-END if;
-
+  -- 变量声明
+  DECLARE trade_No VARCHAR(255);
+  DECLARE t_error INTEGER DEFAULT 0;
+  DECLARE retry_count INTEGER DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error = 1;
+  
+  -- 开启事务
+  START TRANSACTION;
+  
+  -- ⚠️ 修复：只取消超时的未支付订单（30分钟）
+  -- 而不是取消所有 tradeStatus=0 的订单
+  UPDATE i_inout 
+  SET tradeStatus = 2,  -- 2=已取消
+      updatedDate = NOW()
+  WHERE deleted = 0 
+    AND userAccount = user_Account 
+    AND tradeStatus = 0  -- 未支付
+    AND TIMESTAMPDIFF(MINUTE, createdDate, NOW()) > 30;  -- 超过30分钟
+  
+  -- 生成订单号（带重试）：优先使用 getGenerateId，若冲突则退回时间戳+随机数方案
+  SET trade_No = getGenerateId('i_inout');
+  
+        INSERT INTO i_inout (
+          tradeNo,
+          userAccount,
+          tradeCurrency,
+          tradeAmount,
+          inAccount
+        ) VALUES (
+          trade_No,
+          user_Account,
+          trade_Currency,
+          trade_Amount,
+          in_Account
+        );
+  
+  -- 提交或回滚
+  IF t_error = 1 THEN
+    ROLLBACK;
+    -- 增加调试信息：返回具体错误原因
+    SELECT 
+      0 AS `status`,
+      CONCAT('Creation failed - tradeNo: ', IFNULL(trade_No, 'NULL'), ', error: ', t_error) AS `message`,
+      4003 AS `code`;
+  ELSE
+    COMMIT;
+    SELECT 
+      1 AS `status`,
+      'Created successfully' AS `message`,
+      2000 AS `code`,
+      user_Account AS `userAccount`,
+      trade_No AS `tradeNo`;  -- ⚠️ 改为 data 字段，与前端对应
+  END IF;
+  
 END
 ;;
 delimiter ;
@@ -1128,51 +1540,151 @@ delimiter ;
 DROP PROCEDURE IF EXISTS `i_getMyWallet`;
 delimiter ;;
 CREATE PROCEDURE `i_getMyWallet`(IN user_Account VARCHAR(255),
-IN details_WalletType INT)
+  IN details_WalletType TINYINT)
 BEGIN
-#getMyWallet
-DECLARE user_Mobile,user_Nick,user_Name VARCHAR(255);
-DECLARE capitalBalance DECIMAL(20,8);
-
-SELECT userMobile,userNick,userName INTO user_Mobile,user_Nick,user_Name FROM i_user WHERE deleted=0 AND userAccount = user_Account;
-
-SET capitalBalance = IFNULL((SELECT SUM(income) - SUM(expense) FROM i_balance_details WHERE deleted=0 AND userAccount = user_Account AND detailsWalletType = details_WalletType),0);
-
-
-if(details_WalletType=0)THEN
-SELECT 1 as `status`,'Get Successfully' as `message`,2000 AS `code`,
-user_Account AS userAccount,
-user_Mobile AS userMobile,
-user_Nick AS userNick,
-user_Name AS userName,
-'10.00' AS totalAsset,#总资产
-capitalBalance AS walletBalance,#现金可用余额
-capitalBalance AS accountBalance,#账户余额
-'20.00' AS openPositionPL,#持仓盈亏
-'30.00' AS equity,#净值
-'6%' AS marginLevel,#保证金水平
-'40.00' AS credit,#信用
-'50.00' AS freeMargin#可用保证金
-;
-
-ELSE
-
-SELECT 1 as `status`,'Get Successfully' as `message`,2000 AS `code`,
-user_Account AS userAccount,
-user_Mobile AS userMobile,
-user_Nick AS userNick,
-user_Name AS userName,
-capitalBalance AS totalAsset,#总资产
-capitalBalance AS walletBalance,#现金可用余额
-capitalBalance AS accountBalance,#账户余额
-'20.00' AS openPositionPL,#持仓盈亏
-'30.00' AS equity,#净值
-'6%' AS marginLevel,#保证金水平
-'40.00' AS credit,#信用
-'50.00' AS freeMargin#可用保证金
-;
-	 
-END IF;
+  -- 变量声明
+  DECLARE cash_Balance, lever_Balance DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE total_Collateral, total_Borrowed, total_Interest DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE lever_Interest_Rate, max_Lever_Rate DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE frozen_Margin DECIMAL(20,8) DEFAULT 0.00000000;
+  
+  -- 1️⃣ 查询钱包余额（按钱包类型过滤）
+  -- 资金账户: detailsWalletType=0
+  -- 杠杆账户: detailsWalletType=1
+  SELECT 
+    SUM(CASE WHEN bd.detailsWalletType = 0 THEN bd.income - bd.expense ELSE 0 END),
+    SUM(CASE WHEN bd.detailsWalletType = 1 THEN bd.income - bd.expense ELSE 0 END)
+  INTO cash_Balance, lever_Balance
+  FROM i_balance_details bd
+  WHERE bd.deleted = 0 AND bd.userAccount = user_Account;
+  
+  -- 2️⃣ 查询用户杠杆配置
+  SELECT 
+    IFNULL(u.leverInterest, 0.00038616),
+    IFNULL(u.maxLever, 0.20)
+  INTO lever_Interest_Rate, max_Lever_Rate
+  FROM i_user u
+  WHERE u.deleted = 0 AND u.userAccount = user_Account;
+  
+  -- 3️⃣ 查询抵押总额（状态=0有效抵押）
+  SELECT IFNULL(SUM(c.collateralAmount), 0)
+  INTO total_Collateral
+  FROM i_collateral c
+  WHERE c.deleted = 0 
+    AND c.userAccount = user_Account 
+    AND c.collateralStatus = 0;
+  
+  -- 4️⃣ 查询借款总额与累计利息（状态=0未还款）
+  SELECT 
+    IFNULL(SUM(l.leverAmount), 0),
+    IFNULL(SUM(
+      l.leverAmount * IFNULL(l.leverInterest, lever_Interest_Rate) 
+      * TIMESTAMPDIFF(HOUR, l.createdDate, NOW())
+    ), 0)
+  INTO total_Borrowed, total_Interest
+  FROM i_lever l
+  WHERE l.deleted = 0 
+    AND l.userAccount = user_Account 
+    AND l.leverStatus = 0;
+  
+  -- 5️⃣ 查询冻结保证金（挂单未成交的冻结金额）
+  -- detailsSubType=5 表示限价单冻结保证金
+  SELECT IFNULL(SUM(bd.expense), 0)
+  INTO frozen_Margin
+  FROM i_balance_details bd
+  WHERE bd.deleted = 0 
+    AND bd.userAccount = user_Account
+    AND bd.detailsWalletType = details_WalletType
+    AND bd.detailsSubType = 5
+    AND bd.outTradeNo IN (
+      SELECT outTradeNo FROM i_trade_order 
+      WHERE deleted=0 AND userAccount=user_Account AND tradeStatus=0
+    );
+  
+  -- 6️⃣ 查询 aggregated positions（汇总持仓）
+  -- 用于前端实时计算浮动盈亏，减少数据传输量
+  -- 注意：直接使用 JSON_ARRAYAGG，不使用会话变量，让 MySQL 自动转换为 JSON
+  SELECT JSON_ARRAYAGG(JSON_OBJECT(
+    'itemId', aggItemId,
+    'direction', aggDirection,
+    'avgOpenPrice', avgOpenPrice,
+    'totalVolume', totalVolume,
+    'totalSwap', swap,
+    'tradeRate', tradeRate,
+    'detailsWalletType', detailsWalletType
+  ))
+  INTO @aggregated_Positions
+  FROM i_positions
+  WHERE deleted=0 
+    AND userAccount = user_Account
+    AND detailsWalletType = details_WalletType
+    AND totalVolume > 0;  -- 过滤掉已平仓的汇总记录
+  
+  -- 如果没有持仓，设置为空数组
+  IF @aggregated_Positions IS NULL THEN
+    SET @aggregated_Positions = JSON_ARRAY();
+  END IF;
+  
+  -- 7️⃣ 查询挂单列表（用于前端动态计算冻结资金）
+  SELECT JSON_ARRAYAGG(JSON_OBJECT(
+    'outTradeNo', outTradeNo,
+    'itemId', itemId,
+    'direction', direction,
+    'openPrice', openPrice,
+    'tradeVolume', tradeVolume,
+    'takeSpread', takeSpread,
+    'tradeType', tradeType
+  ))
+  INTO @pending_Orders
+  FROM i_trade_order
+  WHERE deleted=0 
+    AND userAccount = user_Account
+    AND detailsWalletType = details_WalletType
+    AND tradeStatus = 0;  -- 挂单未成交
+    
+  -- 如果没有挂单，设置为空数组
+  IF @pending_Orders IS NULL THEN
+    SET @pending_Orders = JSON_ARRAY();
+  END IF;
+  
+  -- 8️⃣ 返回完整资产数据
+  -- 前端根据实时行情动态计算：
+  -- - totalAsset = walletBalance + positionPL - totalLiabilities
+  -- - positionPL = Σ((currentPrice - avgOpenPrice) × totalVolume × direction - totalSwap)
+  -- - equity = totalAsset - marginUsed
+  -- - freeMargin = equity - marginLevel
+  -- - marginLevel = (marginUsed / equity) × 100%
+  SELECT 
+    1 AS status,
+    'Get successfully' AS message,
+    2000 AS code,
+    -- 账户基本信息
+    user_Account AS userAccount,
+    details_WalletType AS walletType,
+    -- 基础余额数据
+    IFNULL(cash_Balance, 0) AS cashBalance,
+    IFNULL(lever_Balance, 0) AS leverBalance,
+    IFNULL(CASE 
+      WHEN details_WalletType = 0 THEN cash_Balance 
+      ELSE lever_Balance 
+    END, 0) AS walletBalance,
+    -- 杠杆相关数据
+    IFNULL(total_Collateral, 0) AS collateral,
+    IFNULL(total_Borrowed, 0) AS borrowed,
+    IFNULL(total_Interest, 0) AS interest,
+    IFNULL(total_Borrowed + total_Interest, 0) AS totalLiabilities,
+    IFNULL(lever_Interest_Rate, 0) AS leverInterestRate,
+    IFNULL(max_Lever_Rate * 100, 0) AS maxLeverageRatio,
+    -- 冻结与可用
+    IFNULL(frozen_Margin, 0) AS frozenMargin,
+    IFNULL(CASE 
+      WHEN details_WalletType = 0 THEN cash_Balance - frozen_Margin
+      ELSE lever_Balance - frozen_Margin
+    END, 0) AS available,
+    -- 持仓数据（前端实时计算盈亏）- 使用 CAST 转换为 JSON
+    CAST(@aggregated_Positions AS JSON) AS positions,
+    CAST(@pending_Orders AS JSON) AS pendingOrders;
+    
 END
 ;;
 delimiter ;
@@ -1184,43 +1696,38 @@ DROP PROCEDURE IF EXISTS `i_get_balance`;
 delimiter ;;
 CREATE PROCEDURE `i_get_balance`(IN user_Account VARCHAR(255))
 BEGIN
-#获取交易页面数据 - 性能优化版
-DECLARE cashBalance, leveragedBalance, collateral, borrowed, lever_Interest, totalInterest DECIMAL(20,8) DEFAULT 0.00000000;
-DECLARE max_Lever DECIMAL(6,2) DEFAULT 0.00;
+  DECLARE cashBalance, leveragedBalance, collateral, borrowed, lever_Interest, totalInterest DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE max_Lever DECIMAL(6,2) DEFAULT 0.00;
 
-# 优化：合并现金和杠杆账户余额查询
-SELECT 
-  IFNULL(SUM(CASE WHEN detailsWalletType = 0 THEN income - expense ELSE 0 END), 0),
-  IFNULL(SUM(CASE WHEN detailsWalletType = 1 THEN income - expense ELSE 0 END), 0)
-INTO cashBalance, leveragedBalance
-FROM i_balance_details 
-WHERE deleted = 0 AND userAccount = user_Account AND detailsWalletType IN (0, 1);
+  SELECT 
+    IFNULL(SUM(CASE WHEN detailsWalletType = 0 THEN income - expense ELSE 0 END), 0),
+    IFNULL(SUM(CASE WHEN detailsWalletType = 1 THEN income - expense ELSE 0 END), 0)
+  INTO cashBalance, leveragedBalance
+  FROM i_balance_details 
+  WHERE deleted = 0 AND userAccount = user_Account AND detailsWalletType IN (0, 1);
 
-# 优化：合并抵押物和借款查询（使用LEFT JOIN避免笛卡尔积）
-SELECT 
-  IFNULL(SUM(DISTINCT c.collateralAmount), 0),
-  IFNULL(SUM(l.leverAmount), 0),
-  IFNULL(SUM(CEILING(TIMESTAMPDIFF(HOUR, l.createdDate, NOW())) * (l.leverAmount * l.leverInterest)), 0)
-INTO collateral, borrowed, totalInterest
-FROM i_collateral c
-LEFT JOIN i_lever l ON l.userAccount = user_Account AND l.deleted = 0 AND l.leverStatus = 0
-WHERE c.deleted = 0 AND c.userAccount = user_Account AND c.collateralStatus = 0;
+  SELECT 
+    IFNULL(SUM(DISTINCT c.collateralAmount), 0),
+    IFNULL(SUM(l.leverAmount), 0),
+    IFNULL(SUM(CEILING(TIMESTAMPDIFF(HOUR, l.createdDate, NOW())) * (l.leverAmount * l.leverInterest)), 0)
+  INTO collateral, borrowed, totalInterest
+  FROM i_collateral c
+  LEFT JOIN i_lever l ON l.userAccount = user_Account AND l.deleted = 0 AND l.leverStatus = 0
+  WHERE c.deleted = 0 AND c.userAccount = user_Account AND c.collateralStatus = 0;
 
-# 获取用户配置
-SELECT leverInterest, maxLever * 100 INTO lever_Interest, max_Lever 
-FROM i_user WHERE deleted = 0 AND userAccount = user_Account;
+  SELECT leverInterest, maxLever * 100 INTO lever_Interest, max_Lever 
+  FROM i_user WHERE deleted = 0 AND userAccount = user_Account;
 
-SELECT 1 as `status`,'Get successfully' as `message`,2000 AS `code`,
-cashBalance,
-leveragedBalance,
-collateral,
-borrowed,
-totalInterest,
-borrowed + totalInterest AS totalLiabilities,
-lever_Interest AS leverInterest,
-max_Lever AS maxLever,
-(leveragedBalance - collateral - borrowed) AS leveragedTransfer;
-
+  SELECT 1 AS status,'Get successfully' AS message,2000 AS code,
+    cashBalance AS cashBalance,
+    leveragedBalance AS leveragedBalance,
+    collateral AS collateral,
+    borrowed AS borrowed,
+    totalInterest AS totalInterest,
+    borrowed + totalInterest AS totalLiabilities,
+    lever_Interest AS leverInterest,
+    max_Lever AS maxLever,
+    (leveragedBalance - collateral - borrowed) AS leveragedTransfer;
 END
 ;;
 delimiter ;
@@ -1230,25 +1737,46 @@ delimiter ;
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `i_get_inAccount`;
 delimiter ;;
-CREATE PROCEDURE `i_get_inAccount`(IN user_Account VARCHAR(255),
-IN account_Type enum('USDT','WXPAY','ALIPAY','PAYPAL','BANK'),
-IN account_Protocol enum('ERC20','TRC20','OTER','BEP20'))
+CREATE PROCEDURE `i_get_inAccount`(IN user_Account VARCHAR(255),  -- 保留参数但不使用（接口兼容）
+  IN account_Type ENUM('USDT','WXPAY','ALIPAY','PAYPAL','BANK'),
+  IN account_Protocol VARCHAR(50))
 BEGIN
-#in-充值预订单
-DECLARE accountList JSON;
-
-SET accountList = IFNULL((SELECT 
-JSON_ARRAYAGG(JSON_OBJECT(
-'accountId',accountId,
-'accountType',accountType,
-'accountProtocol',accountProtocol,
-'accountName',accountName,
-'bankName',bankName
-))
-FROM i_acquisition_account WHERE deleted = 0 AND userAccount = user_Account AND accountType = account_Type AND accountProtocol = account_Protocol AND accountStatus = 1),JSON_ARRAY());
-
-SELECT 1 as `status`,'Get Successfully' as `message`,2000 AS `code`,accountList;
-
+  -- 声明变量
+  DECLARE account_List JSON;
+  
+  -- 查询收款账户列表
+  -- 注意：
+  -- 1. 不按 userAccount 过滤（这是平台收款账户，不属于特定用户）
+  -- 2. account_Protocol 为空或 '' 时返回所有网络
+  -- 3. 只返回启用状态的账户 (accountStatus=1)
+  SET account_List = IFNULL((
+    SELECT JSON_ARRAYAGG(JSON_OBJECT(
+      'accountId', accountId,
+      'accountType', accountType,
+      'accountProtocol', accountProtocol,
+      'inAccount', accountName,  -- ⚠️ 修复：返回 inAccount 作为收款地址
+      'accountName', accountName,
+      'bankName', bankName
+    ))
+    FROM i_acquisition_account
+    WHERE deleted = 0
+      AND userAccount = '0' -- 平台账户
+      AND accountStatus = 1  -- 只返回启用的账户
+      AND accountType = account_Type
+      AND (
+        account_Protocol IS NULL 
+        OR account_Protocol = '' 
+        OR accountProtocol = account_Protocol
+      )  -- ⚠️ 修复：支持空协议返回所有网络
+  ), JSON_ARRAY());
+  
+  -- 返回结果
+  SELECT 
+    1 AS `status`,
+    'Get Successfully' AS `message`,
+    2000 AS `code`,
+    account_List AS `accountList`;
+    
 END
 ;;
 delimiter ;
@@ -1258,76 +1786,55 @@ delimiter ;
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `i_get_orderinfo`;
 delimiter ;;
-CREATE PROCEDURE `i_get_orderinfo`(IN user_Account VARCHAR(255),
-IN details_WalletType INT,#0=资金账户，1=杠杆账户
-IN item_Id VARCHAR(255))
+CREATE PROCEDURE `i_get_orderinfo`(IN user_Account VARCHAR(255),IN details_WalletType INT,IN item_Id VARCHAR(255))
 BEGIN
-#获取交易页面数据 - 性能优化版
-DECLARE nowCommission,position JSON;
-DECLARE available,lever_Interest,max_Lever DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE nowCommission,position JSON;
+  DECLARE available,lever_Interest,max_Lever DECIMAL(20,8) DEFAULT 0.00000000;
 
-# 优化：一次查询获取用户配置和余额（兼容 ONLY_FULL_GROUP_BY）
-SELECT 
-  IFNULL(SUM(bd.income - bd.expense), 0) AS available,
-  MAX(u.leverInterest) AS lever_Interest,
-  MAX(u.maxLever * 100) AS max_Lever
-INTO available, lever_Interest, max_Lever
-FROM i_user u
-LEFT JOIN i_balance_details bd 
-  ON bd.deleted = 0 
- AND bd.userAccount = u.userAccount 
- AND bd.detailsWalletType = details_WalletType
-WHERE u.deleted = 0 AND u.userAccount = user_Account
-GROUP BY u.userAccount;
+  SELECT 
+    IFNULL(SUM(bd.income - bd.expense), 0) AS available,
+    MAX(u.leverInterest) AS lever_Interest,
+    MAX(u.maxLever * 100) AS max_Lever
+  INTO available, lever_Interest, max_Lever
+  FROM i_user u
+  LEFT JOIN i_balance_details bd 
+    ON bd.deleted = 0 
+   AND bd.userAccount = u.userAccount 
+   AND bd.detailsWalletType = details_WalletType
+  WHERE u.deleted = 0 AND u.userAccount = user_Account
+  GROUP BY u.userAccount;
 
-# 优化：合并预交易和持仓查询，减少表扫描
-SET nowCommission = IFNULL((SELECT JSON_ARRAYAGG(JSON_OBJECT(
-'outTradeNo',outTradeNo,
-'direction',direction,
-'tradeType',tradeType,
-'openPrice',openPrice,
-'swap',swap,
-'stopLoss',stopLoss,
-'takeProfit',takeProfit,
-'tradeVolume',tradeVolume,
-'tradeRate',tradeRate,
-'tradeStatus',tradeStatus,
-'openedAt',openedAt,
-'liability',IF(details_WalletType = 1,(openPrice + takeSpread) * tradeVolume - ((openPrice + takeSpread) * tradeVolume / max_Lever),0),
-'hourlyInterest',IF(details_WalletType = 1,lever_Interest,0),
-'liquidation',IF(details_WalletType = 1,IF(direction = 'buy',openPrice * (1 - (1 / max_Lever * 0.6)),openPrice * (1 + (1 / max_Lever * 0.6))),'--')
-)) FROM i_trade_order 
-WHERE deleted=0 AND userAccount = user_Account 
-  AND detailsWalletType = details_WalletType 
-  AND itemId = item_Id 
-  AND tradeStatus = 0),JSON_ARRAY());
+  SET nowCommission = IFNULL((SELECT JSON_ARRAYAGG(JSON_OBJECT(
+    'outTradeNo',outTradeNo,'direction',direction,'tradeType',tradeType,'openPrice',openPrice,
+    'swap',swap,'stopLoss',stopLoss,'takeProfit',takeProfit,'tradeVolume',tradeVolume,
+    'tradeRate',tradeRate,'tradeStatus',tradeStatus,'openedAt',openedAt,
+    'liability',IF(details_WalletType = 1,(openPrice * tradeVolume + takeSpread) - ((openPrice * tradeVolume + takeSpread) / max_Lever),0),
+    'hourlyInterest',IF(details_WalletType = 1,lever_Interest,0),
+    'liquidation',IF(details_WalletType = 1,IF(direction = 'buy',openPrice * (1 - (1 / max_Lever * 0.6)),openPrice * (1 + (1 / max_Lever * 0.6))),'--')
+  )) FROM i_trade_order 
+  WHERE deleted=0 AND userAccount = user_Account AND detailsWalletType = details_WalletType AND itemId = item_Id AND tradeStatus = 0),JSON_ARRAY());
 
-SET position = IFNULL((SELECT JSON_ARRAYAGG(JSON_OBJECT(
-'outTradeNo',outTradeNo,
-'direction',direction,
-'tradeType',tradeType,
-'openPrice',openPrice,
-'swap',swap,
-'stopLoss',stopLoss,
-'takeProfit',takeProfit,
-'tradeVolume',tradeVolume,
-'tradeRate',tradeRate,
-'tradeStatus',tradeStatus,
-'openedAt',openedAt,
-'liability',IF(details_WalletType = 1,(openPrice + takeSpread) * tradeVolume - ((openPrice + takeSpread) * tradeVolume / max_Lever),0),
-'hourlyInterest',IF(details_WalletType = 1,lever_Interest,0),
-'liquidation',IF(details_WalletType = 1,IF(direction = 'buy',openPrice * (1 - (1 / max_Lever * 0.6)),openPrice * (1 + (1 / max_Lever * 0.6))),'--')
-)) FROM i_trade_order 
-WHERE deleted=0 AND userAccount = user_Account 
-  AND detailsWalletType = details_WalletType 
-  AND itemId = item_Id 
-  AND tradeStatus = 1),JSON_ARRAY());
+  -- 返回聚合持仓卡片（单品种单方向一张卡），严格按钱包类型过滤
+  SET position = IFNULL((SELECT JSON_ARRAYAGG(JSON_OBJECT(
+    'outTradeNo',pId,
+    'direction',aggDirection,
+    'itemId',aggItemId,
+    'tradeVolume',totalVolume,
+    'openPrice',avgOpenPrice,
+    'takeSpread',takeSpread,
+    'liability',IF(details_WalletType = 1,(avgOpenPrice * totalVolume + takeSpread) - ((avgOpenPrice * totalVolume + takeSpread) / max_Lever),0),
+    'hourlyInterest',IF(details_WalletType = 1,lever_Interest,0),
+    'stopLoss',IFNULL(stopLoss,0),
+    'takeProfit',IFNULL(takeProfit,0),
+    'swap',IFNULL(swap,0),
+    'tradeRate',IFNULL(tradeRate,1),
+    'liquidation',IF(details_WalletType = 1,IF(aggDirection = 'buy',avgOpenPrice * (1 - (1 / max_Lever * 0.5)),avgOpenPrice * (1 + (1 / max_Lever * 0.5))),'--'),
+    'openedAt',openedAt,
+    'updatedAt',updatedAt
+  )) FROM i_positions 
+  WHERE deleted=0 AND userAccount = user_Account AND aggItemId = item_Id AND detailsWalletType = details_WalletType AND totalVolume > 0),JSON_ARRAY());
 
-SELECT 1 as `status`,'Get successfully' as `message`,2000 AS `code`,
-nowCommission,
-position,
-available,
-max_Lever AS maxLever;
+  SELECT 1 AS status,'Get successfully' AS message,2000 AS code,nowCommission,position,available,max_Lever AS maxLever;
 END
 ;;
 delimiter ;
@@ -1603,39 +2110,300 @@ END
 delimiter ;
 
 -- ----------------------------
+-- Procedure structure for sp_check_liquidation
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `sp_check_liquidation`;
+delimiter ;;
+CREATE PROCEDURE `sp_check_liquidation`()
+BEGIN
+  DECLARE v_liq_count INT DEFAULT 0;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+  BEGIN
+    ROLLBACK;
+  END;
+
+  START TRANSACTION;
+
+  -- 直接更新需要强平的订单
+  UPDATE i_trade_order o
+  INNER JOIN (
+    SELECT 
+      u.userAccount,
+      IFNULL(SUM(bd.income - bd.expense), 0) + 
+      IFNULL(SUM(CASE WHEN o2.direction = 'buy' 
+                      THEN (o2.currentPrice - o2.openPrice) * o2.tradeVolume 
+                      ELSE (o2.openPrice - o2.currentPrice) * o2.tradeVolume END), 0) AS equity,
+      IFNULL(SUM(DISTINCT c.collateralAmount), 0) * 0.5 AS liqThreshold
+    FROM i_user u
+    LEFT JOIN i_balance_details bd ON bd.deleted = 0 AND bd.userAccount = u.userAccount AND bd.detailsWalletType = 1
+    LEFT JOIN i_collateral c ON c.deleted = 0 AND c.userAccount = u.userAccount AND c.collateralStatus = 0
+    LEFT JOIN i_trade_order o2 ON o2.deleted = 0 AND o2.userAccount = u.userAccount AND o2.tradeStatus = 1
+    WHERE u.deleted = 0
+    GROUP BY u.userAccount
+    HAVING equity < liqThreshold AND liqThreshold > 0
+  ) liq ON liq.userAccount = o.userAccount
+  SET o.tradeStatus = 2,
+      o.closedAt = NOW(),
+      o.detailsRemarks = CONCAT('强平: equity=', liq.equity, ', threshold=', liq.liqThreshold)
+  WHERE o.deleted = 0 AND o.tradeStatus = 1;
+
+  SET v_liq_count = ROW_COUNT();
+
+  -- 清空强平用户的聚合持仓
+  IF v_liq_count > 0 THEN
+    UPDATE i_positions p
+    INNER JOIN (
+      SELECT DISTINCT userAccount 
+      FROM i_trade_order 
+      WHERE tradeStatus = 2 
+        AND closedAt >= DATE_SUB(NOW(), INTERVAL 10 SECOND)
+        AND detailsRemarks LIKE '强平:%'
+    ) liq ON liq.userAccount = p.userAccount
+    SET p.totalVolume = 0, p.updatedAt = NOW();
+  END IF;
+
+  COMMIT;
+
+  SELECT v_liq_count AS liquidatedOrderCount;
+END
+;;
+delimiter ;
+
+-- ----------------------------
 -- Procedure structure for sp_process_trade_data
 -- ----------------------------
 DROP PROCEDURE IF EXISTS `sp_process_trade_data`;
 delimiter ;;
-CREATE PROCEDURE `sp_process_trade_data`(IN p_symbol VARCHAR(32),
-  IN p_price DECIMAL(20,8))
+CREATE PROCEDURE `sp_process_trade_data`(IN p_symbol VARCHAR(32), IN p_price DECIMAL(20,8))
 BEGIN
-  -- 1) 记录最新成交价（毫秒精度）
-  INSERT INTO trade_ticks (symbol, price, received_at)
-  VALUES (p_symbol, p_price, CURRENT_TIMESTAMP(3));
+  
+END
+;;
+delimiter ;
 
-  -- 2) 清理5小时前数据
-  DELETE FROM trade_ticks 
-  WHERE received_at < DATE_SUB(NOW(), INTERVAL 5 HOUR);
+-- ----------------------------
+-- Procedure structure for sp_repay_due_leverage
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `sp_repay_due_leverage`;
+delimiter ;;
+CREATE PROCEDURE `sp_repay_due_leverage`(IN p_userAccount VARCHAR(255))
+proc_label: BEGIN
+  DECLARE v_balance DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE v_has_open INT DEFAULT 0;
+  DECLARE v_collateralId VARCHAR(255);
+  DECLARE v_leverId VARCHAR(255);
+  DECLARE v_amount DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE v_interestRate DECIMAL(10,8) DEFAULT 0.00000000;
+  DECLARE v_fallbackRate DECIMAL(10,8) DEFAULT 0.00000000;
+  DECLARE v_hours BIGINT DEFAULT 0;
+  DECLARE v_interest DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE v_totalPay DECIMAL(20,8) DEFAULT 0.00000000;
+  DECLARE v_now DATETIME(3);
+  DECLARE t_error INTEGER DEFAULT 0; 
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
 
-  -- 3) 触发止损/止盈自动平仓
-  -- 符合买多止损(p_price<=stopLoss)、买多止盈(p_price>=takeProfit)
-  -- 或卖空止损(p_price>=stopLoss)、卖空止盈(p_price<=takeProfit) 的持仓
-  UPDATE i_trade_order o
-  SET o.currentPrice = p_price,
-      o.tradeStatus = 2
+  IF p_userAccount IS NULL OR p_userAccount = '' THEN LEAVE proc_label; END IF;
+
+  -- 若仍有杠杆持仓，直接退出（仅在“最终结算”时偿还）
+  SELECT COUNT(*) INTO v_has_open
+  FROM i_trade_order
+  WHERE deleted = 0 AND userAccount = p_userAccount AND detailsWalletType = 1 AND tradeStatus = 1;
+  IF v_has_open > 0 THEN LEAVE proc_label; END IF;
+
+  -- 杠杆钱包余额
+  SELECT IFNULL(SUM(income) - SUM(expense), 0)
+    INTO v_balance
+  FROM i_balance_details
+  WHERE deleted = 0 AND userAccount = p_userAccount AND detailsWalletType = 1;
+
+  -- 回退利率（如借据未存利率）
+  SELECT IFNULL(leverInterest, 0) INTO v_fallbackRate
+  FROM i_user WHERE deleted = 0 AND userAccount = p_userAccount
+  LIMIT 1;
+
+  SET v_now = CURRENT_TIMESTAMP(3);
+
+  repay_loop: WHILE TRUE DO
+    -- 取最早一笔未还借据
+    SELECT collateralId, leverId, IFNULL(leverAmount,0), IFNULL(leverInterest, v_fallbackRate),
+           TIMESTAMPDIFF(HOUR, createdDate, v_now)
+      INTO v_collateralId, v_leverId, v_amount, v_interestRate, v_hours
+    FROM i_lever
+    WHERE deleted = 0 AND userAccount = p_userAccount AND repaymentDate IS NULL
+    ORDER BY createdDate ASC
+    LIMIT 1;
+
+    -- 无待还借据 => 退出
+    IF v_leverId IS NULL OR v_leverId = '' THEN LEAVE repay_loop; END IF;
+
+    -- 按整小时计息
+    SET v_interest = GREATEST(0, v_hours * v_amount * IFNULL(v_interestRate, 0));
+    SET v_totalPay = v_amount + v_interest;
+
+    -- 余额不足 => 本次不处理，退出（等待后续补充资金后再次调用）
+    IF v_balance < v_totalPay THEN LEAVE repay_loop; END IF;
+
+    START TRANSACTION;
+      -- 标记借据已还
+      UPDATE i_lever SET
+        leverStatus = 1,
+        repaymentInterest = v_interest,
+        repaymentDate = v_now
+      WHERE deleted = 0 AND leverId = v_leverId;
+
+      -- 释放抵押品
+      UPDATE i_collateral SET
+        collateralStatus = 1
+      WHERE deleted = 0 AND collateralId = v_collateralId;
+
+      -- 记账：本金+利息
+      INSERT INTO i_balance_details (
+        detailsId, userAccount, detailsWalletType, detailsType, detailsSubType,
+        expense, outTradeNo, detailsRemarks
+      ) VALUES (
+        getGenerateId('i_balance_details'), p_userAccount, 1, 3, 7,
+        v_totalPay, v_leverId, CONCAT('自动偿还本金+利息(整小时): hours=', v_hours)
+      );
+    COMMIT;
+
+    -- 更新可用余额，继续尝试偿还下一笔
+    SET v_balance = v_balance - v_totalPay;
+  END WHILE;
+END
+;;
+delimiter ;
+
+-- ----------------------------
+-- Procedure structure for sp_settle_closed_orders
+-- ----------------------------
+DROP PROCEDURE IF EXISTS `sp_settle_closed_orders`;
+delimiter ;;
+CREATE PROCEDURE `sp_settle_closed_orders`()
+BEGIN
+  DECLARE v_batch_size INT DEFAULT 100;
+  DECLARE v_settled_count INT DEFAULT 0;
+  
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+  BEGIN
+    ROLLBACK;
+    SELECT 0 AS success, 'Settlement failed' AS message, v_settled_count AS processed;
+  END;
+
+  START TRANSACTION;
+
+  -- ========================================
+  -- 1. 平仓收入入账（本金 + 净盈亏）
+  -- ========================================
+  -- 处理已平仓但未入账的订单（自动平仓场景）
+  INSERT INTO i_balance_details(
+    detailsId, 
+    userAccount, 
+    detailsWalletType, 
+    detailsType, 
+    detailsSubType, 
+    income, 
+    expense, 
+    outTradeNo, 
+    detailsRemarks,
+    createdDate
+  )
+  SELECT 
+    getGenerateId('i_balance_details'),
+    o.userAccount,
+    o.detailsWalletType,
+    1,  -- detailsType: 1=交易
+    3,  -- detailsSubType: 3=平仓卖出（与触发器保持一致）
+    -- income = 本金 + 净盈亏
+    -- 本金 = 开仓成本 = (开仓价 × 数量) + 总点差
+    -- 净盈亏 = 原始盈亏 - 利息
+    (
+      -- 开仓成本（修正：takeSpread 已是总费用，不能再乘数量）
+      ((o.openPrice * o.tradeVolume) + IFNULL(o.takeSpread, 0))
+      +
+      -- 原始盈亏（区分做多/做空）
+      CASE 
+        WHEN o.direction = 'buy' THEN 
+          -- 做多：盈亏 = 平仓收入 - 开仓成本
+          (o.currentPrice * o.tradeVolume) - ((o.openPrice * o.tradeVolume) + IFNULL(o.takeSpread, 0))
+        ELSE 
+          -- 做空：盈亏 = 开仓成本 - 平仓收入
+          ((o.openPrice * o.tradeVolume) + IFNULL(o.takeSpread, 0)) - (o.currentPrice * o.tradeVolume)
+      END
+      -
+      -- 扣除利息
+      IFNULL(o.swap, 0)
+    ),
+    0,  -- expense: 平仓不扣款
+    o.outTradeNo,
+    CONCAT(
+      '自动平仓收入: 本金',
+      ((o.openPrice * o.tradeVolume) + IFNULL(o.takeSpread, 0)),
+      ' + 盈亏',
+      CASE 
+        WHEN o.direction = 'buy' THEN 
+          (o.currentPrice * o.tradeVolume) - ((o.openPrice * o.tradeVolume) + IFNULL(o.takeSpread, 0))
+        ELSE 
+          ((o.openPrice * o.tradeVolume) + IFNULL(o.takeSpread, 0)) - (o.currentPrice * o.tradeVolume)
+      END - IFNULL(o.swap, 0)
+    ),
+    NOW()
+  FROM i_trade_order o
   WHERE o.deleted = 0
-    AND o.tradeStatus = 1
-    AND o.itemId = p_symbol
-    AND (
-      (o.direction = 'buy'  AND o.stopLoss > 0 AND p_price <= o.stopLoss) OR
-      (o.direction = 'buy'  AND o.takeProfit > 0 AND p_price >= o.takeProfit) OR
-      (o.direction = 'sell' AND o.stopLoss > 0 AND p_price >= o.stopLoss) OR
-      (o.direction = 'sell' AND o.takeProfit > 0 AND p_price <= o.takeProfit)
-    );
+    AND o.tradeStatus = 2  -- 已平仓
+    AND o.closedAt >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)  -- 最近5分钟
+    -- 去重：检查是否已入账（避免与触发器重复）
+    AND NOT EXISTS (
+      SELECT 1 FROM i_balance_details bd
+      WHERE bd.deleted = 0
+        AND bd.outTradeNo = o.outTradeNo
+        AND bd.detailsSubType = 3  -- 平仓卖出
+    )
+  ORDER BY o.closedAt ASC
+  LIMIT v_batch_size;
 
-  -- 4) 可选：返回本次触发的平仓数量
-  SELECT ROW_COUNT() AS closedCount;
+  SET v_settled_count = ROW_COUNT();
+
+  -- ========================================
+  -- 2. 更新聚合持仓表（递减仓位）
+  -- ========================================
+  -- 处理已平仓但持仓表未更新的记录
+  UPDATE i_positions p
+  INNER JOIN (
+    SELECT 
+      o.itemId,
+      o.direction,
+      o.userAccount,
+      o.detailsWalletType,
+      SUM(o.tradeVolume) AS closedVol
+    FROM i_trade_order o
+    WHERE o.deleted = 0
+      AND o.tradeStatus = 2
+      AND o.closedAt >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+      -- 确保已入账（避免处理未完成的订单）
+      AND EXISTS (
+        SELECT 1 FROM i_balance_details bd
+        WHERE bd.deleted = 0
+          AND bd.outTradeNo = o.outTradeNo
+          AND bd.detailsSubType = 3
+      )
+    GROUP BY o.itemId, o.direction, o.userAccount, o.detailsWalletType
+  ) closed 
+    ON closed.userAccount = p.userAccount
+   AND closed.itemId = p.aggItemId
+   AND closed.direction = p.aggDirection
+   AND closed.detailsWalletType = p.detailsWalletType
+  SET 
+    p.totalVolume = GREATEST(0, p.totalVolume - closed.closedVol),
+    p.updatedAt = NOW()
+  WHERE p.deleted = 0
+    AND p.totalVolume > 0;
+
+  COMMIT;
+
+  SELECT 
+    1 AS success, 
+    'Settlement completed' AS message,
+    v_settled_count AS processed_count;
 END
 ;;
 delimiter ;
@@ -1807,145 +2575,6 @@ delimiter ;
 -- ----------------------------
 -- Triggers structure for table i_trade_order
 -- ----------------------------
-DROP TRIGGER IF EXISTS `auto_updated_date_on_i_trade_order`;
-delimiter ;;
-CREATE TRIGGER `auto_updated_date_on_i_trade_order` BEFORE UPDATE ON `i_trade_order` FOR EACH ROW begin
- DECLARE totalAmount,unrealized_Pnl,swapTotal,balance decimal(20,8) DEFAULT 0;
- DECLARE lever_Amount decimal(20,8);
- DECLARE lever_Id,collateral_Id VARCHAR(255);
- DECLARE remaining INT DEFAULT 0;
- 
- set new.updatedDate = CURRENT_TIMESTAMP(3);
- 
- #判断是需要平仓
- IF(old.tradeStatus < 2 and new.tradeStatus = 2)THEN
-    SET new.closedAt = CURRENT_TIMESTAMP;
-
-		#2、获取当前总操作的金额
-    SET totalAmount = new.currentPrice * new.tradeVolume;
-		
-		#4、获取亏损或者是盈利
-		IF(new.direction = 0)THEN
-		   SET unrealized_Pnl = (new.currentPrice - new.openPrice) * new.tradeVolume;
-		ELSE
-		   SET unrealized_Pnl = (new.openPrice - new.currentPrice) * new.tradeVolume;
-	  END IF;
-	
-	  #5、退回金额
-    INSERT INTO `i_balance_details`(
-    detailsId,
-    userAccount,
-	  detailsWalletType,
-	  detailsType,
-	  detailsSubType,
-    income,
-    outTradeNo
-    )VALUES(
-    getGenerateId('i_balance_details'),
-    new.userAccount,
-	  new.detailsWalletType,
-	  1,
-	  3,
-    totalAmount,
-    new.outTradeNo
-    );
-		
-		UPDATE i_positions SET
-		unrealizedPnl = unrealized_Pnl,
-		deleted = 1
-		WHERE deleted = 0 AND outTradeNo = new.outTradeNo;
-		
-		INSERT INTO i_details_log(
-    logNo,
-    userAccount,
-    logData
-    )VALUES(
-    getGenerateId('i_details_log'),
-    new.userAccount,
-    JSON_OBJECT(
-    'outTradeNo',new.outTradeNo,
-	  'itemId',itemId,
-    'createdDate',DATE_FORMAT(new.createdDate,'%Y-%m-%d %H:%i:%s'),
-    'type',1,#0=开仓，1=平仓
-	  'openPrice',new.openPrice,
-		'currentPrice',new.currentPrice,
-	  'tradeVolume',new.tradeVolume,
-	  'takeSpread',new.takeSpread,
-	  'totalAmount',(new.openPrice + new.takeSpread) * new.tradeVolume,
-	  'walletType',new.detailsWalletType,
-	  'direction',new.direction,
-	  'tradeType',new.tradeType,
-	  'status',new.tradeStatus,
-	  'stopLoss',new.stopLoss,
-    'takeProfit',new.takeProfit,
-    'swap',new.swap,
-	  'tradeRate',new.tradeRate
-    )
-    );
-		
-		#6、还款
-		IF(new.detailsWalletType > 0)THEN
-			 
-			 #6.2、获取杠杆账户余额
-		   SET balance = IFNULL((SELECT SUM(income) - SUM(expense) FROM i_balance_details WHERE deleted = 0 AND userAccount = new.userAccount AND detailsWalletType = new.detailsWalletType),0);
-			 
-			 #6.3、获取还款数量
-			 SET  remaining = (SELECT COUNT(rowId) FROM i_lever WHERE deleted = 0 AND userAccount = new.userAccount AND repaymentDate IS NULL);
-		
-		   WHILE remaining > 0 DO
-			   SELECT collateralId,leverAmount,leverId,CEILING(TIMESTAMPDIFF(HOUR, createdDate, NOW())) * (leverAmount * leverInterest) INTO collateral_Id,lever_Amount,lever_Id,swapTotal FROM i_lever WHERE deleted = 0 AND userAccount = new.userAccount AND repaymentDate IS NULL ORDER BY createdDate LIMIT 1;
-				 IF(lever_Amount IS NOT NULL AND balance >= lever_Amount)THEN
-			      
-						#设置还款
-				    UPDATE i_lever SET
-						leverStatus = 1,
-						repaymentInterest = swapTotal,
-						repaymentDate = CURRENT_TIMESTAMP(3)
-						WHERE deleted = 0 AND leverId = lever_Id;
-						
-						#设置解除抵押物
-				    UPDATE i_collateral SET
-						collateralStatus = 1
-						WHERE deleted = 0 AND collateralId = collateral_Id;
-				 
-				    #7、还款
-            INSERT INTO `i_balance_details`(
-            detailsId,
-            userAccount,
-	          detailsWalletType,
-	          detailsType,
-	          detailsSubType,
-            expense,
-						outTradeNo,
-            detailsRemarks
-            )VALUES(
-            getGenerateId('i_balance_details'),
-            new.userAccount,
-	          new.detailsWalletType,
-	          3,
-	          7,
-            lever_Amount + swapTotal,
-            lever_Id,
-						'自动偿还本金+利息'
-            );
-						
-						SET balance = balance - (lever_Amount + swapTotal);
-				    SET remaining = remaining - 1;
-				 ELSE
-				    SET remaining = 0;
-				 END IF;
-			 END WHILE;
-			 
-		END IF;
- END IF;
-
-end
-;;
-delimiter ;
-
--- ----------------------------
--- Triggers structure for table i_trade_order
--- ----------------------------
 DROP TRIGGER IF EXISTS `auto_on_i_trade_order`;
 delimiter ;;
 CREATE TRIGGER `auto_on_i_trade_order` BEFORE INSERT ON `i_trade_order` FOR EACH ROW begin
@@ -1985,6 +2614,141 @@ end
 delimiter ;
 
 -- ----------------------------
+-- Triggers structure for table i_trade_order
+-- ----------------------------
+DROP TRIGGER IF EXISTS `auto_updated_date_on_i_trade_order`;
+delimiter ;;
+CREATE TRIGGER `auto_updated_date_on_i_trade_order` BEFORE UPDATE ON `i_trade_order` FOR EACH ROW BEGIN
+  -- ========== 变量声明 ==========
+  DECLARE totalAmount, unrealized_Pnl, swapTotal, balance DECIMAL(20,8) DEFAULT 0;
+  DECLARE openCost, netPnl DECIMAL(20,8) DEFAULT 0;  -- 新增：开仓成本、净盈亏
+  DECLARE lever_Amount DECIMAL(20,8);
+  DECLARE lever_Id, collateral_Id VARCHAR(255);
+  DECLARE remaining INT DEFAULT 0;
+  
+  -- 更新时间戳
+  SET new.updatedDate = CURRENT_TIMESTAMP(3);
+  
+  -- ========== 判断是否需要平仓 ==========
+  -- 条件：订单状态从 <2 变为 2（已平仓）
+  IF (old.tradeStatus < 2 AND new.tradeStatus = 2) THEN
+    
+    -- 1️⃣ 设置平仓时间
+    SET new.closedAt = CURRENT_TIMESTAMP;
+    
+    -- ========================================
+    -- 2️⃣ 计算盈亏（修正版本）
+    -- ========================================
+    
+    -- 2.1 计算开仓成本（含点差）
+    -- 开仓时用户支付：开仓价×数量 + 总点差费用
+    -- 注意：takeSpread 已经是总费用（单位点差×数量），不能再乘以数量
+    SET openCost = (new.openPrice * new.tradeVolume) + new.takeSpread;
+    
+    -- 2.2 计算平仓收入
+    -- 平仓时用户收回：平仓价 × 数量
+    SET totalAmount = new.currentPrice * new.tradeVolume;
+    
+    -- 2.3 计算原始盈亏（区分做多/做空）
+    IF (new.direction = 0) THEN  
+      -- 做多：盈亏 = 平仓收入 - 开仓成本
+      SET unrealized_Pnl = totalAmount - openCost;
+    ELSE  
+      -- 做空：盈亏 = 开仓成本 - 平仓收入
+      SET unrealized_Pnl = openCost - totalAmount;
+    END IF;
+    
+    -- 2.4 扣除利息（杠杆账户持仓会产生利息）
+    SET netPnl = unrealized_Pnl - IFNULL(new.swap, 0);
+    
+    -- ========================================
+    -- 3️⃣ 入账余额明细（平仓收入）
+    -- ========================================
+    -- 平仓后立即入账，确保用户余额实时更新
+    INSERT INTO i_balance_details (
+      detailsId,
+      userAccount,
+      detailsWalletType,
+      detailsType,
+      detailsSubType,
+      income,
+      expense,
+      outTradeNo,
+      detailsRemarks,
+      createdDate
+    ) VALUES (
+      getGenerateId('i_balance_details'),
+      new.userAccount,
+      new.detailsWalletType,
+      1,  -- detailsType: 1=交易
+      3,  -- detailsSubType: 3=平仓卖出
+      openCost + netPnl,  -- income: 返还本金 + 净盈亏
+      0,  -- expense: 0
+      new.outTradeNo,
+      CONCAT('平仓收入: 本金', openCost, ' + 盈亏', netPnl),
+      CURRENT_TIMESTAMP
+    );
+    
+    -- ========================================
+    -- 4️⃣ 更新聚合持仓表（递减仓位）
+    -- ========================================
+    -- 注意：新架构使用聚合持仓表（一个品种+方向=一条记录）
+    -- 平仓时需要递减 totalVolume，而不是删除记录
+    UPDATE i_positions SET
+      totalVolume = totalVolume - new.tradeVolume,  -- 递减持仓量
+      updatedAt = CURRENT_TIMESTAMP                  -- 更新时间
+    WHERE deleted = 0 
+      AND userAccount = new.userAccount
+      AND aggItemId = new.itemId
+      AND aggDirection = new.direction
+      AND totalVolume > 0;  -- 防止负数
+    
+    -- ========================================
+    -- 5️⃣ 记录操作日志
+    -- ========================================
+    INSERT INTO i_details_log (
+      logNo,
+      userAccount,
+      logData
+    ) VALUES (
+      getGenerateId('i_details_log'),
+      new.userAccount,
+      JSON_OBJECT(
+        'outTradeNo', new.outTradeNo,
+        'itemId', new.itemId,
+        'createdDate', DATE_FORMAT(new.createdDate, '%Y-%m-%d %H:%i:%s'),
+        'type', 1,  -- 0=开仓，1=平仓
+        'openPrice', new.openPrice,
+        'currentPrice', new.currentPrice,
+        'tradeVolume', new.tradeVolume,
+        'takeSpread', new.takeSpread,
+        'totalAmount', (new.openPrice * new.tradeVolume) + new.takeSpread,
+        'walletType', new.detailsWalletType,
+        'direction', new.direction,
+        'tradeType', new.tradeType,
+        'status', new.tradeStatus,
+        'stopLoss', new.stopLoss,
+        'takeProfit', new.takeProfit,
+        'swap', new.swap,
+        'tradeRate', new.tradeRate,
+        'netPnl', netPnl  -- 新增：记录净盈亏
+      )
+    );
+    
+    -- ========================================
+    -- 6️⃣ 杠杆账户自动还款
+    -- ========================================
+    -- 为避免长事务与循环，在触发器中不做还款；
+    -- 建议在结算过程或专用过程（如 sp_repay_due_leverage）中以批处理方式处理，
+    -- 严格按整小时计息：TIMESTAMPDIFF(HOUR, createdDate, NOW())（向下取整）。
+    
+  END IF;
+  
+END
+;;
+delimiter ;
+
+-- ----------------------------
 -- Triggers structure for table i_user
 -- ----------------------------
 DROP TRIGGER IF EXISTS `auto_updated_date_on_i_user`;
@@ -2014,6 +2778,129 @@ delimiter ;;
 CREATE TRIGGER `auto_updated_date_on_interface` BEFORE UPDATE ON `interface` FOR EACH ROW begin
  set new.updatedDate = CURRENT_TIMESTAMP(3); 
 end
+;;
+delimiter ;
+
+-- ----------------------------
+-- Triggers structure for table market_prices
+-- ----------------------------
+DROP TRIGGER IF EXISTS `trg_market_price_insert`;
+delimiter ;;
+CREATE TRIGGER `trg_market_price_insert` AFTER INSERT ON `market_prices` FOR EACH ROW BEGIN
+  -- 更新该品种所有持仓的当前价格
+  UPDATE i_trade_order
+  SET currentPrice = NEW.price
+  WHERE deleted = 0
+    AND tradeStatus = 1
+    AND itemId = NEW.symbol
+  LIMIT 500;
+END
+;;
+delimiter ;
+
+-- ----------------------------
+-- Triggers structure for table market_prices
+-- ----------------------------
+DROP TRIGGER IF EXISTS `trg_market_price_update`;
+delimiter ;;
+CREATE TRIGGER `trg_market_price_update` AFTER UPDATE ON `market_prices` FOR EACH ROW BEGIN
+  DECLARE v_symbol VARCHAR(32);
+  DECLARE v_new_price DECIMAL(20,8);
+  DECLARE v_affected INT DEFAULT 0;
+  
+  SET v_symbol = NEW.symbol;
+  SET v_new_price = NEW.price;
+  
+  -- ========================================
+  -- 仅当价格变化时执行（避免无效触发）
+  -- ========================================
+  IF OLD.price <> NEW.price THEN
+    
+    -- ========================================
+    -- 做多止损触发: 价格 <= 止损价
+    -- ========================================
+    UPDATE i_trade_order
+    SET 
+      currentPrice = v_new_price,
+      tradeStatus = 2,
+      closedAt = NOW(),
+      detailsRemarks = CONCAT('止损触发@', v_new_price)
+    WHERE deleted = 0
+      AND tradeStatus = 1
+      AND itemId = v_symbol
+      AND direction = 'buy'
+      AND stopLoss > 0
+      AND v_new_price <= stopLoss
+    LIMIT 50;  -- 限制单次更新量，避免长时间持锁
+    
+    -- ========================================
+    -- 做多止盈触发: 价格 >= 止盈价
+    -- ========================================
+    UPDATE i_trade_order
+    SET 
+      currentPrice = v_new_price,
+      tradeStatus = 2,
+      closedAt = NOW(),
+      detailsRemarks = CONCAT('止盈触发@', v_new_price)
+    WHERE deleted = 0
+      AND tradeStatus = 1
+      AND itemId = v_symbol
+      AND direction = 'buy'
+      AND takeProfit > 0
+      AND v_new_price >= takeProfit
+    LIMIT 50;
+    
+    -- ========================================
+    -- 做空止损触发: 价格 >= 止损价
+    -- ========================================
+    UPDATE i_trade_order
+    SET 
+      currentPrice = v_new_price,
+      tradeStatus = 2,
+      closedAt = NOW(),
+      detailsRemarks = CONCAT('止损触发@', v_new_price)
+    WHERE deleted = 0
+      AND tradeStatus = 1
+      AND itemId = v_symbol
+      AND direction = 'sell'
+      AND stopLoss > 0
+      AND v_new_price >= stopLoss
+    LIMIT 50;
+    
+    -- ========================================
+    -- 做空止盈触发: 价格 <= 止盈价
+    -- ========================================
+    UPDATE i_trade_order
+    SET 
+      currentPrice = v_new_price,
+      tradeStatus = 2,
+      closedAt = NOW(),
+      detailsRemarks = CONCAT('止盈触发@', v_new_price)
+    WHERE deleted = 0
+      AND tradeStatus = 1
+      AND itemId = v_symbol
+      AND direction = 'sell'
+      AND takeProfit > 0
+      AND v_new_price <= takeProfit
+    LIMIT 50;
+    
+    -- ========================================
+    -- 更新所有持仓的当前价格和浮动盈亏（冗余字段）
+    -- ========================================
+    UPDATE i_trade_order
+    SET 
+      currentPrice = v_new_price,
+      currentPnL = CASE 
+        WHEN direction = 'buy' THEN (v_new_price - openPrice) * tradeVolume 
+        ELSE (openPrice - v_new_price) * tradeVolume 
+      END
+    WHERE deleted = 0
+      AND tradeStatus = 1
+      AND itemId = v_symbol
+    LIMIT 500;  -- 限制更新量
+    
+  END IF;
+END
 ;;
 delimiter ;
 

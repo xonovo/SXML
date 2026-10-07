@@ -1,3 +1,18 @@
+/* 充值页右进动画 */
+.slide-in-right {
+  animation: slideInRight 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 /* ======================================
    SXML 标签基础样式
    ====================================== */

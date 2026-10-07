@@ -40,8 +40,7 @@
 					'wss://www.ice-markets-app.com',
 					'https://ipapi.co',
 					'https://api.ipify.org',
-					'https://www.ice-markets-app.com/infoway-api', // 行情 HTTP 接口通过站点代理
-					'wss://data.infoway.io' // 行情 WebSocket 实时通道 (需要在服务端响应头同步加入)
+					'https://www.ice-markets-app.com/infoway-api' // 行情 HTTP 接口通过站点代理
 				],
 				preconnectHosts: [
 					'https://www.ice-markets-app.com',

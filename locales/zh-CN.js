@@ -313,6 +313,14 @@ window.LOCALE_zh_CN = {
     },
     "deposit": {
         "title": "充值",
+        "currency": "USDT",
+        "networkHint": "请选择区块链网络。",
+        "submitBtn": "充值",
+        "qr": {
+            "network": "网络",
+            "address": "充值地址",
+            "orderNo": "订单号"
+        },
         "coinDesc": "泰达币",
         "balance": "余额",
         "selectMethod": "选择充值方式",
@@ -359,6 +367,38 @@ window.LOCALE_zh_CN = {
             }
         },
         "submit": "提交充值请求"
+    },
+    "withdrawal": {
+        "title": "提现",
+        "currency": "USDT",
+        "available": "可用余额",
+        "cryptoAddress": "加密货币地址",
+        "accountName": "账户名称",
+        "bankName": "银行名称",
+        "cardNumber": "银行卡号",
+        "submitBtn": "提现",
+        "confirmTitle": "确认提现",
+        "confirmSubtitle": "请确认以下信息",
+        "amount": "金额",
+        "network": "网络",
+        "address": "地址",
+        "confirm": "确认提现",
+        "sheet": {
+            "title": "选择提现方式",
+            "subtitle": "请选择您想要的提现方式"
+        },
+        "options": {
+            "crypto": {
+                "label": "提现到加密钱包",
+                "desc": "使用加密货币存入 ICE 钱包更安全可靠",
+                "iconAlt": "加密钱包"
+            },
+            "bank": {
+                "label": "提现到银行卡",
+                "desc": "通过银行人工服务",
+                "iconAlt": "银行卡"
+            }
+        }
     },
     "numpad": {
         "label": "金额",

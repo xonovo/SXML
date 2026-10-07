@@ -3,6 +3,17 @@ console.log('========================================');
 console.log('🚀 webapp.js 脚本已加载');
 console.log('========================================');
 
+// 兜底：确保 inline onclick 可访问到全局对象
+try {
+  if (typeof window !== 'undefined') {
+    if (!window.currentPage) window.currentPage = {};
+    if (typeof window.backToDepositInput !== 'function') {
+      // 临时占位，避免页面早期点击报错；实际方法在 onLoad 中绑定
+      window.backToDepositInput = function () { console.warn('[fallback] backToDepositInput 尚未就绪'); };
+    }
+  }
+} catch (_) {}
+
 const FOREX_CODES = ['AUD', 'CAD', 'CHF', 'CNH', 'CNY', 'EUR', 'GBP', 'HKD', 'JPY', 'MXN', 'NOK', 'NZD', 'SEK', 'SGD', 'USD', 'ZAR'];
 const PRIME_CACHE_KEY = 'webapp:prime-cache:v1';
 const PRIME_CACHE_TTL = 5 * 60 * 1000; // 5 分钟以内的 Priming 数据视为有效
@@ -160,6 +171,22 @@ Page({
     // 充值页面数据
     depositAmount: '0',
     depositNetwork: 'ERC20',
+    // 充值步骤：0=输入与键盘视图，1=二维码视图
+    depoit_page: 0,
+    // 二维码页所需数据（网络/地址/订单号/金额）
+    depositQRData: null,
+    // 提现页面数据
+    withdrawalAmount: '0',
+    withdrawalNetwork: 'ERC20',
+    withdrawalAddress: '',
+    withdrawalBankName: '',
+    withdrawalAccountNumber: '',
+    // 提现步骤：0=输入页，1=确认页
+    withdrawal_page: 0,
+    // 提现方式：crypto=加密钱包，bank=银行卡
+    withdrawalMethod: 'crypto',
+    // 提现确认页数据
+    withdrawalConfirmData: null,
     // Trades 页面当前激活的主面板（用于 s:if 条件渲染）
     activeTradeTab: (() => {
       try {
@@ -608,6 +635,17 @@ Page({
 
   onLoad() {
     try { document.title = this.data.pageTitle || document.title; } catch (_) { }
+    
+    // 动态加载二维码库（utils/qrcode.js），确保充值页能正常画二维码
+    if (typeof window.qrcode !== 'function') {
+      try {
+        const script = document.createElement('script');
+        script.src = '../../utils/qrcode.js';
+        script.async = false;
+        document.head.appendChild(script);
+      } catch (e) { console.warn('load qrcode.js failed', e); }
+    }
+    
     // 尽早从本地恢复交易日级别快照，避免重复 HTTP 请求
     try { if (window.MarketsStore && typeof window.MarketsStore.loadDailySnapshotFromStorage === 'function') { window.MarketsStore.loadDailySnapshotFromStorage(); } } catch (e) { console.warn('[dailySnapshot] load from storage failed', e); }
     // 初始化配色方案（本地缓存优先）
@@ -693,14 +731,22 @@ Page({
     setTimeout(() => {
       try { this.initSubpanelHeights(); } catch (e) { console.warn('init subpanel heights failed', e); }
 
-              // 成功后重置当前面板：进度条归零、数量与总金额清零
-              try { this.resetOrderPanel && this.resetOrderPanel(panel); } catch (eReset) { console.warn('resetOrderPanel failed', eReset); }
+      // 成功后重置所有订单面板：进度条归零、数量与总金额清零
+      try {
+        if (typeof this.resetOrderPanel === 'function') {
+          document.querySelectorAll('.trade-content .order-panel').forEach(p => {
+            try { this.resetOrderPanel(p); } catch (eResetOne) { console.warn('resetOrderPanel one failed', eResetOne); }
+          });
+        }
+      } catch (eReset) { console.warn('resetOrderPanels failed', eReset); }
     }, 50);
 
     // 初始化 Markets 自选列表
     setTimeout(() => { try { this.initMarketsFavorites(); this.initMarketsQuotes(); } catch (e) { console.warn('init markets favorites/quotes failed', e); } }, 0);
 
     // 诊断：输出关键弹层相关方法的类型，帮助定位线上报错 "openFavoritesSheet is not a function"
+    // 暴露当前页面引用，供 inline onclick 使用
+    try { window.currentPage = this; } catch (_) {}
     try {
       // 若某方法缺失，提供兜底实现避免用户点击报错
       if (typeof this.openFavoritesSheet !== 'function') {
@@ -756,7 +802,11 @@ Page({
 
     // 绑定首页功能入口方法（Deposit/Withdrawal等）
     try {
-      const homeMethods = ['onFeature', 'showNotification', 'onDeposit', 'onWithdrawal', 'closeDepositPage', 'onDepositKeyTap', 'onDepositShortcut', 'onSelectNetwork', 'onDepositSubmit', 'handleNetworkSelect'];
+      const homeMethods = [
+        'onFeature', 'showNotification', 'onDeposit', 'onWithdrawal',
+        'closeDepositPage', 'onDepositKeyTap', 'onDepositShortcut', 'onSelectNetwork', 'onDepositSubmit', 'handleNetworkSelect', 'backToDepositInput', 'onDepositBack',
+        'closeWithdrawalPage', 'onWithdrawalKeyTap', 'onWithdrawalShortcut', 'onSelectWithdrawalNetwork', 'onWithdrawalSubmit', 'onWithdrawalBack'
+      ];
       homeMethods.forEach((name) => {
         if (typeof this[name] !== 'function') {
           this[name] = () => { console.warn(`[fallback] ${name} missing, ignoring click.`); };
@@ -767,12 +817,17 @@ Page({
           this.ensureGlobalMethodBindings(homeMethods, 'home');
         } else {
           // Fallback: 手动绑定到全局
-          if (typeof window !== 'undefined' && window.currentPage) {
+          if (typeof window !== 'undefined') {
+            if (!window.currentPage) window.currentPage = {};
             homeMethods.forEach(name => {
               if (typeof this[name] === 'function') {
                 window.currentPage[name] = this[name].bind(this);
               }
             });
+            // 兜底：直接挂载关键返回函数，避免 inline onclick 找不到
+            if (typeof this.backToDepositInput === 'function') {
+              window.backToDepositInput = this.backToDepositInput.bind(this);
+            }
           }
         }
       };
@@ -1511,7 +1566,7 @@ Page({
         }
         const resp = await window.superAPI.request('I00003', { userAccount, detailsWalletType: panelType });
         console.log('[Funds] I00003 response:', resp);
-        if (resp) {
+        if (resp && resp.status === 1) {
           this._fundsOverview = resp;
           try { this.setData({ fundsOverview: resp }); } catch (_) { }
           this.updateFundsOverviewUI(resp);
@@ -1747,11 +1802,9 @@ Page({
           label: 'USDT On-chain deposit',
           descKey: 'webapp.deposit.options.usdt.desc',
           desc: 'TRC20 / ERC20 | realtime settlement | zero handling fee',
-          icon: '../../images/app_coin_day.png',
+          icon: '/images/app_coin_day.png',
           iconAltKey: 'webapp.deposit.options.usdt.iconAlt',
-          iconAlt: 'USDT',
-          metaKey: 'webapp.deposit.options.usdt.meta',
-          meta: 'Recommended'
+          iconAlt: 'USDT'
         },
         {
           value: 'bank-transfer',
@@ -1759,11 +1812,9 @@ Page({
           label: 'Bank transfer',
           descKey: 'webapp.deposit.options.bank.desc',
           desc: 'Support HK / SG accounts | credited within 2 hours',
-          icon: '../../images/app_bank_day.png',
+          icon: '/images/app_bank_day.png',
           iconAltKey: 'webapp.deposit.options.bank.iconAlt',
-          iconAlt: 'Bank transfer',
-          metaKey: 'webapp.deposit.options.bank.meta',
-          meta: 'Manual review'
+          iconAlt: 'Bank transfer'
         }
       ];
       const title = t('webapp.deposit.sheet.title', 'Select a funding channel');
@@ -1783,12 +1834,41 @@ Page({
       console.warn('openDepositSheet failed', err);
     }
   },
-  handleDepositChannelSelect(option) {
+  async handleDepositChannelSelect(option) {
     try {
       if (!option || !option.value) return;
-      
-      // 打开内嵌的充值页面
-      this.openDepositPage();
+      const val = String(option.value);
+      // USDT 链上充值：先请求账户再打开充值页
+      if (val === 'usdt-onchain') {
+        // 1 秒节流，避免重复触发导致 429
+        const now = Date.now();
+        const cooldown = 1000;
+        if (this._lastI00004At && (now - this._lastI00004At) < cooldown) {
+          console.warn('[I00004] throttled');
+        } else {
+          this._lastI00004At = now;
+          try { await this.fetchDepositAccounts(); } catch (_) { }
+        }
+        this.openDepositPage();
+        return;
+      }
+      // 银行卡充值：当前占位，弹出提示或跳转到后续实现
+      if (val === 'bank-transfer') {
+        const lang = (window.i18n && window.i18n.lang) || 'en-US';
+        const msg = lang === 'zh-CN' ? '银行卡充值暂未开放，敬请期待' : 'Bank transfer will be available soon';
+        if (typeof this.openActionSheet === 'function') {
+          this.openActionSheet({
+            mode: 'alert',
+            theme: 'light',
+            status: 'info',
+            message: msg,
+            confirmText: lang === 'zh-CN' ? '确定' : 'OK'
+          });
+        } else {
+          (window.ShowToast || console.log)(msg);
+        }
+        return;
+      }
     } catch (err) {
       console.warn('handleDepositChannelSelect failed', err);
     }
@@ -1809,9 +1889,7 @@ Page({
           desc: 'Safer and more reliable when depositing into ICE wallet using cryptocurrency',
           icon: '../../images/app_coin_day.png',
           iconAltKey: 'webapp.withdrawal.options.crypto.iconAlt',
-          iconAlt: 'Crypto wallet',
-          metaKey: 'webapp.withdrawal.options.crypto.meta',
-          meta: 'Fast'
+          iconAlt: 'Crypto wallet'
         },
         {
           value: 'bank-card',
@@ -1821,9 +1899,7 @@ Page({
           desc: 'Manual service through bank',
           icon: '../../images/app_bank_day.png',
           iconAltKey: 'webapp.withdrawal.options.bank.iconAlt',
-          iconAlt: 'Bank card',
-          metaKey: 'webapp.withdrawal.options.bank.meta',
-          meta: 'Manual review'
+          iconAlt: 'Bank card'
         }
       ];
       const title = t('webapp.withdrawal.sheet.title', 'Select withdrawal method');
@@ -1846,24 +1922,316 @@ Page({
   handleWithdrawalChannelSelect(option) {
     try {
       if (!option || !option.value) return;
-      const label = (window.i18n && option.labelKey && window.i18n.t)
-        ? window.i18n.t(option.labelKey, option.label || option.value)
-        : (option.label || option.value);
-      const lang = (window.i18n && window.i18n.lang) || 'en-US';
-      const msg = lang === 'zh-CN'
-        ? `已选择${label}，请根据引导完成提现`
-        : `Selected ${label}, follow the guide to complete your withdrawal.`;
-      if (typeof window.ShowToast === 'function') {
-        window.ShowToast(msg, { icon: 'success' });
-      } else {
+      const val = String(option.value);
+      
+      // 设置提现方式并打开对应页面
+      if (val === 'crypto-wallet') {
+        this.setData({ withdrawalMethod: 'crypto' });
+        this.openWithdrawalPage('crypto');
+      } else if (val === 'bank-card') {
+        this.setData({ withdrawalMethod: 'bank' });
+        this.openWithdrawalPage('bank');
       }
     } catch (err) {
       console.warn('handleWithdrawalChannelSelect failed', err);
     }
   },
-  // 资金页按钮处理（占位实现）
-  onDeposit() {
+
+  // 打开提现页面
+  openWithdrawalPage(method = 'crypto') {
     try {
+      console.log('[openWithdrawalPage] using slide page', method);
+      this.openSlidePage('withdrawal-overlay', {
+        onBeforeOpen: () => {
+          // 重置提现数据
+          this.setData({ 
+            withdrawalAmount: '0', 
+            withdrawal_page: 0, 
+            withdrawalMethod: method,
+            withdrawalAddress: '',
+            withdrawalBankName: '',
+            withdrawalAccountNumber: '',
+            withdrawalConfirmData: null
+          });
+          this.updateWithdrawalDisplay();
+          
+          // 根据方法设置标题
+          const titleEl = document.querySelector('#withdrawal-overlay .withdrawal-title');
+          if (titleEl) {
+            const lang = (window.i18n && window.i18n.lang) || 'en-US';
+            if (method === 'bank') {
+              titleEl.textContent = lang === 'zh-CN' ? '提现到银行卡' : 'Withdraw to bank card';
+            } else {
+              titleEl.textContent = lang === 'zh-CN' ? '提现' : 'Withdrawal';
+            }
+          }
+
+          // 初始化提现地址输入框
+          setTimeout(() => {
+            this.initWithdrawalAddressInput();
+          }, 100);
+        }
+      });
+    } catch (err) {
+      console.warn('openWithdrawalPage failed', err);
+    }
+  },
+
+  // 关闭提现页面
+  closeWithdrawalPage() {
+    try {
+      console.log('[closeWithdrawalPage] using slide page');
+      this.closeSlidePage('withdrawal-overlay', {
+        onAfterClose: () => {
+          this.setData({ 
+            withdrawalAmount: '0', 
+            withdrawal_page: 0,
+            withdrawalAddress: '',
+            withdrawalBankName: '',
+            withdrawalAccountNumber: '',
+            withdrawalConfirmData: null
+          });
+          this.updateWithdrawalDisplay();
+        }
+      });
+    } catch (err) {
+      console.warn('closeWithdrawalPage failed', err);
+    }
+  },
+
+  // 更新提现金额显示
+  updateWithdrawalDisplay() {
+    try {
+      const amount = this.data.withdrawalAmount || '0';
+      const numAmount = parseFloat(amount) || 0;
+      
+      // 更新大数字显示
+      const amountEl = document.querySelector('[data-withdrawal-amount]');
+      if (amountEl) amountEl.textContent = amount;
+      
+      // 更新美元近似值
+      const approxEl = document.querySelector('[data-withdrawal-approx]');
+      if (approxEl) approxEl.textContent = numAmount.toFixed(2);
+    } catch (err) {
+      console.warn('updateWithdrawalDisplay failed', err);
+    }
+  },
+
+  // 提现键盘输入
+  onWithdrawalKeyTap(e) {
+    try {
+      const key = e.currentTarget.dataset.key;
+      let current = this.data.withdrawalAmount || '0';
+      
+      if (key === 'delete') {
+        current = current.length > 1 ? current.slice(0, -1) : '0';
+      } else if (key === '.') {
+        if (!current.includes('.')) current += '.';
+      } else {
+        if (current === '0') current = key;
+        else current += key;
+      }
+      
+      this.setData({ withdrawalAmount: current });
+      this.updateWithdrawalDisplay();
+    } catch (err) {
+      console.warn('onWithdrawalKeyTap failed', err);
+    }
+  },
+
+  // 提现快捷金额
+  onWithdrawalShortcut(e) {
+    try {
+      const amount = e.currentTarget.dataset.amount || '0';
+      this.setData({ withdrawalAmount: amount });
+      this.updateWithdrawalDisplay();
+    } catch (err) {
+      console.warn('onWithdrawalShortcut failed', err);
+    }
+  },
+
+  // 选择提现网络
+  onSelectWithdrawalNetwork() {
+    try {
+      // 常用网络列表
+      const networks = [
+        { id: 'ERC20', label: 'USDT (ERC20)' },
+        { id: 'TRC20', label: 'USDT (TRC20)' },
+        { id: 'BEP20', label: 'USDT (BEP20)' },
+        { id: 'POLYGON', label: 'USDT (Polygon)' },
+        { id: 'ARBITRUM', label: 'USDT (Arbitrum)' },
+        { id: 'OPTIMISM', label: 'USDT (Optimism)' }
+      ];
+
+      const lang = (window.i18n && window.i18n.lang) || 'en-US';
+      const title = lang === 'zh-CN' ? '选择提现网络' : 'Select Network';
+      
+      if (typeof this.openActionSheet !== 'function') {
+        console.warn('openActionSheet unavailable, fallback to simple alert');
+        return;
+      }
+
+      const options = networks.map(net => ({
+        label: net.label,
+        value: net.id
+      }));
+
+      this.openActionSheet({
+        mode: 'menu',
+        theme: 'light',
+        title: title,
+        hideActions: true,
+        options: options,
+        onSelect: (option) => {
+          if (!option || !option.value) return;
+          const selected = networks.find(n => n.id === option.value);
+          if (selected) {
+            // 更新显示元素
+            const nameEl = document.querySelector('[data-withdrawal-network-name]');
+            if (nameEl) nameEl.textContent = selected.label;
+            
+            // 保存到数据
+            this.setData({ withdrawalNetwork: option.value });
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('onSelectWithdrawalNetwork failed', err);
+    }
+  },
+
+  // 初始化提现地址输入框
+  initWithdrawalAddressInput() {
+    try {
+      const field = document.querySelector('.withdrawal-address-field');
+      const input = field && field.querySelector('input[data-key="withdrawalAddress"]');
+      
+      if (!field || !input) return;
+      
+      // 防止重复绑定
+      if (input._withdrawalBound) return;
+      input._withdrawalBound = true;
+
+      // Focus 事件
+      input.addEventListener('focus', () => {
+        field.classList.add('is-focused');
+      });
+
+      // Blur 事件
+      input.addEventListener('blur', () => {
+        field.classList.remove('is-focused');
+        const val = (input.value || '').trim();
+        if (val) {
+          field.classList.add('field-raised');
+          field.classList.remove('field-empty');
+        } else {
+          field.classList.remove('field-raised');
+          field.classList.add('field-empty');
+        }
+      });
+
+      // Input 事件
+      input.addEventListener('input', () => {
+        const val = (input.value || '').trim();
+        if (val) {
+          field.classList.add('field-raised');
+          field.classList.remove('field-empty');
+        } else {
+          field.classList.remove('field-raised');
+          field.classList.add('field-empty');
+        }
+        
+        // 保存到数据
+        this.setData({ withdrawalAddress: val });
+      });
+
+      // 初始化状态
+      const initialVal = (input.value || '').trim();
+      if (initialVal) {
+        field.classList.add('field-raised');
+        field.classList.remove('field-empty');
+      } else {
+        field.classList.remove('field-raised');
+        field.classList.add('field-empty');
+      }
+    } catch (err) {
+      console.warn('initWithdrawalAddressInput failed', err);
+    }
+  },
+
+  // 提现提交
+  onWithdrawalSubmit() {
+    try {
+      const amount = parseFloat(this.data.withdrawalAmount || '0');
+      const method = this.data.withdrawalMethod;
+      
+      // 基本验证
+      if (amount <= 0) {
+        const lang = (window.i18n && window.i18n.lang) || 'en-US';
+        const msg = lang === 'zh-CN' ? '请输入提现金额' : 'Please enter withdrawal amount';
+        (window.ShowToast || console.log)(msg);
+        return;
+      }
+      
+      // 切换到确认页
+      if (method === 'crypto') {
+        // 加密钱包提现
+        const address = this.data.withdrawalAddress || '0x180a47752d3a79dc56334bdec2a876367869df';
+        const network = this.data.withdrawalNetwork || 'ERC20';
+        
+        this.setData({
+          withdrawal_page: 1,
+          withdrawalConfirmData: {
+            amount: amount,
+            network: network,
+            address: address,
+            method: 'crypto'
+          }
+        });
+      } else {
+        // 银行卡提现
+        const bankName = this.data.withdrawalBankName || 'ICBC';
+        const accountNumber = this.data.withdrawalAccountNumber || '6000102356000005';
+        const accountName = 'Donald Trump'; // 示例数据
+        
+        this.setData({
+          withdrawal_page: 1,
+          withdrawalConfirmData: {
+            amount: amount,
+            bankName: bankName,
+            accountNumber: accountNumber,
+            accountName: accountName,
+            method: 'bank'
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('onWithdrawalSubmit failed', err);
+    }
+  },
+
+  // 提现返回
+  onWithdrawalBack() {
+    try {
+      const step = Number((this.data && this.data.withdrawal_page) || 0);
+      if (step === 1) {
+        // 从确认页返回输入页
+        this.setData({ withdrawal_page: 0 });
+        this.updateWithdrawalDisplay && this.updateWithdrawalDisplay();
+        return;
+      }
+      // 关闭提现页面
+      this.closeWithdrawalPage && this.closeWithdrawalPage();
+      this.activateTab && this.activateTab('home', { fromUserAction: true });
+    } catch (err) {
+      console.warn('onWithdrawalBack failed', err);
+    }
+  },
+
+  // 资金页按钮处理：先弹出渠道选择
+  async onDeposit() {
+    try {
+      // 打开充值方式选择弹窗（包含图标、描述等完整 UI）
       this.openDepositSheet();
     } catch (err) {
       console.warn('onDeposit failed', err);
@@ -4138,7 +4506,7 @@ Page({
             // 调用 I00015 接口：止盈止损的修改
             const params = { userAccount, outTradeNo, stopLoss, takeProfit };
             const resp = await window.superAPI.request('I00015', params);
-            if (resp && resp.code === 0) {
+            if (resp && resp.status === 1) {
               // 成功后刷新当前品种的持仓列表
               try { this.handleTab3Click && this.handleTab3Click({ type: scope, symbol }); } catch (_) {}
             }
@@ -4200,7 +4568,7 @@ Page({
       if (!userAccount || !symbol) return;
       const detailsWalletType = scope === 'leveraged' ? 1 : 0;
       const resp = await window.superAPI.request('I00009', { userAccount, detailsWalletType, itemId: symbol });
-      const pos = (resp && Array.isArray(resp.position)) ? resp.position : [];
+      const pos = (resp && resp.status === 1 && Array.isArray(resp.position)) ? resp.position : [];
       if (!pos || !pos.length) return;
       let srv = null;
       if (outTradeNo) srv = pos.find(p => String(p.outTradeNo || p.tradeId || p.id || '') === String(outTradeNo));
@@ -5861,7 +6229,7 @@ Page({
             
             // 无需隐藏 loading（已移除提交提示框）
             
-            const ok = resp && (resp.code === 200 || resp.code === 2000 || resp.status === 1);
+            const ok = resp && resp.status === 1;
             if (ok) {
               const successMsg = lang === 'zh-CN' ? '开仓成功' : 'Position Opened Successfully';
               if (typeof this.showOrderAlert === 'function') {
@@ -6955,7 +7323,11 @@ Page({
   initActionSheet() {
     if (this._sheetReady) return;
     try {
-      const layer = document.getElementById('action-sheet');
+      let layer = document.getElementById('action-sheet');
+      // 若容器不存在，动态创建一个最小可用的弹层宿主，避免调用失败
+      if (!layer) {
+        layer = this.ensureActionSheetHost();
+      }
       if (!layer) return;
       this._sheetLayer = layer;
       const menu = layer.querySelector('.sheet-menu');
@@ -6973,9 +7345,206 @@ Page({
           self.handleChecklistToggle(input.value, input.checked);
         });
       }
+      // 绑定遮罩点击：关闭弹层
+      const backdrop = layer.querySelector('.sheet-backdrop');
+      if (backdrop) {
+        backdrop.addEventListener('click', function () {
+          try {
+            console.log('[ActionSheet] backdrop clicked');
+            self.closeActionSheet && self.closeActionSheet({ reason: 'backdrop' });
+          } catch (e) { console.warn('[ActionSheet] backdrop handler failed', e); }
+        });
+      }
+      // 绑定取消/确认按钮点击
+      const cancelBtn = layer.querySelector('.sheet-btn.ghost');
+      const confirmBtn = layer.querySelector('.sheet-btn.primary');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', function () {
+          try {
+            console.log('[ActionSheet] cancel clicked');
+            const cfg = self._sheetConfig || {};
+            if (typeof cfg.onCancel === 'function') {
+              cfg.onCancel(self._sheetSelection);
+            }
+            self.closeActionSheet && self.closeActionSheet({ reason: 'cancel' });
+          } catch (e) { console.warn('[ActionSheet] cancel handler failed', e); }
+        });
+      }
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', function () {
+          try {
+            console.log('[ActionSheet] confirm clicked');
+            const cfg = self._sheetConfig || {};
+            if (typeof cfg.onConfirm === 'function') {
+              cfg.onConfirm(self._sheetSelection);
+            }
+            self.closeActionSheet && self.closeActionSheet({ reason: 'confirm' });
+          } catch (e) { console.warn('[ActionSheet] confirm handler failed', e); }
+        });
+      }
       this._sheetReady = true;
     } catch (e) {
       console.warn('initActionSheet failed', e);
+    }
+  },
+
+  /* ========== 通用滑动页面管理器 ========== */
+  /**
+   * 打开一个从右侧滑入的内嵌页面
+   * @param {string|HTMLElement} overlayIdOrElement - 页面容器的 ID 或 DOM 元素
+   * @param {Object} options - 可选配置
+   * @param {Function} options.onBeforeOpen - 打开前的回调
+   * @param {Function} options.onAfterOpen - 打开后的回调
+   * @param {boolean} options.disableBodyScroll - 是否禁用 body 滚动，默认 true
+   * @param {string} options.display - 显示时的 display 值，默认 'flex'
+   * @returns {boolean} 是否成功打开
+   */
+  openSlidePage(overlayIdOrElement, options = {}) {
+    try {
+      const overlay = typeof overlayIdOrElement === 'string'
+        ? document.getElementById(overlayIdOrElement)
+        : overlayIdOrElement;
+      
+      if (!overlay) {
+        console.warn('[openSlidePage] overlay not found:', overlayIdOrElement);
+        return false;
+      }
+      console.log('[openSlidePage] overlay found:', overlayIdOrElement, 'display:', overlay.style.display, 'aria-hidden:', overlay.getAttribute('aria-hidden'));
+
+      // 执行打开前回调
+      if (typeof options.onBeforeOpen === 'function') {
+        options.onBeforeOpen(overlay);
+      }
+
+      // 🔥 关键修复：确保初始状态为关闭（在右侧外）
+      overlay.setAttribute('aria-hidden', 'true');
+      
+      // 先显示元素（display: flex/block），但保持在右侧外
+      overlay.style.display = options.display || 'flex';
+      console.log('[openSlidePage] set display to:', overlay.style.display);
+      
+      // 强制浏览器重排，确保初始状态已应用
+      void overlay.offsetHeight;
+      
+      // 下一帧触发滑入动画
+      requestAnimationFrame(() => {
+        overlay.setAttribute('aria-hidden', 'false');
+        console.log('[openSlidePage] aria-hidden set to false, should animate in');
+        
+        // 执行打开后回调
+        if (typeof options.onAfterOpen === 'function') {
+          setTimeout(() => options.onAfterOpen(overlay), 300);
+        }
+      });
+      
+      // 禁止页面滚动（可选）
+      if (options.disableBodyScroll !== false) {
+        document.body.style.overflow = 'hidden';
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('[openSlidePage] failed:', err);
+      return false;
+    }
+  },
+
+  /**
+   * 关闭一个滑动页面，滑出到右侧
+   * @param {string|HTMLElement} overlayIdOrElement - 页面容器的 ID 或 DOM 元素
+   * @param {Object} options - 可选配置
+   * @param {Function} options.onBeforeClose - 关闭前的回调
+   * @param {Function} options.onAfterClose - 关闭后的回调（动画完成后）
+   * @param {boolean} options.restoreBodyScroll - 是否恢复 body 滚动，默认 true
+   * @param {number} options.duration - 动画持续时间（ms），默认 300
+   * @returns {boolean} 是否成功触发关闭
+   */
+  closeSlidePage(overlayIdOrElement, options = {}) {
+    try {
+      const overlay = typeof overlayIdOrElement === 'string'
+        ? document.getElementById(overlayIdOrElement)
+        : overlayIdOrElement;
+      
+      if (!overlay) {
+        console.warn('[closeSlidePage] overlay not found:', overlayIdOrElement);
+        return false;
+      }
+
+      // 执行关闭前回调
+      if (typeof options.onBeforeClose === 'function') {
+        options.onBeforeClose(overlay);
+      }
+
+      // 触发滑出动画（恢复到右侧）
+      overlay.setAttribute('aria-hidden', 'true');
+      
+      // 等待动画完成后隐藏元素
+      const duration = options.duration || 300;
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        
+        // 执行关闭后回调
+        if (typeof options.onAfterClose === 'function') {
+          options.onAfterClose(overlay);
+        }
+      }, duration);
+      
+      // 恢复页面滚动（可选）
+      if (options.restoreBodyScroll !== false) {
+        document.body.style.overflow = '';
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('[closeSlidePage] failed:', err);
+      return false;
+    }
+  },
+
+  // 动态创建通用弹窗容器（宿主），确保 openActionSheet 可用
+  ensureActionSheetHost() {
+    try {
+      // 结构: 遮罩 + 面板标题/菜单/警告/按钮
+      const layer = document.createElement('div');
+      layer.id = 'action-sheet';
+      layer.setAttribute('aria-hidden', 'true');
+      layer.className = 'action-sheet-layer';
+      // 基础样式，保证可见性与层级
+      Object.assign(layer.style, {
+        position: 'fixed',
+        zIndex: '10000',
+        left: '0',
+        top: '0',
+        right: '0',
+        bottom: '0'
+      });
+      layer.innerHTML = `
+        <div class="sheet-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45)"></div>
+        <div class="sheet-panel" role="dialog" aria-modal="true" style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-top-left-radius:12px;border-top-right-radius:12px;padding:16px;max-height:80vh;overflow:auto">
+          <div class="sheet-header">
+            <div class="sheet-title"></div>
+            <div class="sheet-subtitle" style="margin-top:6px;color:#666;font-size:13px;display:none"></div>
+          </div>
+          <div class="sheet-content">
+            <div class="sheet-menu"></div>
+            <div class="sheet-alert" data-status="">
+              <div class="sheet-alert-head" style="display:flex;align-items:center;gap:8px;margin:10px 0">
+                <img class="sheet-alert-icon-img" alt="icon" style="width:20px;height:20px" />
+                <span class="sheet-alert-message"></span>
+              </div>
+            </div>
+          </div>
+          <div class="sheet-actions" style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px">
+            <button class="sheet-btn ghost" type="button">Cancel</button>
+            <button class="sheet-btn primary" type="button">Confirm</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(layer);
+      return layer;
+    } catch (e) {
+      console.warn('ensureActionSheetHost failed', e);
+      return null;
     }
   },
 
@@ -6984,6 +7553,19 @@ Page({
       this.initActionSheet();
       const layer = this._sheetLayer || document.getElementById('action-sheet');
       if (!layer) return;
+      // 确保弹层永远在最顶层显示，避免被页面遮罩覆盖
+      try {
+        layer.style.position = 'fixed';
+        layer.style.zIndex = '10000';
+        layer.style.left = '0';
+        layer.style.top = '0';
+        layer.style.right = '0';
+        layer.style.bottom = '0';
+      } catch (_) { }
+      // 保存当前配置与回调（兼容旧的 callback 命名）
+      if (config && typeof config.callback === 'function' && typeof config.onSelect !== 'function') {
+        config.onSelect = config.callback;
+      }
       this._sheetConfig = config;
       const mode = config.mode || 'menu';
       layer.dataset.mode = mode;
@@ -7061,6 +7643,9 @@ Page({
       requestAnimationFrame(() => {
         layer.classList.add('visible');
         layer.setAttribute('aria-hidden', 'false');
+        // 禁止页面滚动
+        try { document.body.style.overflow = 'hidden'; } catch (_) { }
+        console.log('[ActionSheet] opened', { mode, selection: this._sheetSelection });
       });
     } catch (e) {
       console.warn('openActionSheet failed', e);
@@ -7217,7 +7802,6 @@ Page({
         console.warn('MarketsSocket helper 未加载');
         return null;
       }
-      // 架构约束：禁止直连 data.infoway.io，所有地址统一按 internal 中继处理
       const provider = 'internal';
       const cryptoMode = 'no'; // 先验证基础鉴权，后续如需开启加密再调整
       const socket = new window.MarketsSocket({
@@ -7278,17 +7862,10 @@ Page({
       const internalEndpoint = 'wss://www.ice-markets-app.com/infoway-websocket';
       const api = (window.APP_CONFIG && window.APP_CONFIG.api) || {};
       const configured = api.marketWsUrl || api.wsUrl || '';
-      const officialBase = 'wss://data.infoway.io/ws';
       if (!apiKey) return '';
-      if (configured && /data\.infoway\.io\/ws/i.test(configured)) {
-        // 配置明确要求直连 Infoway，补齐 query 参数
-        const baseNoQuery = configured.split('?')[0];
-        return `${baseNoQuery}?business=${encodeURIComponent(business)}&apikey=${encodeURIComponent(apiKey)}`;
-      }
       if (configured) {
         return configured;
       }
-      // 默认强制走自家中继，避免占用第三方连接数
       return internalEndpoint;
     } catch (e) { console.warn('[getMarketsEndpoint] 构造行情 WS 地址失败', e); }
     return '';
@@ -8027,6 +8604,7 @@ Page({
         const nodes = layer.querySelectorAll('.sheet-option');
         nodes.forEach(btn => btn.classList.toggle('active', btn.dataset.value === String(value)));
       }
+      try { console.log('[ActionSheet] option selected', selected); } catch (_) {}
       if (typeof cfg.onSelect === 'function') cfg.onSelect(selected);
       if (cfg.mode !== 'alert' && cfg.autoClose !== false) {
         this.hideActionSheet('select');
@@ -8061,6 +8639,7 @@ Page({
       if (!layer) return;
       layer.classList.remove('visible');
       layer.setAttribute('aria-hidden', 'true');
+      try { document.body.style.overflow = ''; } catch (_) { }
       const cfg = this._sheetConfig;
       const selection = this._sheetSelection;
       if (cfg) {
@@ -8073,6 +8652,18 @@ Page({
       this._sheetTrigger = null;
     } catch (e) {
       console.warn('hideActionSheet failed', e);
+    }
+  },
+
+  // 统一关闭方法，供遮罩/取消/确认调用
+  closeActionSheet(opts = {}) {
+    try {
+      const reason = (opts && opts.reason) || 'cancel';
+      this.hideActionSheet(reason);
+      try { document.body.style.overflow = ''; } catch (_) { }
+      try { console.log('[ActionSheet] closed', reason); } catch (_) {}
+    } catch (e) {
+      console.warn('closeActionSheet failed', e);
     }
   },
 
@@ -8196,7 +8787,7 @@ Page({
       
       window.superAPI.request('I00008', params)
         .then(resp => {
-          const success = resp && (resp.status === 1 || resp.code === 2000);
+          const success = resp && resp.status === 1;
           console.info('[closePosition] response=', resp);
           if (success) {
             const successMsg = lang === 'zh-CN' ? `${symbol} 持仓已平仓` : `${symbol} positions closed successfully`;
@@ -8333,7 +8924,7 @@ Page({
       };
       window.superAPI.request('I00008', params)
         .then(resp => {
-          const success = resp && (resp.status === 1 || resp.code === 2000);
+          const success = resp && resp.status === 1;
           if (success) {
             const successMsg = lang === 'zh-CN' ? `${symbol} 持仓已平仓` : `${symbol} positions closed successfully`;
             this.showOrderAlert('success', successMsg);
@@ -8469,7 +9060,7 @@ Page({
       const promises = positions.map(pos => window.superAPI.request('I00008', pos));
       Promise.allSettled(promises)
         .then(results => {
-          const successCount = results.filter(r => r.status === 'fulfilled' && (r.value?.status === 1 || r.value?.code === 2000)).length;
+          const successCount = results.filter(r => r.status === 'fulfilled' && r.value?.status === 1).length;
           const msg = lang === 'zh-CN' ? `已平仓 ${successCount}/${positions.length} 个持仓` : `Closed ${successCount}/${positions.length} positions`;
           const status = successCount === positions.length ? 'success' : (successCount > 0 ? 'success' : 'error');
           this.showOrderAlert(status, msg);
@@ -8543,8 +9134,8 @@ Page({
 
       window.superAPI.request('I00018', { userAccount, outTradeNo })
         .then(resp => {
-          const statusRaw = resp && (resp.status != null ? resp.status : resp.code);
-          const success = resp && (resp.status === 1 || resp.code === 2000);
+          const statusRaw = resp && resp.status;
+          const success = resp && resp.status === 1;
           console.info('[deletePendingOrder] response=', resp);
           if (success) {
             animateRemove();
@@ -8553,11 +9144,11 @@ Page({
           } else {
             // 失败分类：已成交/已撤 -> 不可取消；429 -> 操作过快；其他 -> 通用失败
             let msg = (resp && (resp.message || resp.msg)) || 'Cancel failed';
-            if (/not cancelable/i.test(msg) || /not cancelable/i.test(String(resp && resp.code))) {
+            if (/not cancelable/i.test(msg)) {
               msg = '订单已成交或已撤销，无法取消';
               // 若列表中已经不存在该挂单，说明已被撮合或后端已处理，保持消失状态不做回滚
             }
-            if (resp && (resp.code === 429 || /Too Many Requests/i.test(msg))) {
+            if (resp && /Too Many Requests/i.test(msg)) {
               msg = '操作过快，请稍后再试';
             }
             if (typeof window.ShowToast === 'function') window.ShowToast(msg, { icon: 'warning' }); else console.warn(msg);
@@ -8615,37 +9206,169 @@ Page({
   
   openDepositPage() {
     try {
-      const overlay = document.getElementById('deposit-overlay');
-      if (!overlay) return;
-      
-      // 重置充值金额
-      this.setData({ depositAmount: '0' });
-      this.updateDepositDisplay();
-      
-      // 显示充值页面
-      overlay.setAttribute('aria-hidden', 'false');
-      
-      // 禁止页面滚动
-      document.body.style.overflow = 'hidden';
-      
+      // 使用通用滑动页面管理器
+      this.openSlidePage('deposit-overlay', {
+        onBeforeOpen: () => {
+          // 重置充值金额
+          this.setData({ depositAmount: '0', depoit_page: 0, depositQRData: null });
+          this.updateDepositDisplay();
+        }
+      });
     } catch (err) {
       console.warn('openDepositPage failed', err);
     }
   },
 
+  // 🔥 调用 I00004 获取充值账户列表
+  async fetchDepositAccounts() {
+    try {
+      const userAccount = this.resolveUserAccount();
+      if (!userAccount) {
+        console.warn('[fetchDepositAccounts] no userAccount');
+        return;
+      }
+      
+      // 初始化 superAPI（确保携带 userAccount 和 encryptKey）
+      try {
+        const encryptKey = (sessionStorage && (sessionStorage.getItem ? sessionStorage.getItem('k') : sessionStorage['k'])) || '';
+        if (!window.superAPI) {
+          window.superAPI = (typeof createSuperAPI === 'function') ? createSuperAPI(userAccount, encryptKey) : null;
+        } else {
+          if (!window.superAPI.userAccount && userAccount) window.superAPI.userAccount = userAccount;
+          if (!window.superAPI.encryptKey && encryptKey) window.superAPI.encryptKey = encryptKey;
+        }
+      } catch (eInit) {
+        console.warn('[fetchDepositAccounts] init superAPI failed', eInit);
+      }
+      
+      if (!window.superAPI || typeof window.superAPI.request !== 'function') {
+        console.warn('[fetchDepositAccounts] superAPI unavailable');
+        return;
+      }
+      
+      // 调用 I00004：获取收款账户
+      // 参数：userAccount, accountType(USDT), accountProtocol(可选)
+      const resp = await window.superAPI.request('I00004', {
+        userAccount,
+        accountType: 'USDT',
+        accountProtocol: '' // 空表示获取所有网络
+      });
+      
+      console.log('[fetchDepositAccounts] I00004 response:', resp);
+      
+      if (resp && resp.status === 1 && Array.isArray(resp.accountList)) {
+        // 保存账户列表映射：{ 网络名称: { account, protocol } }
+        const accountMap = {};
+        resp.accountList.forEach(item => {
+          if (item.accountProtocol) {
+            accountMap[item.accountProtocol] = {
+              account: item.inAccount,
+              protocol: item.accountProtocol
+            };
+          }
+        });
+        
+        this._depositAccountMap = accountMap;
+        console.log('[fetchDepositAccounts] accountMap:', accountMap);
+        
+        // 默认选中第一个网络
+        const firstNetwork = resp.accountList[0]?.accountProtocol;
+        if (firstNetwork) {
+          this.setData({ depositNetwork: firstNetwork });
+          const networkNameEl = document.querySelector('[data-network-name]');
+          if (networkNameEl) networkNameEl.textContent = firstNetwork;
+        }
+      }
+    } catch (err) {
+      console.warn('[fetchDepositAccounts] failed', err);
+      (window.ShowToast || console.log)('获取充值账户失败，请稍后重试');
+    }
+  },
+
   closeDepositPage() {
+    try {
+      // 使用通用滑动页面管理器
+      this.closeSlidePage('deposit-overlay', {
+        onAfterClose: () => {
+          // 重置充值金额
+          this.setData({ depositAmount: '0', depoit_page: 0, depositQRData: null });
+          this.updateDepositDisplay();
+        }
+      });
+    } catch (err) {
+      console.warn('closeDepositPage failed', err);
+    }
+  },
+
+  // 🔥 从二维码页返回到充值输入页
+  backToDepositInput() {
+    try {
+      // 兼容旧入口：统一走 onDepositBack 逻辑
+      this.onDepositBack && this.onDepositBack();
+    } catch (err) {
+      console.warn('backToDepositInput failed', err);
+    }
+  },
+
+  // 顶部返回按钮：depoit_page==1 时切回输入页，否则返回首页
+  onDepositBack() {
+    try {
+      const step = Number((this.data && this.data.depoit_page) || 0);
+      if (step === 1) {
+        this.setData({ depoit_page: 0 });
+        // 恢复输入数值展示
+        this.updateDepositDisplay && this.updateDepositDisplay();
+        return;
+      }
+      // step 为 0：关闭覆盖层并回到首页
+      this.closeDepositPage && this.closeDepositPage();
+      this.activateTab && this.activateTab('home', { fromUserAction: true });
+    } catch (err) {
+      console.warn('onDepositBack failed', err);
+    }
+  },
+
+  // 显示充值二维码视图（提交成功后调用）
+  showDepositQRView(qrData = {}) {
     try {
       const overlay = document.getElementById('deposit-overlay');
       if (!overlay) return;
-      
-      // 隐藏充值页面
-      overlay.setAttribute('aria-hidden', 'true');
-      
-      // 恢复页面滚动
-      document.body.style.overflow = '';
-      
+      overlay.setAttribute('aria-hidden', 'false');
+
+      // 隐藏输入与键盘
+      const contentWrapper = overlay.querySelector('.deposit-content-wrapper');
+      const numpadSection = overlay.querySelector('.deposit-numpad-section');
+      if (contentWrapper) contentWrapper.style.display = 'none';
+      if (numpadSection) numpadSection.style.display = 'none';
+
+      // 显示二维码与扫码信息
+      let qrSection = overlay.querySelector('.deposit-qr-section');
+      if (!qrSection) {
+        qrSection = document.createElement('div');
+        qrSection.className = 'deposit-qr-section';
+        qrSection.style.padding = '24px';
+        qrSection.style.textAlign = 'center';
+        overlay.querySelector('.deposit-content-wrapper')?.parentElement?.appendChild(qrSection);
+      }
+      qrSection.style.display = '';
+
+      let scanInfo = overlay.querySelector('.deposit-scan-info');
+      if (!scanInfo) {
+        scanInfo = document.createElement('div');
+        scanInfo.className = 'deposit-scan-info';
+        scanInfo.style.padding = '12px 24px';
+        scanInfo.style.textAlign = 'center';
+        qrSection.parentElement?.appendChild(scanInfo);
+      }
+      scanInfo.style.display = '';
+
+      // 简易渲染二维码与文案（可替换为真实二维码组件）
+      const addr = qrData.address || 'USDT-ERC20: 0x0000...';
+      const amount = qrData.amount || this.data?.depositAmount || '0';
+      qrSection.innerHTML = `<div style="width:200px;height:200px;margin:0 auto;background:#eee;border-radius:8px"></div>`;
+      scanInfo.innerHTML = `<div style="margin-top:12px;color:#666">请使用钱包扫码转账<br/>地址：<b>${addr}</b><br/>金额：<b>${amount}</b> USDT</div>`;
     } catch (err) {
-      console.warn('closeDepositPage failed', err);
+      console.warn('showDepositQRView failed', err);
     }
   },
 
@@ -8780,31 +9503,33 @@ Page({
         return;
       }
       
-      const t = (key, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(key, fallback) : fallback;
+      // 从 _depositAccountMap 构建网络选项列表
+      const accountMap = this._depositAccountMap || {};
+      const networks = Object.keys(accountMap).map(protocol => ({
+        value: protocol,
+        label: `${protocol}`,
+        desc: `${protocol} Network`
+      }));
       
-      // 网络选项
-      const networks = [
-        {
-          value: 'ERC20',
-          label: 'ERC20',
-          desc: 'Ethereum Network'
-        },
-        {
-          value: 'TRC20',
-          label: 'TRC20',
-          desc: 'TRON Network'
-        },
-        {
-          value: 'BSC',
-          label: 'BSC (BEP20)',
-          desc: 'Binance Smart Chain'
-        },
-        {
-          value: 'Polygon',
-          label: 'Polygon',
-          desc: 'Polygon Network'
+      if (!networks.length) {
+        // 统一使用通用弹窗组件
+        const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+        const msg = lang === 'zh-CN' ? '暂无可用充值网络，请稍后重试' : 'No available networks, please try again later';
+        if (typeof this.openActionSheet === 'function') {
+          this.openActionSheet({
+            mode: 'alert',
+            theme: 'light',
+            status: 'error',
+            message: msg,
+            hideActions: false,
+            confirmText: lang === 'zh-CN' ? '确定' : 'OK',
+            cancelText: ''
+          });
+        } else {
+          console.log(msg);
         }
-      ];
+        return;
+      }
       
       this.openActionSheet({
         mode: 'menu',
@@ -8830,37 +9555,237 @@ Page({
       if (networkNameEl) {
         networkNameEl.textContent = option.value;
       }
-      
-      // 显示提示
-      const label = option.label || option.value;
-      const msg = `Selected ${label}`;
-      if (typeof window.ShowToast === 'function') {
-        window.ShowToast(msg, { icon: 'success' });
-      } else {
-      }
+      // 取消选择网络后的提示，不做额外弹窗或 Toast
     } catch (err) {
       console.warn('handleNetworkSelect failed', err);
     }
   },
 
-  onDepositSubmit() {
+  async onDepositSubmit() {
     try {
       const amount = parseFloat(this.data.depositAmount);
       
       // 验证最小金额
       if (!amount || amount < 10) {
-        this.showToast('最小充值金额为 10 USDT', 'warning');
+        // 使用统一弹窗，避免被充值页面遮罩层覆盖
+        const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+        const msg = lang === 'zh-CN' ? '最小充值金额为 10 USDT' : 'Minimum deposit is 10 USDT';
+        if (typeof this.openActionSheet === 'function') {
+          this.openActionSheet({
+            mode: 'alert',
+            theme: 'light',
+            status: 'error',
+            message: msg,
+            hideActions: false,
+            confirmText: lang === 'zh-CN' ? '确定' : 'OK',
+            cancelText: ''
+          });
+        } else {
+          (window.ShowToast || console.log)(msg);
+        }
         return;
       }
       
+      const userAccount = this.resolveUserAccount();
+      if (!userAccount) {
+        const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+        const msg = lang === 'zh-CN' ? '请先登录' : 'Please login first';
+        if (typeof this.openActionSheet === 'function') {
+          this.openActionSheet({
+            mode: 'alert',
+            theme: 'light',
+            status: 'error',
+            message: msg,
+            hideActions: false,
+            confirmText: lang === 'zh-CN' ? '确定' : 'OK',
+            cancelText: ''
+          });
+        } else {
+          console.log(msg);
+        }
+        return;
+      }
       
-      // TODO: 调用充值 API
-      this.showToast('充值功能开发中', 'info');
+      const network = this.data.depositNetwork || 'ERC20';
+      const accountMap = this._depositAccountMap || {};
+      const accountInfo = accountMap[network];
       
-      // 暂时关闭充值页面
-      // this.closeDepositPage();
+      if (!accountInfo || !accountInfo.account) {
+        const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+        const msg = lang === 'zh-CN' ? '未找到对应网络的收款账户，请重新选择' : 'No receiving account for selected network';
+        if (typeof this.openActionSheet === 'function') {
+          this.openActionSheet({
+            mode: 'alert',
+            theme: 'light',
+            status: 'error',
+            message: msg,
+            hideActions: false,
+            confirmText: lang === 'zh-CN' ? '确定' : 'OK',
+            cancelText: ''
+          });
+        } else {
+          console.log(msg);
+        }
+        return;
+      }
+      
+      if (!window.superAPI) { console.warn('[onDepositSubmit] superAPI unavailable'); return; }
+      
+      // 调用 I00005：创建预订单
+      // 参数：userAccount, tradeCurrency(USDT), tradeAmount, inAccount
+      const resp = await window.superAPI.request('I00005', {
+        userAccount,
+        tradeCurrency: 'USDT',
+        tradeAmount: amount,
+        inAccount: accountInfo.account
+      });
+      
+      console.log('[onDepositSubmit] I00005 response:', resp);
+      // 成功：切换到二维码步骤并写入展示数据
+      const isSuccess = !!resp && typeof resp === 'object' && resp.status === 1;
+      const tradeNo = isSuccess ? (resp.tradeNo || resp.data || '') : '';
+      if (isSuccess) {
+        const address = String(accountInfo.account || '');
+        const networkLabel = String(network || '');
+        
+        this.setData({
+          depoit_page: 1,
+          depositQRData: {
+            tradeNo,
+            amount,
+            network: networkLabel,
+            address
+          }
+        });
+        
+        // 等 DOM 渲染完成后用本地 qrcode.js 画二维码，并手动更新文本内容
+        setTimeout(() => {
+          try {
+            const canvas = document.getElementById('deposit-qr-canvas');
+            if (!canvas || typeof window.qrcode !== 'function') return;
+            
+            const qr = window.qrcode(0, 'M');
+            qr.addData(address);
+            qr.make();
+            
+            const modules = qr.getModuleCount();
+            const cellSize = 6;
+            canvas.width = canvas.height = modules * cellSize;
+            
+            const ctx = canvas.getContext('2d');
+            for (let r = 0; r < modules; r++) {
+              for (let c = 0; c < modules; c++) {
+                ctx.fillStyle = qr.isDark(r, c) ? '#000' : '#fff';
+                ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+              }
+            }
+            
+            // 手动更新文本内容（兜底，确保显示）
+            const networkValueEl = document.querySelector('.network-card .qr-card-value');
+            const addressValueEl = document.querySelector('.address-card .qr-card-value');
+            const orderValueEl = document.querySelector('.qr-order-value');
+            
+            if (networkValueEl) networkValueEl.textContent = networkLabel;
+            if (addressValueEl) addressValueEl.textContent = address;
+            if (orderValueEl && tradeNo) orderValueEl.textContent = tradeNo;
+          } catch (err) {
+            console.warn('[onDepositSubmit] QR render failed', err);
+          }
+        }, 100);
+      } else {
+        // 后端返回失败或异常
+        const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+        const errMsg = (resp && typeof resp === 'object' && (resp.message || resp.msg))
+          ? (resp.message || resp.msg)
+          : (lang === 'zh-CN' ? '创建充值订单失败，请重试' : 'Failed to create deposit order');
+        const displayMsg = lang === 'zh-CN' 
+          ? `创建充值订单失败：${errMsg}` 
+          : `Deposit order creation failed: ${errMsg}`;
+        
+        if (typeof this.openActionSheet === 'function') {
+          this.openActionSheet({
+            mode: 'alert',
+            theme: 'light',
+            status: 'error',
+            message: displayMsg,
+            hideActions: false,
+            confirmText: lang === 'zh-CN' ? '确定' : 'OK',
+            cancelText: ''
+          });
+        } else {
+          console.log(displayMsg);
+        }
+      }
     } catch (err) {
       console.warn('onDepositSubmit failed', err);
+      const lang = (window.i18n && window.i18n.lang) || 'zh-CN';
+      const msg = lang === 'zh-CN' ? '提交失败，请稍后重试' : 'Submission failed, please retry later';
+      if (typeof this.openActionSheet === 'function') {
+        this.openActionSheet({
+          mode: 'alert',
+          theme: 'light',
+          status: 'error',
+          message: msg,
+          hideActions: false,
+          confirmText: lang === 'zh-CN' ? '确定' : 'OK',
+          cancelText: ''
+        });
+      } else {
+        console.log(msg);
+      }
     }
+  },
+
+  // 🔥 显示充值二维码页面（覆盖层呈现）
+  showDepositQRCode(data) {
+    try {
+      const overlay = document.getElementById('deposit-overlay');
+      if (!overlay) return;
+      const contentHtml = this.buildDepositQRContent(data);
+      const container = overlay.querySelector('.deposit-content');
+      if (container) {
+        container.innerHTML = contentHtml;
+      } else {
+        overlay.innerHTML = `<div class="deposit-content">${contentHtml}</div>`;
+      }
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    } catch (err) {
+      console.warn('showDepositQRCode failed', err);
+    }
+  },
+
+  // 🔥 构建二维码展示内容（返回 HTML 字符串）
+  buildDepositQRContent(data) {
+    const { tradeNo, amount, network, address } = data;
+    const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(address)}`;
+    const tradeNoRow = tradeNo ? `
+      <div style="margin-bottom: 12px;">
+        <div style="color: #666; font-size: 14px;">Order No.</div>
+        <div style="font-weight: 600; margin-top: 4px;">${tradeNo}</div>
+      </div>
+    ` : '';
+    return `
+      <div style="padding: 20px; text-align: center;">
+        <!-- 头部返回按钮与标题 -->
+        <div style="display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px;">
+          <button onclick="window.currentPage && window.currentPage.backToDepositInput()" style="position: absolute; left: 0; background: none; border: none; font-size: 24px; cursor: pointer; padding: 8px;">←</button>
+          <div style="font-size: 18px; font-weight: 600;">Deposit</div>
+        </div>
+        
+        <img src="${qrCodeURL}" alt="QR Code" style="width: 240px; height: 240px; margin: 20px auto; display: block; border-radius: 8px;" />
+        <div style="margin-top: 20px; text-align: left; padding: 16px; background: #f5f5f5; border-radius: 8px;">
+          <div style="margin-bottom: 12px;">
+            <div style="color: #666; font-size: 14px;">network</div>
+            <div style="font-weight: 600; margin-top: 4px;">${network}</div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="color: #666; font-size: 14px;">Crypto Address</div>
+            <div style="font-weight: 600; word-break: break-all; margin-top: 4px;">${address}</div>
+          </div>
+          ${tradeNoRow}
+        </div>
+      </div>
+    `;
   }
 });

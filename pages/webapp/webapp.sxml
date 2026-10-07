@@ -1,3 +1,5 @@
+<!-- 引入提现页面独立样式，确保滑入动画与布局生效 -->
+<link rel="stylesheet" href="./webapp-withdrawal.css" />
 <!-- Webapp 入口页面：响应式移动优先布局，底部 tabBar -->
 <view class="webapp-root">
   <!-- 顶部安全区占位，确保刘海区域让出 -->
@@ -961,24 +963,25 @@
     
     <!-- 顶部导航栏 -->
     <view class="deposit-nav">
-      <button class="deposit-back-btn" bindtap="closeDepositPage" aria-label="Back">
+      <!-- 顶部返回：根据 depoit_page 决定行为 -->
+      <button class="deposit-back-btn" bindtap="onDepositBack" aria-label="Back">
         <text class="back-arrow">‹</text>
       </button>
-      <text class="deposit-title">Deposit</text>
+      <text class="deposit-title" data-i18n="webapp.deposit.title">Deposit</text>
       <view class="deposit-nav-placeholder"></view>
     </view>
 
-    <!-- 充值内容区 -->
-    <view class="deposit-content-wrapper">
+    <!-- 步骤 0：金额输入 + 网络选择 + 键盘 -->
+    <view class="deposit-content-wrapper" s:if="{{depoit_page==0}}">
       <!-- 金额显示区域 -->
       <view class="deposit-amount-display">
         <text class="amount-large" data-deposit-amount>0</text>
-        <text class="amount-currency">USDT</text>
+        <text class="amount-currency" data-i18n="webapp.deposit.currency">USDT</text>
       </view>
       <text class="amount-approx">≈ $<text data-deposit-approx>0.00</text></text>
 
       <!-- 网络选择提示 -->
-      <text class="network-hint">Please select a blockchain network.</text>
+      <text class="network-hint" data-i18n="webapp.deposit.networkHint">Please select a blockchain network.</text>
 
       <!-- 网络选择框 -->
       <button class="network-selector" bindtap="onSelectNetwork">
@@ -990,28 +993,28 @@
       </button>
 
       <!-- Deposit 按钮 -->
-      <button class="deposit-submit-btn" bindtap="onDepositSubmit">Deposit</button>
+      <button class="deposit-submit-btn" bindtap="onDepositSubmit" data-i18n="webapp.deposit.submitBtn">Deposit</button>
     </view>
 
-    <!-- 数字键盘区域 -->
-    <view class="deposit-numpad-section">
+    <!-- 数字键盘区域（同属步骤0） -->
+    <view class="deposit-numpad-section" s:if="{{depoit_page==0}}">
       <!-- 快捷金额按钮 -->
       <view class="deposit-shortcuts">
         <button class="deposit-shortcut-btn" data-amount="100" bindtap="onDepositShortcut">
           <text class="shortcut-amount">100</text>
-          <text class="shortcut-unit">USDT</text>
+          <text class="shortcut-unit" data-i18n="webapp.deposit.currency">USDT</text>
         </button>
         <button class="deposit-shortcut-btn" data-amount="1000" bindtap="onDepositShortcut">
           <text class="shortcut-amount">1000</text>
-          <text class="shortcut-unit">USDT</text>
+          <text class="shortcut-unit" data-i18n="webapp.deposit.currency">USDT</text>
         </button>
         <button class="deposit-shortcut-btn" data-amount="10000" bindtap="onDepositShortcut">
           <text class="shortcut-amount">10000</text>
-          <text class="shortcut-unit">USDT</text>
+          <text class="shortcut-unit" data-i18n="webapp.deposit.currency">USDT</text>
         </button>
         <button class="deposit-shortcut-btn" data-amount="100000" bindtap="onDepositShortcut">
           <text class="shortcut-amount">100000</text>
-          <text class="shortcut-unit">USDT</text>
+          <text class="shortcut-unit" data-i18n="webapp.deposit.currency">USDT</text>
         </button>
       </view>
 
@@ -1032,6 +1035,200 @@
           <img class="delete-icon" src="../../images/app_backspace_day.png" alt="Delete" />
         </button>
       </view>
+    </view>
+
+    <!-- 步骤 1：二维码展示区，布局对齐原生 App 样式 -->
+    <view class="deposit-qr-step" s:if="{{depoit_page==1}}">
+      <view class="deposit-qr-wrapper">
+        <!-- 二维码 canvas 区域（本地生成） -->
+        <canvas id="deposit-qr-canvas" class="deposit-qr-image"></canvas>
+
+        <!-- network 卡片 -->
+        <view class="deposit-qr-card network-card">
+          <view class="qr-card-label" data-i18n="webapp.deposit.qr.network">network</view>
+          <view class="qr-card-main-row">
+            <text class="qr-card-value">{{depositQRData && depositQRData.network}}</text>
+          </view>
+        </view>
+
+        <!-- 地址卡片 -->
+        <view class="deposit-qr-card address-card">
+          <view class="qr-card-label" data-i18n="webapp.deposit.qr.address">Crypto Address</view>
+          <view class="qr-card-main-row">
+            <text class="qr-card-value qr-address">{{depositQRData && depositQRData.address}}</text>
+          </view>
+        </view>
+
+        <!-- 订单号卡片（可选） -->
+        <view class="deposit-qr-card order-card" s:if="{{depositQRData && depositQRData.tradeNo}}">
+          <view class="qr-card-label" data-i18n="webapp.deposit.qr.orderNo">Order No.</view>
+          <view class="qr-card-main-row">
+            <text class="qr-card-value qr-order-value">{{depositQRData.tradeNo}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 提现页面覆盖层 -->
+<view class="withdrawal-page-overlay" id="withdrawal-overlay" aria-hidden="true">
+  <!-- 顶部安全区占位 -->
+  <view class="withdrawal-safe-top"></view>
+  
+  <!-- 顶部导航栏 -->
+  <view class="withdrawal-nav">
+    <button class="withdrawal-back-btn" bindtap="onWithdrawalBack" aria-label="Back">
+      <text class="back-arrow">‹</text>
+    </button>
+    <text class="withdrawal-title" data-i18n="webapp.withdrawal.title">Withdrawal</text>
+    <view class="withdrawal-nav-placeholder"></view>
+  </view>
+
+  <!-- 步骤 0：输入页面 -->
+  <view class="withdrawal-content-wrapper" s:show="{{withdrawal_page==0}}">
+    <!-- 金额显示区域 -->
+    <view class="withdrawal-amount-display">
+      <text class="amount-large" data-withdrawal-amount>0</text>
+      <text class="amount-currency" data-i18n="webapp.withdrawal.currency">USDT</text>
+    </view>
+    <text class="amount-available">
+      <text data-i18n="webapp.withdrawal.available">Available</text>
+      <text data-withdrawal-available>50.00</text>
+    </text>
+
+    <!-- 加密钱包提现 -->
+    <view s:show="{{withdrawalMethod=='crypto'}}" class="withdrawal-method-wrapper">
+      <!-- 网络选择 -->
+      <button class="withdrawal-selector" bindtap="onSelectWithdrawalNetwork">
+        <view class="selector-left">
+          <img class="selector-icon" src="../../images/app_coin2_day.png" alt="Network" />
+          <text class="selector-name" data-withdrawal-network-name>USDT (ERC20)</text>
+        </view>
+        <img class="selector-arrow" src="../../images/app_tabbar_10_day.png" alt="Arrow" />
+      </button>
+
+      <!-- 提现地址输入框 -->
+      <view class="withdrawal-address-input-wrapper">
+        <view class="floating-field withdrawal-address-field field-empty">
+          <view class="floating-shell">
+            <view class="floating-display">
+              <text class="floating-label" data-i18n="webapp.withdrawal.cryptoAddress">Crypto Address</text>
+              <input class="num" type="text" value="" data-key="withdrawalAddress" placeholder="" />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 银行卡提现 -->
+    <view s:show="{{withdrawalMethod=='bank'}}" class="withdrawal-method-wrapper">
+      <!-- 账户名 -->
+      <view class="withdrawal-field">
+        <text class="field-label" data-i18n="webapp.withdrawal.accountName">账户名称</text>
+        <text class="field-value">Donald Trump</text>
+      </view>
+
+      <!-- 银行选择 -->
+      <button class="withdrawal-selector">
+        <text class="selector-name">ICBC</text>
+        <img class="selector-arrow" src="../../images/app_tabbar_10_day.png" alt="Arrow" />
+      </button>
+
+      <!-- 银行卡号 -->
+      <view class="withdrawal-field">
+        <text class="field-label" data-i18n="webapp.withdrawal.cardNumber">银行卡号</text>
+        <text class="field-value">6000102356000005</text>
+      </view>
+    </view>
+
+    <!-- 提现按钮 -->
+    <button class="withdrawal-submit-btn" bindtap="onWithdrawalSubmit" data-i18n="webapp.withdrawal.submitBtn">Withdrawal</button>
+  </view>
+
+  <!-- 数字键盘区域（步骤0） -->
+  <view class="withdrawal-numpad-section" s:show="{{withdrawal_page==0}}">
+    <!-- 快捷金额按钮 -->
+    <view class="withdrawal-shortcuts">
+      <button class="withdrawal-shortcut-btn" data-amount="100" bindtap="onWithdrawalShortcut">
+        <text class="shortcut-amount">100</text>
+        <text class="shortcut-unit" data-i18n="webapp.withdrawal.currency">USDT</text>
+      </button>
+      <button class="withdrawal-shortcut-btn" data-amount="1000" bindtap="onWithdrawalShortcut">
+        <text class="shortcut-amount">1000</text>
+        <text class="shortcut-unit" data-i18n="webapp.withdrawal.currency">USDT</text>
+      </button>
+      <button class="withdrawal-shortcut-btn" data-amount="10000" bindtap="onWithdrawalShortcut">
+        <text class="shortcut-amount">10000</text>
+        <text class="shortcut-unit" data-i18n="webapp.withdrawal.currency">USDT</text>
+      </button>
+      <button class="withdrawal-shortcut-btn" data-amount="100000" bindtap="onWithdrawalShortcut">
+        <text class="shortcut-amount">100000</text>
+        <text class="shortcut-unit" data-i18n="webapp.withdrawal.currency">USDT</text>
+      </button>
+    </view>
+
+    <!-- 数字键盘 -->
+    <view class="withdrawal-numpad-keys">
+      <button class="withdrawal-key" data-key="1" bindtap="onWithdrawalKeyTap">1</button>
+      <button class="withdrawal-key" data-key="2" bindtap="onWithdrawalKeyTap">2</button>
+      <button class="withdrawal-key" data-key="3" bindtap="onWithdrawalKeyTap">3</button>
+      <button class="withdrawal-key" data-key="4" bindtap="onWithdrawalKeyTap">4</button>
+      <button class="withdrawal-key" data-key="5" bindtap="onWithdrawalKeyTap">5</button>
+      <button class="withdrawal-key" data-key="6" bindtap="onWithdrawalKeyTap">6</button>
+      <button class="withdrawal-key" data-key="7" bindtap="onWithdrawalKeyTap">7</button>
+      <button class="withdrawal-key" data-key="8" bindtap="onWithdrawalKeyTap">8</button>
+      <button class="withdrawal-key" data-key="9" bindtap="onWithdrawalKeyTap">9</button>
+      <button class="withdrawal-key withdrawal-key-dot" data-key="." bindtap="onWithdrawalKeyTap">•</button>
+      <button class="withdrawal-key" data-key="0" bindtap="onWithdrawalKeyTap">0</button>
+      <button class="withdrawal-key withdrawal-key-delete" data-key="delete" bindtap="onWithdrawalKeyTap">
+        <img class="delete-icon" src="../../images/app_backspace_day.png" alt="Delete" />
+      </button>
+    </view>
+  </view>
+
+  <!-- 步骤 1：确认页面 -->
+  <view class="withdrawal-confirm-step" s:show="{{withdrawal_page==1}}">
+    <view class="confirm-wrapper">
+      <text class="confirm-title" data-i18n="webapp.withdrawal.confirmTitle">确认提现</text>
+      <text class="confirm-subtitle" data-i18n="webapp.withdrawal.confirmSubtitle">请确认以下信息</text>
+      
+      <!-- 确认信息卡片 -->
+      <view class="confirm-card">
+        <view class="confirm-row">
+          <text class="confirm-label" data-i18n="webapp.withdrawal.amount">金额</text>
+          <text class="confirm-value">{{withdrawalConfirmData && withdrawalConfirmData.amount}} USDT</text>
+        </view>
+        
+        <view s:show="{{withdrawalConfirmData && withdrawalConfirmData.method=='crypto'}}">
+          <view class="confirm-row">
+            <text class="confirm-label" data-i18n="webapp.withdrawal.network">网络</text>
+            <text class="confirm-value">{{withdrawalConfirmData && withdrawalConfirmData.network}}</text>
+          </view>
+          <view class="confirm-row">
+            <text class="confirm-label" data-i18n="webapp.withdrawal.address">地址</text>
+            <text class="confirm-value confirm-address">{{withdrawalConfirmData && withdrawalConfirmData.address}}</text>
+          </view>
+        </view>
+        
+        <view s:show="{{withdrawalConfirmData && withdrawalConfirmData.method=='bank'}}">
+          <view class="confirm-row">
+            <text class="confirm-label" data-i18n="webapp.withdrawal.accountName">账户名</text>
+            <text class="confirm-value">{{withdrawalConfirmData && withdrawalConfirmData.accountName}}</text>
+          </view>
+          <view class="confirm-row">
+            <text class="confirm-label" data-i18n="webapp.withdrawal.bankName">银行</text>
+            <text class="confirm-value">{{withdrawalConfirmData && withdrawalConfirmData.bankName}}</text>
+          </view>
+          <view class="confirm-row">
+            <text class="confirm-label" data-i18n="webapp.withdrawal.cardNumber">卡号</text>
+            <text class="confirm-value">{{withdrawalConfirmData && withdrawalConfirmData.accountNumber}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 确认按钮 -->
+      <button class="withdrawal-confirm-btn" data-i18n="webapp.withdrawal.confirm">确认提现</button>
     </view>
   </view>
 </view>

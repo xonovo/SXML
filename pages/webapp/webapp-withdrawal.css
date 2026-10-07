@@ -1,0 +1,390 @@
+/* 提现页面样式 - 复用充值页面样式结构 */
+
+/* 提现页面覆盖层 */
+.withdrawal-page-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: #ffffff;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.withdrawal-page-overlay[aria-hidden="false"] {
+  display: flex;
+  transform: translateX(0);
+}
+
+/* 顶部安全区 */
+.withdrawal-safe-top {
+  height: constant(safe-area-inset-top, 0px);
+  height: env(safe-area-inset-top, 0px);
+  min-height: 40px;
+  background: #ffffff;
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+/* 顶部导航栏 */
+.withdrawal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  flex: 0 0 auto;
+}
+
+.withdrawal-back-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 32px;
+  color: #333;
+  font-weight: 300;
+}
+
+.withdrawal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+  text-align: center;
+}
+
+.withdrawal-nav-placeholder {
+  width: 40px;
+}
+
+/* 内容区域 */
+.withdrawal-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 24px 16px;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+/* 金额显示 */
+.withdrawal-amount-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.amount-available {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 24px;
+}
+
+/* 选择器（网络、银行） */
+.withdrawal-selector {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.selector-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selector-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.selector-name {
+  font-size: 16px;
+  color: #333;
+}
+
+.selector-arrow {
+  width: 20px;
+  height: 20px;
+  transform: rotate(-90deg);
+}
+
+/* 地址显示区域 */
+.withdrawal-address-section {
+  width: 100%;
+  max-width: 500px;
+  padding: 16px;
+  background: #f8f8f8;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.address-label {
+  font-size: 12px;
+  color: #999;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.address-value {
+  font-size: 14px;
+  color: #333;
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+}
+
+/* 字段显示（银行卡信息） */
+.withdrawal-field {
+  width: 100%;
+  max-width: 500px;
+  padding: 16px;
+  background: #f8f8f8;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.field-label {
+  font-size: 12px;
+  color: #999;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.field-value {
+  font-size: 16px;
+  color: #333;
+}
+
+/* 提现按钮 */
+.withdrawal-submit-btn {
+  width: 100%;
+  max-width: 400px;
+  height: 48px;
+  background: linear-gradient(135deg, #b8945f 0%, #8b7348 100%);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: auto;
+}
+
+/* 数字键盘区域 */
+.withdrawal-numpad-section {
+  flex: 0 0 auto;
+  background: #f8f8f8;
+  padding: 16px 24px 32px;
+  padding-bottom: constant(safe-area-inset-bottom, 32px);
+  padding-bottom: env(safe-area-inset-bottom, 32px);
+}
+
+.withdrawal-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.withdrawal-shortcut-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 60px;
+}
+
+.withdrawal-numpad-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.withdrawal-key {
+  height: 56px;
+  background: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 24px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.withdrawal-key:active {
+  background: #e8e8e8;
+}
+
+.withdrawal-key-dot {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.withdrawal-key-delete {
+  background: #f0f0f0;
+}
+
+/* 确认页面 */
+.withdrawal-confirm-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 24px;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+.confirm-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.confirm-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.confirm-subtitle {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.confirm-card {
+  background: #f8f8f8;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.confirm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.confirm-row:last-child {
+  border-bottom: none;
+}
+
+.confirm-label {
+  font-size: 14px;
+  color: #666;
+  flex: 0 0 auto;
+  margin-right: 16px;
+}
+
+.confirm-value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+  word-break: break-all;
+}
+
+.confirm-address {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.withdrawal-confirm-btn {
+  width: 100%;
+  height: 48px;
+  background: linear-gradient(135deg, #b8945f 0%, #8b7348 100%);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: auto;
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .withdrawal-page-overlay,
+[data-theme="dark"] .withdrawal-safe-top,
+[data-theme="dark"] .withdrawal-nav,
+[data-theme="dark"] .withdrawal-content-wrapper,
+[data-theme="dark"] .withdrawal-confirm-step {
+  background: #1a1a1a;
+}
+
+[data-theme="dark"] .withdrawal-title,
+[data-theme="dark"] .selector-name,
+[data-theme="dark"] .field-value,
+[data-theme="dark"] .confirm-title,
+[data-theme="dark"] .confirm-value {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .amount-available,
+[data-theme="dark"] .address-label,
+[data-theme="dark"] .field-label,
+[data-theme="dark"] .confirm-subtitle,
+[data-theme="dark"] .confirm-label {
+  color: #666666;
+}
+
+[data-theme="dark"] .withdrawal-selector,
+[data-theme="dark"] .withdrawal-address-section,
+[data-theme="dark"] .withdrawal-field,
+[data-theme="dark"] .confirm-card {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+
+[data-theme="dark"] .withdrawal-numpad-section {
+  background: #1a1a1a;
+}
+
+[data-theme="dark"] .withdrawal-shortcut-btn,
+[data-theme="dark"] .withdrawal-key {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .withdrawal-key-delete {
+  background: #333333;
+}

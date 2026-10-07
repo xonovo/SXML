@@ -54,6 +54,14 @@
       this.logQueue = [];
       this.failedLoginAttempts = new Map(); // IP -> {count, lastAttempt}
       this.performanceMetrics = new Map();
+      // 仅在开发环境启用服务端日志上报；生产默认关闭，避免 404
+      try {
+        const host = (window && window.location && window.location.hostname) || '';
+        const isDev = host === 'localhost' || host === '127.0.0.1';
+        if (!isDev) {
+          this.apiEndpoint = '';
+        }
+      } catch (_) { /* silent */ }
       
       // 启动定时刷新
       this.startAutoFlush();
@@ -266,6 +274,7 @@
      */
     async flush() {
       if (this.logQueue.length === 0) return;
+      if (!this.apiEndpoint) return; // 生产环境默认不发送到后端
       
       const logs = [...this.logQueue];
       this.logQueue = [];
@@ -313,6 +322,7 @@
       try {
         const cached = JSON.parse(localStorage.getItem('_cached_logs') || '[]');
         if (cached.length > 0) {
+          if (!this.apiEndpoint) return; // 无上报端点则不重试
           await fetch(this.apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -466,7 +476,14 @@
 
   // 自动启动监控
   logger.monitorPageLoad();
-  logger.wrapFetch();
+  // 仅在开发环境包裹 fetch，以避免生产环境产生 /api/logs 请求
+  try {
+    const host = (window && window.location && window.location.hostname) || '';
+    const isDev = host === 'localhost' || host === '127.0.0.1';
+    if (isDev) {
+      logger.wrapFetch();
+    }
+  } catch (_) { /* silent */ }
   logger.monitorErrors();
 
 })();

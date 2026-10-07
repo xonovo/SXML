@@ -17,7 +17,7 @@
       "baseUrl": "https://www.ice-markets-app.com",
       "cspReportUrl": "/api/csp-report",
       "wsUrl": "wss://www.ice-markets-app.com/ws",
-  "marketWsUrl": "wss://data.infoway.io/ws",
+  "marketWsUrl": "wss://www.ice-markets-app.com/infoway-websocket",
   "marketApiBaseUrl": "https://www.ice-markets-app.com/infoway-api",
       // 行情鉴权由服务器代理注入，前端不再持有 marketApiKey
       "uploadUrl": "https://www.ice-markets-app.com/upload",
@@ -38,7 +38,7 @@
       "ipApiProvider": "https://api.ipify.org"
     },
     "security": {
-  "connectSrc": ["'self'","https://www.ice-markets-app.com","wss://www.ice-markets-app.com","https://ipapi.co","https://api.ipify.org","https://www.ice-markets-app.com/infoway-api","wss://data.infoway.io"],
+  "connectSrc": ["'self'","https://www.ice-markets-app.com","wss://www.ice-markets-app.com","https://ipapi.co","https://api.ipify.org","https://www.ice-markets-app.com/infoway-api"],
       "preconnectHosts": [
         "https://www.ice-markets-app.com",
         "https://ipapi.co",
